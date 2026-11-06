@@ -26,7 +26,7 @@ Processing steps (one-off, not a runtime pipeline):
 - runtime ship art mirrored across the vertical centerline (source AI art was asymmetrical);
   the normal map is mirrored with its X channel flipped,
 - the three rear cyan engine ovals are excluded from the emissive/glow maps for special
-  treatment later,
+  treatment later; the baked reverse-engine nozzle ovals **are** included,
 - the center nozzle is copied, turned 180°, scaled 0.58×, and composited **below** the ship
   color/normal maps under the outer wing edges as the reverse-engine visual.
 
