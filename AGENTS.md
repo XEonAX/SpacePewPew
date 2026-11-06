@@ -59,8 +59,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   (64 world px per metre; major lines every 5 m).
 - `src/app/engine-exhaust.ts` — three cyan cone-flame sprites plus dense dust-world smoke
   particles emitted from the cone tips only while engine power is on; old puffs fade over 10 s.
-- `src/app/reverse-engines.ts` — two rotated center-nozzle copies under the wing leading edges,
-  rendered behind the ship as reverse-engine nozzles.
+- `src/app/reverse-engines.ts` — two configurable reverse-engine nozzle sprites under the wings,
+  rendered behind the ship.
+- `src/app/reverse-engine-editor.ts` — live DOM editor for reverse-engine X/Y/scale/rotation.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.

@@ -10,8 +10,9 @@ import type { FlightControls } from './ship-flight';
 import { createFlightTuner } from './flight-tuner';
 import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
-import { createReverseEngines } from './reverse-engines';
 import { FLAME_LOCAL_LENGTH, createEngineExhaust } from './engine-exhaust';
+import { createReverseEngines, DEFAULT_REVERSE_ENGINE_CONFIG } from './reverse-engines';
+import { createReverseEngineEditor } from './reverse-engine-editor';
 import { PIXELS_PER_METER } from './world-scale';
 
 export interface Scene {
@@ -72,7 +73,8 @@ export async function createScene(app: Application): Promise<Scene> {
 
   const ground = createGroundGrid();
   const exhaust = createEngineExhaust();
-  const reverseEngines = createReverseEngines(reverseEngine);
+  const reverseEngineConfig = { ...DEFAULT_REVERSE_ENGINE_CONFIG };
+  const reverseEngines = createReverseEngines(reverseEngine, reverseEngineConfig);
   content.addChild(ground.mesh, exhaust.smoke, reverseEngines.container);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
@@ -261,6 +263,11 @@ export async function createScene(app: Application): Promise<Scene> {
   const flightTuner = createFlightTuner(tuning);
   document.body.append(flightTuner.element);
 
+  const reverseEngineEditor = createReverseEngineEditor(reverseEngineConfig, (config) => {
+    reverseEngines.setConfig(config);
+  });
+  document.body.append(reverseEngineEditor.element);
+
   const telemetry = createFlightTelemetry(flight, tuning);
   document.body.append(telemetry.element);
 
@@ -286,6 +293,7 @@ export async function createScene(app: Application): Promise<Scene> {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
       flightTuner.destroy();
+      reverseEngineEditor.destroy();
       telemetry.destroy();
       exhaust.destroy();
       reverseEngines.destroy();
