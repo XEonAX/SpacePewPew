@@ -186,7 +186,8 @@ export function createTurrets(texture: Texture): Turrets {
         const muzzleY = config.y - Math.cos(aim.angle) * muzzleLength;
 
         const glow = glowSprites[index]!;
-        const level = glowLevels[pairIndex] ?? 1;
+        // Charge/fire state only belongs to barrels currently tracking the mouse.
+        const level = inArc ? (glowLevels[pairIndex] ?? 1) : 1;
         glow.position.set(muzzleX, muzzleY);
         glow.visible = level > 0;
         if (glow.visible) {
@@ -220,9 +221,6 @@ export function createTurrets(texture: Texture): Turrets {
     },
     setGlowLevels(levels: readonly number[]): void {
       glowLevels = levels;
-      for (let index = 0; index < glowSprites.length; index += 1) {
-        glowSprites[index]!.visible = (levels[Math.floor(index / 2)] ?? 1) > 0;
-      }
     },
     destroy(): void {
       container.destroy({ children: true });
