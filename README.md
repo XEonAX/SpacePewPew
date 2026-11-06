@@ -138,16 +138,17 @@ runtime copies live in [public/assets/lighting/](public/assets/lighting/).
 ## Audio
 
 Howler is wired through `src/audio/audio.ts`. The four committed weapon clips in
-`public/audio/weapons/` were split, faded, and normalized from the supplied sources, with their
-full charge/attack preserved:
+`public/audio/weapons/` were split, faded, and normalized from the supplied sources:
 
 - `beam-front.wav` — front pair,
 - `blast-3.wav` — 2nd pair,
 - `blast-4.wav` — 3rd pair,
 - `blast-5.wav` — rear pair.
 
-Clicking starts the charge sound immediately; `WEAPON_SHOT_DELAYS` holds the tracer until the
-measured blast impact. The 1st/2nd sequence sounds are not used as weapon shots.
+For the three rear weapons, only the pre-blast charge was time-compressed to ~300 ms and
+equal-power crossfaded into the untouched blast body (no hard cuts). Clicking starts the charge;
+`WEAPON_SHOT_DELAYS` holds the tracer until the measured blast impact. The 1st/2nd sequence
+sounds are not used as weapon shots.
 
 Each pair cycles its pool without repeating the previous shot, and every shot gets small
 playback-rate, volume, and stereo-pan variation. Keep clips small and avoid build-time asset

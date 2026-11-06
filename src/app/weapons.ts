@@ -23,9 +23,9 @@ export const WEAPON_PAIRS: readonly WeaponPairSpec[] = [
 /** Time from clip start to its first audible shot transient. */
 export const WEAPON_SHOT_DELAYS: Record<SoundName, number> = {
   'beam-front': 0.035,
-  'blast-3': 0.63,
-  'blast-4': 0.704,
-  'blast-5': 0.737,
+  'blast-3': 0.286,
+  'blast-4': 0.285,
+  'blast-5': 0.279,
 };
 
 export function nextPairVariant(
