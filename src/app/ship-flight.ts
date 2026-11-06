@@ -17,11 +17,11 @@ export interface FlightTuning {
 }
 
 export const DEFAULT_FLIGHT_TUNING: FlightTuning = {
-  forwardAccel: 9,
-  reverseAccel: 5,
-  angularAccel: 4.8,
-  linearDrag: 1.7,
-  angularDrag: 2.4,
+  forwardAccel: 12.5,
+  reverseAccel: 4,
+  angularAccel: 2,
+  linearDrag: 0.25,
+  angularDrag: 1.5,
   inputRampSeconds: 0.3,
 };
 
