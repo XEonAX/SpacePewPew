@@ -72,15 +72,27 @@ describe('ship flight', () => {
     expect(state.vx).toBe(100);
   });
 
-  it('applies drag while the input is still non-zero after release', () => {
+  it('keeps applying drag until the ramped input reaches zero', () => {
+    // Thrust disabled so only drag can change velocity.
+    const tuning = {
+      ...DEFAULT_FLIGHT_TUNING,
+      forwardAccel: 0,
+      reverseAccel: 0,
+    };
     const state = createFlightState();
     state.vx = 100;
+    state.linearInput = 1;
 
-    stepFlight(state, press({ forward: true }), DEFAULT_FLIGHT_TUNING.inputRampSeconds);
-    const accelerated = Math.hypot(state.vx, state.vy);
-    stepFlight(state, idle, DEFAULT_FLIGHT_TUNING.inputRampSeconds);
+    stepFlight(state, idle, 0.05, tuning);
 
-    expect(accelerated).toBeGreaterThan(0);
+    expect(state.linearInput).toBeGreaterThan(0);
+    expect(state.vx).toBeLessThan(100); // drag still applies after key-up
+
+    stepFlight(state, idle, DEFAULT_FLIGHT_TUNING.inputRampSeconds, tuning);
     expect(state.linearInput).toBe(0);
+
+    const coast = state.vx;
+    stepFlight(state, idle, 0.5, tuning);
+    expect(state.vx).toBeCloseTo(coast, 6); // drag stops once input is zero
   });
 });

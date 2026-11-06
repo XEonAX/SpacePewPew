@@ -83,8 +83,9 @@ export function stepFlight(
   state.angularVelocity += state.angularInput * tuning.angularAccel * dt;
 
   // Drag only while the corresponding input is non-zero; with a positive drag
-  // the thrust/drag ratio sets a finite terminal speed. Once the input ramps
-  // back to zero the ship coasts on its momentum.
+  // the thrust/drag ratio sets a finite terminal speed. After key-up the input
+  // still takes inputRampSeconds to reach 0, so drag stays on for that whole
+  // tail; once it hits zero the ship coasts on its momentum.
   if (state.linearInput !== 0) {
     const drag = Math.exp(-tuning.linearDrag * dt);
     state.vx *= drag;
