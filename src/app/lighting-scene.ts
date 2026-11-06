@@ -18,6 +18,8 @@ export interface Scene {
 }
 
 const MAX_DELTA_SECONDS = 0.05;
+const LOOKAHEAD_SECONDS = 0.2;
+const MAX_LOOKAHEAD_METERS = 12;
 
 /** World-space lighting shared by the lit meshes. */
 const lighting: LightingState = {
@@ -117,6 +119,22 @@ export async function createScene(app: Application): Promise<Scene> {
     hint.position.set(centerX, height - 28);
   };
 
+  const followCamera = (immediate = false): void => {
+    const { width, height } = app.screen;
+    const speed = Math.hypot(flight.vx, flight.vy);
+    const lookahead = Math.min(MAX_LOOKAHEAD_METERS, speed * LOOKAHEAD_SECONDS);
+    const directionX = speed > 0 ? flight.vx / speed : 0;
+    const directionY = speed > 0 ? flight.vy / speed : 0;
+
+    // Lead the ship by a velocity-scaled amount: moving up puts the camera
+    // target above the ship, so the ship sits below screen center.
+    background.setFollowTarget(
+      ((flight.x + directionX * lookahead) * PIXELS_PER_METER) / width,
+      ((flight.y + directionY * lookahead) * PIXELS_PER_METER) / height,
+      immediate,
+    );
+  };
+
   const updateTransforms = (): void => {
     const { width, height } = app.screen;
     const dust = background.getDustTransform();
@@ -154,10 +172,7 @@ export async function createScene(app: Application): Promise<Scene> {
 
     layout();
     telemetry.update();
-    background.setFollowTarget(
-      (flight.x * PIXELS_PER_METER) / app.screen.width,
-      (flight.y * PIXELS_PER_METER) / app.screen.height,
-    );
+    followCamera();
     updateTransforms();
     updateLighting();
   };
@@ -199,11 +214,7 @@ export async function createScene(app: Application): Promise<Scene> {
   app.ticker.add(tick);
   layout();
   telemetry.update();
-  background.setFollowTarget(
-    (flight.x * PIXELS_PER_METER) / app.screen.width,
-    (flight.y * PIXELS_PER_METER) / app.screen.height,
-    true,
-  );
+  followCamera(true);
   updateTransforms();
   updateLighting();
 
