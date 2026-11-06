@@ -58,6 +58,7 @@ src/
   app/flight-telemetry.ts Read-only terminal/velocity/input telemetry overlay
   app/ground-grid.ts      Screen-space 1 m grid fixed to the near dust layer
   app/engine-exhaust.ts   Cone flames + world-space smoke exhaust
+  app/engine-audio.ts     Per-engine hum loops driven by nozzle power (tested)
   app/engine-layout.ts    Shared main/reverse engine positions
   app/engine-mix.ts       Pure ramped engine-output mixer (tested)
   app/turrets.ts          Eight turret mounts with finite-speed mouse tracking
@@ -77,6 +78,7 @@ src/
 public/
   favicon.svg
   audio/weapons/          Processed weapon SFX (1 beam + 3 charge-blasts)
+  audio/engines/          Seamless engine-hum loops (heavy / normal / reverse)
   assets/lighting/        Processed color/normal maps + ship emissive/glow maps
 scripts/
   browser.mjs             Shared-browser CLI (open / inspect / act / stop)
@@ -154,6 +156,21 @@ sounds are not used as weapon shots.
 Each pair cycles its pool without repeating the previous shot, and every shot gets small
 playback-rate, volume, and stereo-pan variation. Keep clips small and avoid build-time asset
 pipelines.
+
+### Engine hums
+
+Every nozzle owns a continuous hum voice (`src/app/engine-audio.ts`) whose gain follows that
+engine's ramped power from `computeEngineOutputs`: the centre main engine gets the heavy,
+sub-heavy rumble, the two side main engines a normal mid-range layer, and the two reverse
+engines a lighter, brighter layer. Each voice also gets a small detune (left/right beat), a
+subtle pitch rise with power, and stereo pan from the nozzle's screen position, so turning
+reads through the audio as well as the exhaust. At zero thrust the loops run silently; the
+first pointer/key gesture unlocks them along with the weapon SFX.
+
+The three seamless loops in `public/audio/engines/` are generated offline: tonal layers and
+LFOs are quantised to integer cycles per loop and the noise beds are synthesised in the
+frequency domain with random phases, so the loop point is mathematically seamless (no fades,
+no hard cut). Runtime rate changes are safe because the loop length is unchanged.
 
 ## Agentic development
 

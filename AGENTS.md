@@ -60,6 +60,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/engine-exhaust.ts` — flames and dust-world smoke driven by the engine mix; flame
   length/alpha are proportional to each engine's ramped output and smoke emission is weighted
   per engine.
+- `src/app/engine-audio.ts` — per-engine hum loops whose gain follows each nozzle's power
+  (heavy centre, normal sides, lighter/higher reverse), with stereo pan from the nozzle's
+  screen position. Pure helpers unit-tested in `tests/engine-audio.test.ts`.
 - `src/app/engine-layout.ts` — shared main/reverse nozzle geometry (must match the baked texture).
 - `src/app/engine-mix.ts` — pure ramped engine-output mixer, unit-tested in
   `tests/engine-mix.test.ts`.
@@ -94,8 +97,12 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   listeners on HMR.
 - **Audio goes through `AudioManager`.** Browsers require a user gesture, so call `enable()`
   from a pointer/keyboard handler. Never construct `Howl` elsewhere.
-- **Audio assets are small and committed.** Weapon WAVs live in `public/audio/weapons/` and are
-  registered in `SOUND_SOURCES`. Trim/fade/normalize offline; do not add a build-time audio pipeline.
+- **Audio assets are small and committed.** Weapon WAVs live in `public/audio/weapons/`,
+  seamless engine-hum loops in `public/audio/engines/`; both are registered in
+  `src/audio/audio.ts`. Trim/fade/normalize offline; do not add a build-time audio pipeline.
+- **Continuous sounds are loops, not repeated shots.** Engine hums use
+  `AudioManager.createLoop()` and per-engine gain from `computeEngineOutputs`; loop assets must
+  stay seamless at any playback rate (constant loop length, no fades baked in).
 - **Browser artifacts are disposable.** `.agent/` and `.playwright-mcp/` are gitignored.
 - **Shared browser is shared.** Prefer `browser:inspect` / `browser:act`; they attach over CDP
   without closing the window. Do not launch a second persistent browser or kill the shared one

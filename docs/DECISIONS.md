@@ -158,3 +158,29 @@ this property.
 **Consequences:** never recompute pan from the absolute camera position; feed moves through
 `advanceCamera()` so zoom remains a pure scale. `projectPoint`/`projectStar` now take a layer pan
 (not a camera), which the unit tests assert.
+
+## ADR-011 — Per-engine hum loops driven by nozzle power
+
+**Status:** accepted (2026-11-07).
+
+Each nozzle gets its own continuous hum voice so thrust, reverse and turning read through
+audio as well as the exhaust:
+
+- main centre engine → `engine-main.wav`, a heavy sub-heavy rumble,
+- the two side main engines → `engine-side.wav`, a normal mid-range rocket,
+- the two reverse engines → `engine-reverse.wav`, lighter and brighter.
+
+The three loops are generated offline and committed. Seamlessness is structural rather than
+faded: tones and LFOs are quantised to integer cycles per loop, and the noise beds are
+synthesised in the frequency domain with random phases, so the last sample joins the first with
+no discontinuity (a 20 ms crossfade would dull the low end). The runtime may change playback
+rate freely because the loop length does not change.
+
+`AudioManager.createLoop()` owns the Howler loop voices (one `Howl` per source, multiple ids);
+the game maps `computeEngineOutputs()` to per-engine gain (`base × power^1.25`), adds a small
+left/right detune plus a subtle pitch rise with power, and pans each voice from the nozzle's
+screen position. Gain is smoothed per frame so spool-up/down is click-free. Engines at zero
+power are silent, not idling.
+
+**Consequences:** changing an engine's feel means replacing its WAV or tuning the gain table in
+`engine-audio.ts`; do not synthesize hums per frame or route them through repeated one-shots.

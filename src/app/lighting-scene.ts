@@ -11,6 +11,7 @@ import { createFlightTuner } from './flight-tuner';
 import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
 import { FLAME_LOCAL_LENGTH, createEngineExhaust } from './engine-exhaust';
+import { createEngineAudio } from './engine-audio';
 import { PIXELS_PER_METER } from './world-scale';
 import { clamp } from '../utils/math';
 import type { AudioManager } from '../audio/audio';
@@ -78,6 +79,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   const ground = createGroundGrid();
   const exhaust = createEngineExhaust();
+  const engineAudio = createEngineAudio(audio);
   content.addChild(ground.mesh, exhaust.smoke);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
@@ -339,6 +341,16 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       now: lighting.time,
     });
 
+    engineAudio.update({
+      shipScreenX,
+      rotation: flight.rotation,
+      shipScale: shipBaseScale * dust.zoom,
+      width,
+      linearInput: flight.linearInput,
+      angularInput: flight.angularInput,
+      dt: deltaSeconds,
+    });
+
     ship.mesh.scale.set(shipBaseScale * dust.zoom);
     ship.mesh.position.set(shipScreenX, shipScreenY);
     ship.mesh.rotation = flight.rotation;
@@ -452,6 +464,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       turrets.destroy();
       bullets.destroy();
       exhaust.destroy();
+      engineAudio.destroy();
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroid.mesh.destroy({ children: true });
