@@ -61,8 +61,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   length/alpha are proportional to each engine's ramped output and smoke emission is weighted
   per engine.
 - `src/app/engine-audio.ts` — per-engine hum loops whose gain follows each nozzle's power
-  (heavy centre, normal sides, lighter/higher reverse), with stereo pan from the nozzle's
-  screen position. Pure helpers unit-tested in `tests/engine-audio.test.ts`.
+  (heavy centre, normal sides, lighter/higher reverse), stereo-panned from the nozzle's screen
+  position. Adds a speed rush that ramps to forward terminal speed and a retro-strain bed driven
+  by `dot(thrust, velocity) < 0` (main hums duck while braking). Pure helpers unit-tested in
+  `tests/engine-audio.test.ts`.
 - `src/app/engine-layout.ts` — shared main/reverse nozzle geometry (must match the baked texture).
 - `src/app/engine-mix.ts` — pure ramped engine-output mixer, unit-tested in
   `tests/engine-mix.test.ts`.
@@ -102,7 +104,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   `src/audio/audio.ts`. Trim/fade/normalize offline; do not add a build-time audio pipeline.
 - **Continuous sounds are loops, not repeated shots.** Engine hums use
   `AudioManager.createLoop()` and per-engine gain from `computeEngineOutputs`; loop assets must
-  stay seamless at any playback rate (constant loop length, no fades baked in).
+  stay seamless at any playback rate (constant loop length, no fades baked in). Velocity-coupled
+  layers use `forwardTerminalSpeed()` and `dot(thrust, velocity)` — never derive speed caps from
+  separate constants.
 - **Browser artifacts are disposable.** `.agent/` and `.playwright-mcp/` are gitignored.
 - **Shared browser is shared.** Prefer `browser:inspect` / `browser:act`; they attach over CDP
   without closing the window. Do not launch a second persistent browser or kill the shared one

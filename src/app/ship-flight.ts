@@ -59,6 +59,11 @@ export function createFlightState(x = 0, y = 0, rotation = 0): FlightState {
   };
 }
 
+/** Forward terminal speed implied by thrust vs linear drag (m/s). */
+export function forwardTerminalSpeed(tuning: FlightTuning = DEFAULT_FLIGHT_TUNING): number {
+  return tuning.forwardAccel / Math.max(tuning.linearDrag, 0.0001);
+}
+
 export function stepFlight(
   state: FlightState,
   controls: FlightControls,

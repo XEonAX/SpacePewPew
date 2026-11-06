@@ -188,3 +188,29 @@ power are silent, not idling.
 
 **Consequences:** changing an engine's feel means replacing its WAV or tuning the gain table in
 `engine-audio.ts`; do not synthesize hums per frame or route them through repeated one-shots.
+
+## ADR-012 — Engine audio couples to speed and thrust·velocity
+
+**Status:** accepted (2026-11-07).
+
+The per-nozzle hums only knew about ramped thrust, so accelerating felt static and braking with
+the main engines sounded identical to accelerating. Two layers now read the flight state:
+
+- **Speed ramp.** `speedFraction = |v| / forwardTerminalSpeed(tuning)` drives a shared
+  `engine-rush.wav` bed with gain `speedFraction^1.6` (a little higher while engines are lit) and
+  a `0.92 → 1.08` rate ramp. Every hum's playback rate also rises with `speedFraction`, so the
+  approach to forward terminal speed is audible.
+- **Thrust · velocity.** `engineThrustAlignment()` is the dot of an engine's thrust direction
+  with the normalised velocity (ship forward is `(sin rotation, -cos rotation)`; reverse engines
+  flip the sign). Negative alignment means the engine is fighting momentum: a shared
+  `engine-strain.wav` bed fades in per nozzle, and the normal hum ducks by up to 45%, so firing
+  the mains while flying backwards (or S while flying forwards) sounds laboured.
+
+Alignment fades to zero below ~3 m/s so a stationary ship has no meaningful direction; all layer
+gains are smoothed at ~18/s to stay click-free. `forwardTerminalSpeed()` lives in
+`ship-flight.ts` and is shared with the camera lookahead so there is one definition of terminal
+speed.
+
+**Consequences:** terminal-speed tuning changes both camera lookahead and engine audio; new
+engine effects should take a pure function of flight state so they stay unit-testable. All
+loops remain seamless, so rate ramps are safe.

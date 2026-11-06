@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_FLIGHT_TUNING, createFlightState, stepFlight } from '../src/app/ship-flight';
+import {
+  DEFAULT_FLIGHT_TUNING,
+  createFlightState,
+  forwardTerminalSpeed,
+  stepFlight,
+} from '../src/app/ship-flight';
 import type { FlightControls } from '../src/app/ship-flight';
 
 const idle: FlightControls = {
@@ -116,5 +121,16 @@ describe('ship flight', () => {
     const coast = state.vx;
     stepFlight(state, idle, 0.5, tuning);
     expect(state.vx).toBeCloseTo(coast, 6); // drag stops once input is zero
+  });
+});
+
+describe('forwardTerminalSpeed', () => {
+  it('derives terminal speed from thrust over drag', () => {
+    expect(forwardTerminalSpeed(DEFAULT_FLIGHT_TUNING)).toBeCloseTo(50, 6);
+    expect(forwardTerminalSpeed({ ...DEFAULT_FLIGHT_TUNING, forwardAccel: 25 })).toBeCloseTo(
+      100,
+      6,
+    );
+    expect(forwardTerminalSpeed({ ...DEFAULT_FLIGHT_TUNING, linearDrag: 0.5 })).toBeCloseTo(25, 6);
   });
 });

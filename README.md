@@ -78,7 +78,7 @@ src/
 public/
   favicon.svg
   audio/weapons/          Processed weapon SFX (1 beam + 3 charge-blasts)
-  audio/engines/          Seamless engine-hum loops (heavy / normal / reverse)
+  audio/engines/          Seamless engine loops (hums + speed rush + retro strain)
   assets/lighting/        Processed color/normal maps + ship emissive/glow maps
 scripts/
   browser.mjs             Shared-browser CLI (open / inspect / act / stop)
@@ -167,10 +167,19 @@ subtle pitch rise with power, and stereo pan from the nozzle's screen position, 
 reads through the audio as well as the exhaust. At zero thrust the loops run silently; the
 first pointer/key gesture unlocks them along with the weapon SFX.
 
-The three seamless loops in `public/audio/engines/` are generated offline: tonal layers and
-LFOs are quantised to integer cycles per loop and the noise beds are synthesised in the
-frequency domain with random phases, so the loop point is mathematically seamless (no fades,
-no hard cut). Runtime rate changes are safe because the loop length is unchanged.
+On top of the per-nozzle hums sit two shared layers:
+
+- a **speed rush** that swells with speed (roughly `speedFraction^1.6`, full at forward terminal
+  speed) and rises slightly in pitch with it, so acceleration ramps audibly up to terminal,
+- a **retro strain** bed that fades in when an engine's thrust opposes the ship's velocity — the
+  dot product of thrust and velocity is negative. The normal hum ducks as the strain comes in,
+  so firing the main engines while flying backwards sounds laboured rather than clean. Reverse
+  engines get the mirrored case (braking a forward run with S).
+
+All five seamless loops in `public/audio/engines/` are generated offline: tonal layers and LFOs
+are quantised to integer cycles per loop and the noise beds are synthesised in the frequency
+domain with random phases, so the loop point is mathematically seamless (no fades, no hard
+cut). Runtime rate changes are safe because the loop length is unchanged.
 
 ## Agentic development
 

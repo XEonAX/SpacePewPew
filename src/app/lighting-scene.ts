@@ -5,7 +5,12 @@ import { joinBaseUrl } from '../utils/paths';
 import { CAMERA_FOLLOW_RATE, createBackground } from './background';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
-import { createFlightState, stepFlight, DEFAULT_FLIGHT_TUNING } from './ship-flight';
+import {
+  createFlightState,
+  stepFlight,
+  DEFAULT_FLIGHT_TUNING,
+  forwardTerminalSpeed,
+} from './ship-flight';
 import type { FlightControls } from './ship-flight';
 import { createFlightTuner } from './flight-tuner';
 import { createFlightTelemetry } from './flight-telemetry';
@@ -257,8 +262,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const directionX = speed > 0 ? flight.vx / speed : 0;
     const directionY = speed > 0 ? flight.vy / speed : 0;
 
-    const linearDrag = Math.max(tuning.linearDrag, 0.0001);
-    const terminalW = tuning.forwardAccel / linearDrag;
+    const terminalW = forwardTerminalSpeed(tuning);
     const speedFraction = terminalW > 0 ? Math.min(1, speed / terminalW) : 0;
     const curve = speedFraction * speedFraction;
 
@@ -348,6 +352,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       width,
       linearInput: flight.linearInput,
       angularInput: flight.angularInput,
+      vx: flight.vx,
+      vy: flight.vy,
+      terminalSpeed: forwardTerminalSpeed(tuning),
       dt: deltaSeconds,
     });
 

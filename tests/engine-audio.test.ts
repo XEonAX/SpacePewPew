@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { HUM_GAIN_CURVE, engineHumGain, engineHumPowers, enginePan } from '../src/app/engine-audio';
+import {
+  HUM_GAIN_CURVE,
+  engineHumGain,
+  engineHumPowers,
+  enginePan,
+  engineSpeedFraction,
+  engineThrustAlignment,
+} from '../src/app/engine-audio';
 import { computeEngineOutputs } from '../src/app/engine-mix';
 
 describe('engineHumPowers', () => {
@@ -50,5 +57,40 @@ describe('enginePan', () => {
 
   it('handles a zero-width viewport', () => {
     expect(enginePan(10, 0)).toBe(0);
+  });
+});
+
+describe('engineSpeedFraction', () => {
+  it('ramps from 0 to 1 at terminal speed', () => {
+    expect(engineSpeedFraction(0, 0, 50)).toBe(0);
+    expect(engineSpeedFraction(0, -25, 50)).toBeCloseTo(0.5, 6);
+    expect(engineSpeedFraction(0, -80, 50)).toBe(1);
+  });
+
+  it('handles a non-positive terminal speed', () => {
+    expect(engineSpeedFraction(10, 0, 0)).toBe(0);
+  });
+});
+
+describe('engineThrustAlignment', () => {
+  const forward = 0;
+
+  it('is +1 flying forward and -1 flying backwards', () => {
+    expect(engineThrustAlignment(0, -10, forward)).toBeCloseTo(1, 6);
+    expect(engineThrustAlignment(0, 10, forward)).toBeCloseTo(-1, 6);
+  });
+
+  it('is 0 when sliding sideways', () => {
+    expect(engineThrustAlignment(10, 0, forward)).toBeCloseTo(0, 6);
+  });
+
+  it('flips for reverse engines', () => {
+    expect(engineThrustAlignment(0, 10, forward, -1)).toBeCloseTo(1, 6);
+    expect(engineThrustAlignment(0, -10, forward, -1)).toBeCloseTo(-1, 6);
+  });
+
+  it('fades out when the ship is barely moving', () => {
+    expect(engineThrustAlignment(0, -0.1, forward)).toBe(0);
+    expect(Math.abs(engineThrustAlignment(0, -1.5, forward))).toBeLessThan(1);
   });
 });

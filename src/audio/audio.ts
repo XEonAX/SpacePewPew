@@ -4,7 +4,8 @@ import { joinBaseUrl } from '../utils/paths';
 export type SoundName = 'beam-front' | 'blast-3' | 'blast-4' | 'blast-5';
 
 /** Continuous, looped beds (engine hums). */
-export type LoopName = 'engine-main' | 'engine-side' | 'engine-reverse';
+export type LoopName =
+  'engine-main' | 'engine-side' | 'engine-reverse' | 'engine-rush' | 'engine-strain';
 
 export interface PlayOptions {
   /** Playback rate, default 1. */
@@ -53,6 +54,8 @@ const LOOP_SOURCES: Record<LoopName, string> = {
   'engine-main': 'audio/engines/engine-main.wav',
   'engine-side': 'audio/engines/engine-side.wav',
   'engine-reverse': 'audio/engines/engine-reverse.wav',
+  'engine-rush': 'audio/engines/engine-rush.wav',
+  'engine-strain': 'audio/engines/engine-strain.wav',
 };
 
 export interface AudioManagerOptions {
