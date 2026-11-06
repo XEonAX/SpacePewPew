@@ -21,11 +21,18 @@ interface TurretMountConfig {
   aimHalfAngle: number;
 }
 
-const FRONT_CONE = Math.PI / 3; // ±60° around forward
+// Front pair keeps its ±60° outer edge, but the inner edges meet ahead of the
+// nose tip instead of overlapping across the hull.
+const FRONT_OUTER = Math.PI / 3;
+const FRONT_INNER = (11 * Math.PI) / 180;
+const FRONT_CENTER = (FRONT_OUTER - FRONT_INNER) / 2;
+const FRONT_CONE = (FRONT_OUTER + FRONT_INNER) / 2;
 const MID_CENTER = Math.PI / 2; // exactly sideways
 const MID_CONE = Math.PI / 4; // covers ±45° around sideways
-const REAR_CENTER = (3 * Math.PI) / 4; // between side and rear
-const REAR_CONE = Math.PI / 4; // covers 90°..180° on each side
+// Rear arcs extend past straight-back so their inner rays cross ~5 m behind
+// the engines.
+const REAR_CENTER = (140.25 * Math.PI) / 180;
+const REAR_CONE = (50.25 * Math.PI) / 180;
 const TURRET_SCALE = 1.5;
 const MUZZLE_GLOW_SIZE = 28;
 
@@ -46,8 +53,8 @@ const mount = (
 
 const TURRET_LAYOUT: readonly TurretMountConfig[] = [
   // Front pair: forward only.
-  mount(-65, -88, 0, 0, FRONT_CONE),
-  mount(64, -88, 0, 0, FRONT_CONE),
+  mount(-65, -88, 0, -FRONT_CENTER, FRONT_CONE),
+  mount(64, -88, 0, FRONT_CENTER, FRONT_CONE),
   // Middle four: side-facing, ±45° around sideways.
   mount(-91, 46, -Math.PI / 2, -MID_CENTER, MID_CONE),
   mount(90, 46, Math.PI / 2, MID_CENTER, MID_CONE),
