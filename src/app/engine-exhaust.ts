@@ -238,7 +238,7 @@ export function createEngineExhaust(): EngineExhaust {
       // Differential engine mix. Turning left lights the left reverse engine
       // and the right main engine; with W held the left main engine is cut.
       const mainOutputs = [
-        forward * (1 - turnLeft),
+        Math.max(forward * (1 - turnLeft), turnRight),
         forward,
         Math.max(forward * (1 - turnRight), turnLeft),
       ];
