@@ -99,7 +99,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   let firing = false;
   const pairCooldowns = [0, 0, 0, 0];
   const pairCursors = [0, 0, 0, 0];
-  const pendingShots: Array<{ pairIndex: number; remaining: number }> = [];
+  const pendingShots: Array<{ pairIndex: number; remaining: number; total: number }> = [];
 
   const spawnBullets = (pairIndex: number): void => {
     const shipCos = Math.cos(flight.rotation);
@@ -127,9 +127,11 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     if (!pair) return;
     const next = nextPairVariant(pair, pairCursors[pairIndex] ?? 0);
     pairCursors[pairIndex] = next.cursor;
+    const delay = WEAPON_SHOT_DELAYS[next.sound] ?? 0;
     pendingShots.push({
       pairIndex,
-      remaining: WEAPON_SHOT_DELAYS[next.sound] ?? 0,
+      remaining: delay,
+      total: delay,
     });
 
     const pan = clamp((pointer.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7);
@@ -363,7 +365,18 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     followCamera();
     updateTransforms(deltaSeconds);
     updateWeapons(deltaSeconds);
-    turrets.setReadyPairs(pairCooldowns.map((cooldown) => cooldown <= 0));
+    const glowLevels = pairCooldowns.map((cooldown, pairIndex) => {
+      // Only the three rear/charge pairs ramp their glow; the front beam pair
+      // keeps the normal charged/empty state.
+      if (pairIndex === 0) return cooldown <= 0 ? 1 : 0;
+      const pending = pendingShots.find((shot) => shot.pairIndex === pairIndex);
+      if (pending) {
+        const progress = pending.total > 0 ? 1 - pending.remaining / pending.total : 1;
+        return 1 + 0.9 * Math.max(0, Math.min(1, progress));
+      }
+      return cooldown <= 0 ? 1 : 0;
+    });
+    turrets.setGlowLevels(glowLevels);
     updateLighting();
   };
 
