@@ -9,7 +9,6 @@ These are the assets the game scene loads; do not edit them by hand.
 | `ship-normal.png`     | 514×841 | `ship-normal.webp`     |
 | `asteroid-color.png`  | 643×622 | `asteroid-color.webp`  |
 | `asteroid-normal.png` | 643×622 | `asteroid-normal.webp` |
-| `reverse-engine.png`  | 70×66   | center engine crop     |
 | `ship-emissive.png`   | 514×841 | derived cyan panels    |
 | `ship-glow.png`       | 514×841 | blurred emissive matte |
 
@@ -28,8 +27,8 @@ Processing steps (one-off, not a runtime pipeline):
   the normal map is mirrored with its X channel flipped,
 - the three rear cyan engine ovals are excluded from the emissive/glow maps for special
   treatment later,
-- `reverse-engine.png` is the center-nozzle crop used by two sprite copies, rendered behind the
-  ship under the wing leading edges; placement/scale/rotation are editable at runtime.
+- the center nozzle is copied, turned 180°, scaled 0.58×, and composited **below** the ship
+  color/normal maps under the outer wing edges as the reverse-engine visual.
 
 Normal maps use tangent-space RGB (red = X, green = Y, blue = Z). Both pairs come from the
 supplied reference art; re-export lossless versions if the source normal maps are ever replaced.

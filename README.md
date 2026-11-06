@@ -58,8 +58,6 @@ src/
   app/flight-telemetry.ts Read-only terminal/velocity/input telemetry overlay
   app/ground-grid.ts      Screen-space 1 m grid fixed to the near dust layer
   app/engine-exhaust.ts   Three cyan cone flames + world-space smoke exhaust
-  app/reverse-engines.ts  Configurable reverse-engine nozzles under the wings
-  app/reverse-engine-editor.ts  Live X/Y/scale/rotation editor for them
   app/world-scale.ts      Metres ↔ pixels conversion (64 px per metre)
   app/lit-sprite.ts       Custom normal-map Mesh shader (directional + emissive)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
@@ -98,8 +96,6 @@ docs/                     Architecture decisions, reference art and agent workfl
 - The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag
   and input ramp. The top-right **FLIGHT TELEMETRY** panel shows terminal W/S/A-D speeds,
   current velocity, angular velocity, and ramped inputs (all linear units in metres).
-- The bottom-left **REVERSE ENGINE** editor moves, scales, and rotates the two reverse nozzles
-  under the wings; **COPY VALUES** copies the current config.
 - **Drag the canvas** to look around (the follow cam eases back to the ship); **scroll / pinch**
   zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out). **Double-click** resets zoom.
 - **Click** for the placeholder sound; **M** mutes/unmutes.
