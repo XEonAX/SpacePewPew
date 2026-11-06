@@ -128,7 +128,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   `CAMERA_FOLLOW_RATE`. Tune in `lighting-scene.ts`/`background.ts`.
 - **Zoom is depth-weighted.** Far stars/nebulas stay at a fixed scale; mid/near stars respond
   partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`1`
-  (1× is the default and maximum zoom-in); the wheel adjusts it and double-click resets it.
+  (1× is the default and maximum zoom-in); only the wheel adjusts it.
 
 ## Agent workflow
 

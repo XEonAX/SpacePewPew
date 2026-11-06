@@ -321,17 +321,7 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     targetZoom = clamp(targetZoom * factor, MIN_ZOOM, MAX_ZOOM);
   };
 
-  const onDoubleClick = (): void => {
-    camera.x = 0;
-    camera.y = 0;
-    dustCamera.x = 0;
-    dustCamera.y = 0;
-    zoom = 1;
-    targetZoom = 1;
-  };
-
   canvas.addEventListener('wheel', onWheel, { passive: false });
-  canvas.addEventListener('dblclick', onDoubleClick);
 
   app.stage.addChild(container);
   app.ticker.add(tick);
@@ -352,7 +342,6 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     destroy(): void {
       app.ticker.remove(tick);
       canvas.removeEventListener('wheel', onWheel);
-      canvas.removeEventListener('dblclick', onDoubleClick);
 
       container.destroy({ children: true });
       starTexture.destroy(true);
