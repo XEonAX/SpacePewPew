@@ -65,7 +65,6 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   `tests/engine-mix.test.ts`.
 - `src/app/turrets.ts` — eight turret mounts with finite-speed mouse tracking.
 - `src/app/turret-aim.ts` — pure angular spring-damper aim, unit-tested.
-- `src/app/turret-editor.ts` — live per-mount X/Y/scale/rest-angle placement editor.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.

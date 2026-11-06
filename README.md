@@ -62,7 +62,6 @@ src/
   app/engine-mix.ts       Pure ramped engine-output mixer (tested)
   app/turrets.ts          Eight turret mounts with finite-speed mouse tracking
   app/turret-aim.ts       Pure angular aim physics (tested)
-  app/turret-editor.ts    Live X/Y/scale/rest-angle turret placement editor
   app/world-scale.ts      Metres ↔ pixels conversion (64 px per metre)
   app/lit-sprite.ts       Custom normal-map Mesh shader (directional + emissive)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
@@ -101,8 +100,7 @@ docs/                     Architecture decisions, reference art and agent workfl
 - The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag
   and input ramp. The top-right **FLIGHT TELEMETRY** panel shows terminal W/S/A-D speeds,
   current velocity, angular velocity, and ramped inputs (all linear units in metres).
-- Eight turrets track the mouse with finite angular speed. The bottom-left **TURRET MOUNTS**
-  editor places each mount (X/Y/scale/rest angle); **COPY LAYOUT** copies the 8-mount JSON.
+- Eight turrets track the mouse with finite angular speed.
 - **Drag the canvas** to look around (the follow cam eases back to the ship); **scroll / pinch**
   zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out). **Double-click** resets zoom.
 - **Click** for the placeholder sound; **M** mutes/unmutes.

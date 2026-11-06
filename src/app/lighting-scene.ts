@@ -14,7 +14,6 @@ import { FLAME_LOCAL_LENGTH, createEngineExhaust } from './engine-exhaust';
 import { PIXELS_PER_METER } from './world-scale';
 import { DEFAULT_TURRET_LAYOUT, createTurrets } from './turrets';
 import type { TurretMountConfig } from './turrets';
-import { createTurretEditor } from './turret-editor';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -287,11 +286,6 @@ export async function createScene(app: Application): Promise<Scene> {
   const telemetry = createFlightTelemetry(flight, tuning);
   document.body.append(telemetry.element);
 
-  const turretEditor = createTurretEditor(turretConfigs, (index, config) => {
-    turrets.setMount(index, config);
-  });
-  document.body.append(turretEditor.element);
-
   canvas.addEventListener('pointermove', onPointerMove);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
@@ -317,7 +311,6 @@ export async function createScene(app: Application): Promise<Scene> {
       window.removeEventListener('blur', onBlur);
       flightTuner.destroy();
       telemetry.destroy();
-      turretEditor.destroy();
       turrets.destroy();
       exhaust.destroy();
       ground.destroy();
