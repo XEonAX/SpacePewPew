@@ -9,7 +9,7 @@ const NATIVE_HEIGHT = 52;
 const ANCHOR_X = 20.39 / NATIVE_WIDTH;
 const ANCHOR_Y = 30.83 / NATIVE_HEIGHT;
 
-export interface TurretMountConfig {
+interface TurretMountConfig {
   /** Position in ship-texture pixels relative to the ship centre. */
   x: number;
   y: number;
@@ -22,93 +22,43 @@ export interface TurretMountConfig {
   aimHalfAngle: number;
 }
 
-export const TURRET_MOUNT_LABELS = [
-  'Front L',
-  'Front R',
-  'Rear L1',
-  'Rear R1',
-  'Rear L2',
-  'Rear R2',
-  'Rear L3',
-  'Rear R3',
-] as const;
-
 const FRONT_CONE = Math.PI / 3; // ±60° around forward
 const MID_CENTER = Math.PI / 2; // exactly sideways
 const MID_CONE = Math.PI / 4; // covers ±45° around sideways
 const REAR_CENTER = (3 * Math.PI) / 4; // between side and rear
 const REAR_CONE = Math.PI / 4; // covers 90°..180° on each side
+const TURRET_SCALE = 1.5;
 
-export const DEFAULT_TURRET_LAYOUT: readonly TurretMountConfig[] = [
+const mount = (
+  x: number,
+  y: number,
+  restAngle: number,
+  aimCenter: number,
+  aimHalfAngle: number,
+): TurretMountConfig => ({
+  x,
+  y,
+  scale: TURRET_SCALE,
+  restAngle,
+  aimCenter,
+  aimHalfAngle,
+});
+
+const TURRET_LAYOUT: readonly TurretMountConfig[] = [
   // Front pair: forward only.
-  {
-    x: -65,
-    y: -88,
-    scale: 1.5,
-    restAngle: 0,
-    aimCenter: 0,
-    aimHalfAngle: FRONT_CONE,
-  },
-  {
-    x: 64,
-    y: -88,
-    scale: 1.5,
-    restAngle: 0,
-    aimCenter: 0,
-    aimHalfAngle: FRONT_CONE,
-  },
-  // Rear six: side-facing, arc runs from side through the rear.
-  {
-    x: -91,
-    y: 46,
-    scale: 1.5,
-    restAngle: -Math.PI / 2,
-    aimCenter: -MID_CENTER,
-    aimHalfAngle: MID_CONE,
-  },
-  {
-    x: 90,
-    y: 46,
-    scale: 1.5,
-    restAngle: Math.PI / 2,
-    aimCenter: MID_CENTER,
-    aimHalfAngle: MID_CONE,
-  },
-  {
-    x: -97,
-    y: 126,
-    scale: 1.5,
-    restAngle: -Math.PI / 2,
-    aimCenter: -MID_CENTER,
-    aimHalfAngle: MID_CONE,
-  },
-  {
-    x: 96,
-    y: 126,
-    scale: 1.5,
-    restAngle: Math.PI / 2,
-    aimCenter: MID_CENTER,
-    aimHalfAngle: MID_CONE,
-  },
-  {
-    x: -98,
-    y: 201,
-    scale: 1.5,
-    restAngle: -Math.PI / 2,
-    aimCenter: -REAR_CENTER,
-    aimHalfAngle: REAR_CONE,
-  },
-  {
-    x: 97,
-    y: 201,
-    scale: 1.5,
-    restAngle: Math.PI / 2,
-    aimCenter: REAR_CENTER,
-    aimHalfAngle: REAR_CONE,
-  },
-] as const;
+  mount(-65, -88, 0, 0, FRONT_CONE),
+  mount(64, -88, 0, 0, FRONT_CONE),
+  // Middle four: side-facing, ±45° around sideways.
+  mount(-91, 46, -Math.PI / 2, -MID_CENTER, MID_CONE),
+  mount(90, 46, Math.PI / 2, MID_CENTER, MID_CONE),
+  mount(-97, 126, -Math.PI / 2, -MID_CENTER, MID_CONE),
+  mount(96, 126, Math.PI / 2, MID_CENTER, MID_CONE),
+  // Rear pair: side-facing, arc runs from side through the rear.
+  mount(-98, 201, -Math.PI / 2, -REAR_CENTER, REAR_CONE),
+  mount(97, 201, Math.PI / 2, REAR_CENTER, REAR_CONE),
+];
 
-export interface TurretFrame {
+interface TurretFrame {
   shipScreenX: number;
   shipScreenY: number;
   shipScale: number;
@@ -121,15 +71,12 @@ export interface TurretFrame {
 
 export interface Turrets {
   container: Container;
-  setMount(index: number, config: TurretMountConfig): void;
   update(frame: TurretFrame): void;
   destroy(): void;
 }
 
-export function createTurrets(
-  texture: Texture,
-  configs: TurretMountConfig[] = DEFAULT_TURRET_LAYOUT.map((config) => ({ ...config })),
-): Turrets {
+export function createTurrets(texture: Texture): Turrets {
+  const configs = TURRET_LAYOUT.map((config) => ({ ...config }));
   const container = new Container();
   const baseScale = NATIVE_WIDTH / texture.width;
   const sprites = configs.map((config) => {
@@ -146,12 +93,6 @@ export function createTurrets(
 
   return {
     container,
-    setMount(index: number, config: TurretMountConfig): void {
-      const sprite = sprites[index];
-      if (!sprite) return;
-      sprite.position.set(config.x, config.y);
-      sprite.scale.set(baseScale * config.scale);
-    },
     update(frame: TurretFrame): void {
       container.position.set(frame.shipScreenX, frame.shipScreenY);
       container.rotation = frame.rotation;

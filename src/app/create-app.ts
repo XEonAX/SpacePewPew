@@ -1,6 +1,6 @@
 import { Application } from 'pixi.js';
 
-export interface CreateAppOptions {
+interface CreateAppOptions {
   background?: string;
 }
 

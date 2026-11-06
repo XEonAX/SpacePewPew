@@ -2,9 +2,9 @@ import { CanvasSource, Texture } from 'pixi.js';
 import { clamp, lerp, smoothstep } from '../utils/math';
 
 export const STAR_TEXTURE_SIZE = 32;
-export const FLARE_TEXTURE_SIZE = 64;
+const FLARE_TEXTURE_SIZE = 64;
 export const NEBULA_TEXTURE_SIZE = 512;
-export const GALAXY_TEXTURE_SIZE = 512;
+const GALAXY_TEXTURE_SIZE = 512;
 
 type Rgb = readonly [number, number, number];
 

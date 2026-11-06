@@ -95,9 +95,8 @@ velocity (zoom out at higher speeds). Zoom is depth-weighted rather than uniform
 - near-field dust takes the full pan and zoom.
 
 Zoom is clamped to **0.02×–1×**; 1× is both the default and the maximum zoom-in, and the
-0.02 floor is the requested 50× zoom-out limit. The
-background exposes `setZoom(zoom)` (smoothed target) and `resetView()` so gameplay can ease the
-camera out from velocity without coupling the game loop to rendering.
+0.02 floor is the requested 50× zoom-out limit. The background owns the smoothed
+zoom target; the wheel adjusts it and double-click resets it.
 
 **Consequences:** zooming far out leaves the sky stable and shrinks/removes the near layers,
 which suits high-speed gameplay: the background does not fly apart while ships/entities (added

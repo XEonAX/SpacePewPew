@@ -3,21 +3,44 @@ import { createRng, randomRange } from '../utils/random';
 import { MAIN_ENGINE_LAYOUT, REVERSE_ENGINE_LAYOUT } from './engine-layout';
 import { computeEngineOutputs } from './engine-mix';
 
-const ENGINE_X_OFFSETS = MAIN_ENGINE_LAYOUT.xOffsets;
-const ENGINE_Y_OFFSET = MAIN_ENGINE_LAYOUT.yOffset;
-const FLAME_WIDTH = MAIN_ENGINE_LAYOUT.flameWidth;
 export const FLAME_LOCAL_LENGTH = MAIN_ENGINE_LAYOUT.flameLength;
-const FLAME_BASE_HEIGHT = FLAME_LOCAL_LENGTH;
-
-const REVERSE_ENGINE_X_OFFSETS = REVERSE_ENGINE_LAYOUT.xOffsets;
-const REVERSE_ENGINE_SCALE = REVERSE_ENGINE_LAYOUT.scale;
-const REVERSE_FLAME_BASE_Y = REVERSE_ENGINE_LAYOUT.flameBaseY;
-const REVERSE_FLAME_LOCAL_LENGTH = REVERSE_ENGINE_LAYOUT.flameLength;
 const SMOKE_RATE_PER_OUTPUT = 20;
 const SMOKE_LIFETIME = 10;
 const SMOKE_POOL_SIZE = 720;
 const SMOKE_TEXTURE_SIZE = 128;
 const SMOKE_TINTS = [0xa8c6cc, 0x91b6bf, 0xcce1e4] as const;
+
+interface FlameEmitter {
+  x: number;
+  baseY: number;
+  rotation: number;
+  width: number;
+  length: number;
+  /** +1 emits down (main), -1 emits up (reverse). */
+  tipDirection: 1 | -1;
+  sizeScale: number;
+}
+
+const FLAME_EMITTERS: FlameEmitter[] = [
+  ...MAIN_ENGINE_LAYOUT.xOffsets.map((x): FlameEmitter => ({
+    x,
+    baseY: MAIN_ENGINE_LAYOUT.yOffset,
+    rotation: 0,
+    width: MAIN_ENGINE_LAYOUT.flameWidth,
+    length: MAIN_ENGINE_LAYOUT.flameLength,
+    tipDirection: 1,
+    sizeScale: 1,
+  })),
+  ...REVERSE_ENGINE_LAYOUT.xOffsets.map((x): FlameEmitter => ({
+    x,
+    baseY: REVERSE_ENGINE_LAYOUT.flameBaseY,
+    rotation: REVERSE_ENGINE_LAYOUT.rotation,
+    width: REVERSE_ENGINE_LAYOUT.flameWidth,
+    length: REVERSE_ENGINE_LAYOUT.flameLength,
+    tipDirection: -1,
+    sizeScale: REVERSE_ENGINE_LAYOUT.scale,
+  })),
+];
 
 interface ExhaustFrame {
   /** Ship position in dust-world pixels at zoom 1. */
@@ -136,12 +159,13 @@ export function createEngineExhaust(): EngineExhaust {
   const smokeTexture = createSmokeTexture();
 
   const flames = new Container();
-  const flameSprites = ENGINE_X_OFFSETS.map((offset) => {
+  const flameSprites = FLAME_EMITTERS.map((emitter) => {
     const sprite = new Sprite({ texture: flameTexture, anchor: { x: 0.5, y: 0 } });
-    sprite.x = offset;
-    sprite.y = ENGINE_Y_OFFSET;
-    sprite.width = FLAME_WIDTH;
-    sprite.height = FLAME_BASE_HEIGHT;
+    sprite.x = emitter.x;
+    sprite.y = emitter.baseY;
+    sprite.rotation = emitter.rotation;
+    sprite.width = emitter.width;
+    sprite.height = emitter.length;
     sprite.blendMode = 'add';
     flames.addChild(sprite);
     return sprite;
@@ -167,25 +191,8 @@ export function createEngineExhaust(): EngineExhaust {
     });
   }
 
-  const reverseFlameSprites = REVERSE_ENGINE_X_OFFSETS.map((offset) => {
-    const sprite = new Sprite({ texture: flameTexture, anchor: { x: 0.5, y: 0 } });
-    sprite.x = offset;
-    sprite.y = REVERSE_FLAME_BASE_Y;
-    sprite.rotation = REVERSE_ENGINE_LAYOUT.rotation;
-    sprite.width = REVERSE_ENGINE_LAYOUT.flameWidth;
-    sprite.height = REVERSE_FLAME_LOCAL_LENGTH;
-    sprite.blendMode = 'add';
-    flames.addChild(sprite);
-    return sprite;
-  });
-
-  const flameLengths: number[] = ENGINE_X_OFFSETS.map(() => FLAME_BASE_HEIGHT);
-  const reverseFlameLengths: number[] = REVERSE_ENGINE_X_OFFSETS.map(
-    () => REVERSE_FLAME_LOCAL_LENGTH,
-  );
   const rng = createRng(0x51ed_270b ^ 0x9e37_79b9);
-  const mainSmokeAccumulators = ENGINE_X_OFFSETS.map(() => 0);
-  const reverseSmokeAccumulators = REVERSE_ENGINE_X_OFFSETS.map(() => 0);
+  const smokeAccumulators = FLAME_EMITTERS.map(() => 0);
 
   const spawnSmoke = (
     localX: number,
@@ -238,39 +245,7 @@ export function createEngineExhaust(): EngineExhaust {
         frame.linearInput,
         frame.angularInput,
       );
-
-      for (let index = 0; index < flameSprites.length; index += 1) {
-        const sprite = flameSprites[index]!;
-        const output = Math.max(0, Math.min(1, mainOutputs[index] ?? 0));
-        const flicker =
-          0.94 +
-          0.05 * Math.sin(frame.now * 70 + index * 1.7) +
-          0.02 * Math.sin(frame.now * 113 + index * 2.1);
-        const length = FLAME_BASE_HEIGHT * flicker * output;
-        flameLengths[index] = length;
-        sprite.height = length;
-        sprite.alpha = output;
-      }
-
-      for (let index = 0; index < reverseFlameSprites.length; index += 1) {
-        const sprite = reverseFlameSprites[index]!;
-        const output = Math.max(0, Math.min(1, reverseOutputs[index] ?? 0));
-        const flicker =
-          0.94 +
-          0.05 * Math.sin(frame.now * 74 + index * 1.3) +
-          0.02 * Math.sin(frame.now * 121 + index * 2.7);
-        const length = REVERSE_FLAME_LOCAL_LENGTH * flicker * output;
-        reverseFlameLengths[index] = length;
-        sprite.height = length;
-        sprite.alpha = output;
-      }
-
-      smoke.position.set(
-        -frame.dustX * frame.width * frame.zoom + frame.width / 2,
-        -frame.dustY * frame.height * frame.zoom + frame.height / 2,
-      );
-      smoke.scale.set(frame.zoom);
-
+      const mainCount = mainOutputs.length;
       const cos = Math.cos(frame.rotation);
       const sin = Math.sin(frame.rotation);
 
@@ -292,29 +267,37 @@ export function createEngineExhaust(): EngineExhaust {
         return next;
       };
 
-      for (let index = 0; index < mainOutputs.length; index += 1) {
-        mainSmokeAccumulators[index] = emit(
-          mainSmokeAccumulators[index]!,
-          mainOutputs[index]!,
-          ENGINE_X_OFFSETS[index]!,
-          ENGINE_Y_OFFSET + flameLengths[index]!,
-          -sin,
-          cos,
-          1,
+      for (let index = 0; index < FLAME_EMITTERS.length; index += 1) {
+        const emitter = FLAME_EMITTERS[index]!;
+        const sprite = flameSprites[index]!;
+        const rawOutput =
+          index < mainCount ? mainOutputs[index] : reverseOutputs[index - mainCount];
+        const output = Math.max(0, Math.min(1, rawOutput ?? 0));
+        const flicker =
+          0.94 +
+          0.05 * Math.sin(frame.now * 70 + index * 1.7) +
+          0.02 * Math.sin(frame.now * 113 + index * 2.1);
+        const length = emitter.length * flicker * output;
+        sprite.height = length;
+        sprite.alpha = output;
+
+        const tipY = emitter.baseY + emitter.tipDirection * length;
+        smokeAccumulators[index] = emit(
+          smokeAccumulators[index]!,
+          output,
+          emitter.x,
+          tipY,
+          -emitter.tipDirection * sin,
+          emitter.tipDirection * cos,
+          emitter.sizeScale,
         );
       }
 
-      for (let index = 0; index < reverseOutputs.length; index += 1) {
-        reverseSmokeAccumulators[index] = emit(
-          reverseSmokeAccumulators[index]!,
-          reverseOutputs[index]!,
-          REVERSE_ENGINE_X_OFFSETS[index]!,
-          REVERSE_FLAME_BASE_Y - reverseFlameLengths[index]!,
-          sin,
-          -cos,
-          REVERSE_ENGINE_SCALE,
-        );
-      }
+      smoke.position.set(
+        -frame.dustX * frame.width * frame.zoom + frame.width / 2,
+        -frame.dustY * frame.height * frame.zoom + frame.height / 2,
+      );
+      smoke.scale.set(frame.zoom);
 
       for (const particle of particles) {
         if (!particle.active) continue;

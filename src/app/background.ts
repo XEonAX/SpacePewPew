@@ -22,7 +22,7 @@ import {
 } from './starfield-model';
 import type { Star } from './starfield-model';
 
-export interface DustTransform {
+interface DustTransform {
   /** Near-field dust camera offset, normalized to the viewport. */
   x: number;
   y: number;
@@ -30,14 +30,8 @@ export interface DustTransform {
   zoom: number;
 }
 
-export interface Background {
+interface Background {
   container: Container;
-  /**
-   * Sets the desired camera zoom. The background eases toward it, so gameplay
-   * can drive this from ship velocity (higher velocity → zoom out).
-   */
-  setZoom(zoom: number): void;
-  getZoom(): number;
   /** Transform of the nearest layer (stars/asteroid should ride with it). */
   getDustTransform(): DustTransform;
   /**
@@ -45,7 +39,6 @@ export interface Background {
    * Call every frame; the background eases toward it for an arcade follow cam.
    */
   setFollowTarget(x: number, y: number, immediate?: boolean): void;
-  resetView(): void;
   destroy(): void;
 }
 
@@ -149,8 +142,6 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
   let elapsed = 0;
   let lastWidth = 0;
   let lastHeight = 0;
-  let activePointerId: number | null = null;
-  let lastPointer = { x: 0, y: 0 };
   let followTarget: { x: number; y: number } | null = null;
 
   // Nebulas first so stars and galaxies sit in front of them.
@@ -324,42 +315,6 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
 
   const canvas = app.canvas as HTMLCanvasElement;
 
-  const onPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0 || activePointerId !== null) return;
-
-    activePointerId = event.pointerId;
-    lastPointer = { x: event.clientX, y: event.clientY };
-    canvas.setPointerCapture(event.pointerId);
-    canvas.style.cursor = 'grabbing';
-  };
-
-  const onPointerMove = (event: PointerEvent): void => {
-    if (event.pointerId !== activePointerId) return;
-
-    const { clientX, clientY } = event;
-    const { width, height } = app.screen;
-    const deltaX = (clientX - lastPointer.x) / Math.max(width, 1);
-    const deltaY = (clientY - lastPointer.y) / Math.max(height, 1);
-
-    // The fixed sky pans gently with parallax; the near dust tracks the pointer
-    // one-to-one so drag still feels direct at any zoom.
-    camera.x -= deltaX;
-    camera.y -= deltaY;
-    dustCamera.x -= deltaX / zoom;
-    dustCamera.y -= deltaY / zoom;
-    lastPointer = { x: clientX, y: clientY };
-  };
-
-  const onPointerEnd = (event: PointerEvent): void => {
-    if (event.pointerId !== activePointerId) return;
-
-    activePointerId = null;
-    if (canvas.hasPointerCapture(event.pointerId)) {
-      canvas.releasePointerCapture(event.pointerId);
-    }
-    canvas.style.cursor = 'grab';
-  };
-
   const onWheel = (event: WheelEvent): void => {
     event.preventDefault();
     const factor = Math.exp(-event.deltaY * (event.deltaMode === 1 ? 0.032 : 0.002));
@@ -375,15 +330,6 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     targetZoom = 1;
   };
 
-  const setZoom = (nextZoom: number): void => {
-    targetZoom = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
-  };
-
-  canvas.style.cursor = 'grab';
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  canvas.addEventListener('pointerup', onPointerEnd);
-  canvas.addEventListener('pointercancel', onPointerEnd);
   canvas.addEventListener('wheel', onWheel, { passive: false });
   canvas.addEventListener('dblclick', onDoubleClick);
 
@@ -393,8 +339,6 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
 
   return {
     container,
-    setZoom,
-    getZoom: () => zoom,
     getDustTransform: () => ({ x: dustCamera.x, y: dustCamera.y, zoom }),
     setFollowTarget(x: number, y: number, immediate = false): void {
       followTarget = { x, y };
@@ -405,22 +349,11 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
         dustCamera.y = y;
       }
     },
-    resetView: onDoubleClick,
     destroy(): void {
       app.ticker.remove(tick);
-      canvas.removeEventListener('pointerdown', onPointerDown);
-      canvas.removeEventListener('pointermove', onPointerMove);
-      canvas.removeEventListener('pointerup', onPointerEnd);
-      canvas.removeEventListener('pointercancel', onPointerEnd);
       canvas.removeEventListener('wheel', onWheel);
       canvas.removeEventListener('dblclick', onDoubleClick);
 
-      if (activePointerId !== null && canvas.hasPointerCapture(activePointerId)) {
-        canvas.releasePointerCapture(activePointerId);
-      }
-
-      activePointerId = null;
-      canvas.style.cursor = '';
       container.destroy({ children: true });
       starTexture.destroy(true);
       flareTexture.destroy(true);

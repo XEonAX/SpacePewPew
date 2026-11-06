@@ -4,15 +4,15 @@ export interface TurretAimState {
 }
 
 export const TURRET_MAX_ANGULAR_SPEED = 5.5;
-export const TURRET_ANGULAR_ACCEL = 24;
-export const TURRET_ANGULAR_DAMPING = 7;
+const TURRET_ANGULAR_ACCEL = 24;
+const TURRET_ANGULAR_DAMPING = 7;
 const AIM_GAIN = 42;
 
 export function wrapAngle(angle: number): number {
   return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
-export function isAngleInArc(angle: number, centerAngle: number, halfAngle: number): boolean {
+function isAngleInArc(angle: number, centerAngle: number, halfAngle: number): boolean {
   const limit = Math.max(0, Math.min(Math.PI, halfAngle));
   return Math.abs(wrapAngle(angle - centerAngle)) <= limit + 1e-9;
 }

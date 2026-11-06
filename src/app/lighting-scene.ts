@@ -12,8 +12,7 @@ import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
 import { FLAME_LOCAL_LENGTH, createEngineExhaust } from './engine-exhaust';
 import { PIXELS_PER_METER } from './world-scale';
-import { DEFAULT_TURRET_LAYOUT, createTurrets } from './turrets';
-import type { TurretMountConfig } from './turrets';
+import { createTurrets } from './turrets';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -77,8 +76,7 @@ export async function createScene(app: Application): Promise<Scene> {
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
   const asteroid: LitSprite = createLitSprite(asteroidColor, asteroidNormal);
-  const turretConfigs: TurretMountConfig[] = DEFAULT_TURRET_LAYOUT.map((config) => ({ ...config }));
-  const turrets = createTurrets(turretTexture, turretConfigs);
+  const turrets = createTurrets(turretTexture);
   content.addChild(ship.mesh, turrets.container, exhaust.flames, asteroid.mesh);
 
   const canvas = app.canvas as HTMLCanvasElement;
@@ -113,9 +111,14 @@ export async function createScene(app: Application): Promise<Scene> {
   let shipPlaced = false;
   let shipBaseScale = 1;
   let asteroidBaseScale = 1;
+  let laidOutWidth = -1;
+  let laidOutHeight = -1;
 
   const layout = (): void => {
     const { width, height } = app.screen;
+    if (shipPlaced && width === laidOutWidth && height === laidOutHeight) return;
+    laidOutWidth = width;
+    laidOutHeight = height;
     const gap = Math.max(24, width * 0.045);
 
     let shipScale = Math.min(height * 0.48, width * 0.52) / shipColor.height;

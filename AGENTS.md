@@ -127,9 +127,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   engine cone tips/smoke stay on screen. It cancels the follow camera's lag using
   `CAMERA_FOLLOW_RATE`. Tune in `lighting-scene.ts`/`background.ts`.
 - **Zoom is depth-weighted.** Far stars/nebulas stay at a fixed scale; mid/near stars respond
-  partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`1` (1× is the
-  default and maximum zoom-in) and exposed as
-  `Background.setZoom()` for velocity-driven camera work.
+  partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`1`
+  (1× is the default and maximum zoom-in); the wheel adjusts it and double-click resets it.
 
 ## Agent workflow
 
