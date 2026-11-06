@@ -8,6 +8,7 @@ import type { LightingState, LitSprite } from './lit-sprite';
 import { createFlightState, stepFlight, DEFAULT_FLIGHT_TUNING } from './ship-flight';
 import type { FlightControls } from './ship-flight';
 import { createFlightTuner } from './flight-tuner';
+import { createGroundGrid } from './ground-grid';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -49,6 +50,9 @@ export async function createScene(app: Application): Promise<Scene> {
 
   const content = new Container();
   app.stage.addChild(content);
+
+  const ground = createGroundGrid();
+  content.addChild(ground.mesh);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
   const asteroid: LitSprite = createLitSprite(asteroidColor, asteroidNormal);
@@ -114,6 +118,8 @@ export async function createScene(app: Application): Promise<Scene> {
   const updateTransforms = (): void => {
     const { width, height } = app.screen;
     const dust = background.getDustTransform();
+
+    ground.setView(dust.x, dust.y, dust.zoom, width, height);
 
     ship.mesh.scale.set(shipBaseScale * dust.zoom);
     ship.mesh.position.set(
@@ -194,6 +200,7 @@ export async function createScene(app: Application): Promise<Scene> {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
       flightTuner.destroy();
+      ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroid.mesh.destroy({ children: true });
       hint.destroy();

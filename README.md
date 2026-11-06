@@ -55,6 +55,7 @@ src/
   app/lighting-scene.ts   Ship + asteroid lighting demo (keep small)
   app/ship-flight.ts      Pure ramped WASD flight model (tested)
   app/flight-tuner.ts     Live overlay sliders for flight tuning
+  app/ground-grid.ts      Screen-space grid fixed to the near dust layer
   app/lit-sprite.ts       Custom normal-map Mesh shader (directional + emissive)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
   app/background-textures.ts  One-time procedural canvas textures (nebula/galaxy/star/flare)
@@ -80,7 +81,10 @@ docs/                     Architecture decisions, reference art and agent workfl
 - **W/S** thrust forward/back; **A/D** rotate. Inputs ramp in over 0.3 s, drag applies while
   thrusting, and speeds are capped.
 - The ship flies on the **near dust layer**; the camera smoothly pans with it so it stays in the
-  center region. The asteroid is fixed on that layer.
+  center region. The asteroid is fixed on that layer, and the layer is rigid (dust only moves
+  with the camera, never on its own).
+- A subtle cyan **ground grid** is fixed to that layer, so ship movement and speed read against
+  a stable reference.
 - The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag,
   speed/spin limits and input ramp.
 - **Drag the canvas** to look around (the follow cam eases back to the ship); **scroll / pinch**

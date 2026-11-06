@@ -12,7 +12,6 @@ import {
 } from './background-textures';
 import {
   STARFIELD_SEED,
-  advanceDust,
   advanceStars,
   dustAlpha,
   generateDust,
@@ -315,7 +314,8 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     }
 
     advanceStars(stars, deltaSeconds);
-    advanceDust(dust, deltaSeconds);
+    // The near dust layer is the gameplay layer: keep it rigid so the ship and
+    // asteroid never slide relative to it. Stars can keep their slow drift.
     project();
   };
 
