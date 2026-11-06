@@ -10,6 +10,7 @@ import type { FlightControls } from './ship-flight';
 import { createFlightTuner } from './flight-tuner';
 import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
+import { createReverseEngines } from './reverse-engines';
 import { FLAME_LOCAL_LENGTH, createEngineExhaust } from './engine-exhaust';
 import { PIXELS_PER_METER } from './world-scale';
 
@@ -48,22 +49,31 @@ const assetUrl = (path: string): string => joinBaseUrl(import.meta.env.BASE_URL,
 export async function createScene(app: Application): Promise<Scene> {
   const background = createBackground(app);
 
-  const [shipColor, shipNormal, shipEmissive, shipGlow, asteroidColor, asteroidNormal] =
-    await Promise.all([
-      Assets.load<Texture>(assetUrl('assets/lighting/ship-color.png')),
-      Assets.load<Texture>(assetUrl('assets/lighting/ship-normal.png')),
-      Assets.load<Texture>(assetUrl('assets/lighting/ship-emissive.png')),
-      Assets.load<Texture>(assetUrl('assets/lighting/ship-glow.png')),
-      Assets.load<Texture>(assetUrl('assets/lighting/asteroid-color.png')),
-      Assets.load<Texture>(assetUrl('assets/lighting/asteroid-normal.png')),
-    ]);
+  const [
+    shipColor,
+    shipNormal,
+    shipEmissive,
+    shipGlow,
+    asteroidColor,
+    asteroidNormal,
+    reverseEngine,
+  ] = await Promise.all([
+    Assets.load<Texture>(assetUrl('assets/lighting/ship-color.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/ship-normal.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/ship-emissive.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/ship-glow.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/asteroid-color.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/asteroid-normal.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/reverse-engine.png')),
+  ]);
 
   const content = new Container();
   app.stage.addChild(content);
 
   const ground = createGroundGrid();
   const exhaust = createEngineExhaust();
-  content.addChild(ground.mesh, exhaust.smoke);
+  const reverseEngines = createReverseEngines(reverseEngine);
+  content.addChild(ground.mesh, exhaust.smoke, reverseEngines.container);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
   const asteroid: LitSprite = createLitSprite(asteroidColor, asteroidNormal);
@@ -172,6 +182,7 @@ export async function createScene(app: Application): Promise<Scene> {
 
     const shipScreenX = (shipWorldX - dust.x * width) * dust.zoom + width / 2;
     const shipScreenY = (shipWorldY - dust.y * height) * dust.zoom + height / 2;
+    reverseEngines.update(shipScreenX, shipScreenY, flight.rotation, shipBaseScale * dust.zoom);
     exhaust.update({
       shipWorldX,
       shipWorldY,
@@ -277,6 +288,7 @@ export async function createScene(app: Application): Promise<Scene> {
       flightTuner.destroy();
       telemetry.destroy();
       exhaust.destroy();
+      reverseEngines.destroy();
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroid.mesh.destroy({ children: true });

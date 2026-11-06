@@ -58,6 +58,7 @@ src/
   app/flight-telemetry.ts Read-only terminal/velocity/input telemetry overlay
   app/ground-grid.ts      Screen-space 1 m grid fixed to the near dust layer
   app/engine-exhaust.ts   Three cyan cone flames + world-space smoke exhaust
+  app/reverse-engines.ts  Two rotated engine nozzles under the wing leading edges
   app/world-scale.ts      Metres ↔ pixels conversion (64 px per metre)
   app/lit-sprite.ts       Custom normal-map Mesh shader (directional + emissive)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
