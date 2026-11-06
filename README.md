@@ -63,6 +63,7 @@ src/
   app/turrets.ts          Eight turret mounts with finite-speed mouse tracking
   app/turret-aim.ts       Pure angular aim physics (tested)
   app/weapons.ts          Per-pair weapon sound pools + cadence
+  app/weapon-tuner.ts     Live rate-of-fire sliders
   app/bullets.ts          Pooled 1 m glowing tracers (100 m range)
   app/bullet-math.ts      Bullet range/fade math (tested)
   app/world-scale.ts      Metres ↔ pixels conversion (64 px per metre)
@@ -102,7 +103,9 @@ docs/                     Architecture decisions, reference art and agent workfl
   galaxies are fixed to the sky.
 - The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag
   and input ramp. The top-right **FLIGHT TELEMETRY** panel shows terminal W/S/A-D speeds,
-  current velocity, angular velocity, and ramped inputs (all linear units in metres).
+  current velocity, angular velocity, and ramped inputs (all linear units in metres). The
+  bottom-left **RATE OF FIRE** panel tunes the cooldown of each weapon pair, clamped to the
+  pair's charge duration.
 - Eight turrets track the mouse with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
 - **Scroll** zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out).
   Camera dragging and click-to-reset are intentionally disabled.

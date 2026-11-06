@@ -18,6 +18,7 @@ import { createTurrets } from './turrets';
 import { createBullets } from './bullets';
 import { BULLET_SPEED_METERS_PER_SECOND } from './bullet-math';
 import { WEAPON_PAIRS, WEAPON_SHOT_DELAYS, nextPairVariant } from './weapons';
+import { createWeaponTuner } from './weapon-tuner';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -98,6 +99,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   let firing = false;
   const pairCooldowns = [0, 0, 0, 0];
+  const weaponCooldowns = WEAPON_PAIRS.map((pair) => pair.cooldown);
   const pairCursors = [0, 0, 0, 0];
   const pendingShots: Array<{ pairIndex: number; remaining: number; total: number }> = [];
 
@@ -170,7 +172,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       pairCooldowns[index] = Math.max(0, (pairCooldowns[index] ?? 0) - dt);
       if (!firing || !active[index] || (pairCooldowns[index] ?? 0) > 0) continue;
       fireWeapon(index);
-      const cooldown = WEAPON_PAIRS[index]?.cooldown ?? 1;
+      const cooldown = weaponCooldowns[index] ?? 1;
       pairCooldowns[index] = cooldown * (0.94 + Math.random() * 0.12);
     }
   };
@@ -409,6 +411,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const flightTuner = createFlightTuner(tuning);
   document.body.append(flightTuner.element);
 
+  const weaponTuner = createWeaponTuner(weaponCooldowns);
+  document.body.append(weaponTuner.element);
+
   const telemetry = createFlightTelemetry(flight, tuning);
   document.body.append(telemetry.element);
 
@@ -442,6 +447,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
       flightTuner.destroy();
+      weaponTuner.destroy();
       telemetry.destroy();
       turrets.destroy();
       bullets.destroy();
