@@ -59,7 +59,7 @@ export async function createScene(app: Application): Promise<Scene> {
   content.addChild(ship.mesh, asteroid.mesh);
 
   const hint = new Text({
-    text: 'W/S thrust · A/D turn · M: mute',
+    text: 'W/S thrust · A/D turn · 1 m grid · M: mute',
     style: {
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       fontSize: 12,
@@ -192,7 +192,9 @@ export async function createScene(app: Application): Promise<Scene> {
 
   return {
     setMuted(muted: boolean): void {
-      hint.text = muted ? 'W/S thrust · A/D turn · sound muted' : 'W/S thrust · A/D turn · M: mute';
+      hint.text = muted
+        ? 'W/S thrust · A/D turn · 1 m grid · sound muted'
+        : 'W/S thrust · A/D turn · 1 m grid · M: mute';
     },
     destroy(): void {
       app.ticker.remove(tick);

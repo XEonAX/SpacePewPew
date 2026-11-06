@@ -1,5 +1,12 @@
 import { Mesh, MeshGeometry, Shader, UniformGroup } from 'pixi.js';
 
+/** World scale: at zoom 1, one metre is 64 screen pixels. */
+export const PIXELS_PER_METER = 64;
+
+/** 1 m minor cells, 5 m major cells. */
+const MINOR_CELL = PIXELS_PER_METER;
+const MAJOR_CELL = MINOR_CELL * 5;
+
 const vertex = `#version 300 es
 precision highp float;
 
@@ -45,13 +52,13 @@ void main() {
     // to the near dust layer rather than to the screen.
     vec2 world = (vScreen - uResolution * 0.5) / uZoom + uCamera * uResolution;
 
-    const float MINOR_CELL = 120.0;
-    const float MAJOR_CELL = MINOR_CELL * 4.0;
+    const float MINOR_CELL = ${MINOR_CELL.toFixed(1)};
+    const float MAJOR_CELL = ${MAJOR_CELL.toFixed(1)};
 
     float minorSpacing = MINOR_CELL * uZoom;
     float majorSpacing = MAJOR_CELL * uZoom;
-    float minorFade = smoothstep(6.0, 14.0, minorSpacing);
-    float majorFade = smoothstep(6.0, 16.0, majorSpacing);
+    float minorFade = smoothstep(5.0, 12.0, minorSpacing);
+    float majorFade = smoothstep(5.0, 14.0, majorSpacing);
 
     float minor = gridMask(world, MINOR_CELL, 1.1) * minorFade * 0.16;
     float major = gridMask(world, MAJOR_CELL, 1.4) * majorFade * 0.30;
