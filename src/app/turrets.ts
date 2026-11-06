@@ -139,6 +139,7 @@ export function createTurrets(texture: Texture): Turrets {
   let activePairs = [false, false, false, false];
   let muzzles: TurretMuzzle[] = [];
   let glowLevels: readonly number[] = [1, 1, 1, 1];
+  const glowAlphas = configs.map(() => 1);
 
   return {
     container,
@@ -188,16 +189,20 @@ export function createTurrets(texture: Texture): Turrets {
         const glow = glowSprites[index]!;
         // Charge/fire state only belongs to barrels currently tracking the mouse.
         const level = inArc ? (glowLevels[pairIndex] ?? 1) : 1;
+        const charge = Math.max(0, level - 1);
+        const flicker = Math.sin(frame.now * 5 + index * 1.7);
+        const targetAlpha =
+          level <= 0 ? 0 : Math.min(1, 0.92 + 0.08 * Math.min(1, charge / 0.9) + 0.02 * flicker);
+        const alpha =
+          glowAlphas[index]! + (targetAlpha - glowAlphas[index]!) * Math.min(1, frame.dt * 10);
+        glowAlphas[index] = alpha;
+
         glow.position.set(muzzleX, muzzleY);
-        glow.visible = level > 0;
-        if (glow.visible) {
-          const charge = Math.max(0, level - 1);
-          const pulse = 1 + 0.015 * Math.sin(frame.now * 5 + index * 1.7);
-          const size = MUZZLE_GLOW_SIZE * (1 + 0.55 * charge) * pulse;
-          glow.width = size;
-          glow.height = size;
-          glow.alpha = Math.min(1, 0.92 + 0.04 * Math.sin(frame.now * 5 + index * 1.7));
-        }
+        glow.alpha = alpha;
+        glow.visible = alpha > 0.005 || targetAlpha > 0;
+        const size = MUZZLE_GLOW_SIZE * (1 + 0.55 * charge) * (1 + 0.015 * flicker);
+        glow.width = size;
+        glow.height = size;
 
         if (inArc) {
           nextActivePairs[pairIndex] = true;
