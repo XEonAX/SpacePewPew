@@ -11,6 +11,7 @@ These are the assets the game scene loads; do not edit them by hand.
 | `asteroid-normal.png` | 643×622 | `asteroid-normal.webp` |
 | `ship-emissive.png`   | 514×841 | derived cyan panels    |
 | `ship-glow.png`       | 514×841 | blurred emissive matte |
+| `turret.png`          | 164×208 | `docs/reference/turret.svg` |
 
 Processing steps (one-off, not a runtime pipeline):
 
@@ -28,7 +29,8 @@ Processing steps (one-off, not a runtime pipeline):
 - the three rear cyan engine ovals are excluded from the emissive/glow maps for special
   treatment later; the baked reverse-engine nozzle ovals **are** included,
 - the center nozzle is copied, turned 180°, scaled 0.58×, and composited **below** the ship
-  color/normal maps under the outer wing edges as the reverse-engine visual.
+  color/normal maps under the outer wing edges as the reverse-engine visual,
+- `turret.png` is the supplied turret SVG rasterized at 4× for the eight aiming turrets.
 
 Normal maps use tangent-space RGB (red = X, green = Y, blue = Z). Both pairs come from the
 supplied reference art; re-export lossless versions if the source normal maps are ever replaced.
