@@ -58,7 +58,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/ground-grid.ts` — screen-space 1 m × 1 m grid fixed to the near dust layer
   (64 world px per metre; major lines every 5 m).
 - `src/app/engine-exhaust.ts` — three cyan cone-flame sprites plus dust-world smoke particles
-  emitted from the cone tips; smoke fades over 10 s.
+  emitted from the cone tips; emission continues with residual speed after throttle cut so the
+  trail stays continuous; smoke fades over 10 s.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.
