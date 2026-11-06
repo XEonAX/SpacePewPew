@@ -19,6 +19,8 @@ interface TurretMountConfig {
   aimCenter: number;
   /** Half-width of the allowed aiming arc. */
   aimHalfAngle: number;
+  /** Angular speed/acceleration multiplier for this mount. */
+  turnScale: number;
 }
 
 // Front pair keeps its ±60° outer edge, but the inner edges meet ahead of the
@@ -34,6 +36,7 @@ const MID_CONE = Math.PI / 4; // covers ±45° around sideways
 const REAR_CENTER = (140.25 * Math.PI) / 180;
 const REAR_CONE = (50.25 * Math.PI) / 180;
 const TURRET_SCALE = 1.5;
+const FRONT_TURN_SCALE = 1.85;
 const MUZZLE_GLOW_SIZE = 28;
 
 const mount = (
@@ -42,6 +45,7 @@ const mount = (
   restAngle: number,
   aimCenter: number,
   aimHalfAngle: number,
+  turnScale = 1,
 ): TurretMountConfig => ({
   x,
   y,
@@ -49,12 +53,13 @@ const mount = (
   restAngle,
   aimCenter,
   aimHalfAngle,
+  turnScale,
 });
 
 const TURRET_LAYOUT: readonly TurretMountConfig[] = [
   // Front pair: forward only.
-  mount(-65, -88, 0, -FRONT_CENTER, FRONT_CONE),
-  mount(64, -88, 0, FRONT_CENTER, FRONT_CONE),
+  mount(-65, -88, 0, -FRONT_CENTER, FRONT_CONE, FRONT_TURN_SCALE),
+  mount(64, -88, 0, FRONT_CENTER, FRONT_CONE, FRONT_TURN_SCALE),
   // Middle four: side-facing, ±45° around sideways.
   mount(-91, 46, -Math.PI / 2, -MID_CENTER, MID_CONE),
   mount(90, 46, Math.PI / 2, MID_CENTER, MID_CONE),
@@ -85,16 +90,6 @@ function createChargeGlowTexture(): Texture {
   return new Texture({ source: new CanvasSource({ resource: canvas }) });
 }
 
-export interface TurretAimCone {
-  pairIndex: number;
-  /** Cone origin in ship-texture pixels relative to the ship centre. */
-  x: number;
-  y: number;
-  /** Local arc centre; add the ship rotation for the screen angle. */
-  center: number;
-  halfAngle: number;
-}
-
 export interface TurretMuzzle {
   pairIndex: number;
   /** Muzzle position in ship-texture pixels relative to the ship centre. */
@@ -121,7 +116,6 @@ export interface Turrets {
   update(frame: TurretFrame): void;
   getActivePairs(): readonly boolean[];
   getMuzzles(): readonly TurretMuzzle[];
-  getAimCones(): readonly TurretAimCone[];
   setGlowLevels(levels: readonly number[]): void;
   destroy(): void;
 }
@@ -153,13 +147,6 @@ export function createTurrets(texture: Texture): Turrets {
   const aims: TurretAimState[] = configs.map((config) => ({
     angle: config.restAngle,
     angularVelocity: 0,
-  }));
-  const aimCones: readonly TurretAimCone[] = configs.map((config, index) => ({
-    pairIndex: Math.floor(index / 2),
-    x: config.x,
-    y: config.y,
-    center: config.aimCenter,
-    halfAngle: config.aimHalfAngle,
   }));
   let activePairs = [false, false, false, false];
   let muzzles: TurretMuzzle[] = [];
@@ -203,6 +190,7 @@ export function createTurrets(texture: Texture): Turrets {
             config.aimCenter,
             config.aimHalfAngle,
             frame.dt,
+            config.turnScale,
           );
         }
         sprite.rotation = aim.angle;
@@ -248,9 +236,6 @@ export function createTurrets(texture: Texture): Turrets {
     },
     getMuzzles(): readonly TurretMuzzle[] {
       return muzzles;
-    },
-    getAimCones(): readonly TurretAimCone[] {
-      return aimCones;
     },
     setGlowLevels(levels: readonly number[]): void {
       glowLevels = levels;

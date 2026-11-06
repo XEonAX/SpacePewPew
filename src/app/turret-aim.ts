@@ -33,18 +33,27 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /** Angular spring-damper toward a target, with a hard finite turn-speed cap. */
-export function stepTurretAim(state: TurretAimState, targetAngle: number, dt: number): void {
+export function stepTurretAim(
+  state: TurretAimState,
+  targetAngle: number,
+  dt: number,
+  speedScale = 1,
+): void {
   if (dt <= 0) return;
 
   const error = wrapAngle(targetAngle - state.angle);
-  const acceleration = clamp(error * AIM_GAIN, -TURRET_ANGULAR_ACCEL, TURRET_ANGULAR_ACCEL);
+  const acceleration = clamp(
+    error * AIM_GAIN,
+    -TURRET_ANGULAR_ACCEL * speedScale,
+    TURRET_ANGULAR_ACCEL * speedScale,
+  );
 
   state.angularVelocity += acceleration * dt;
   state.angularVelocity *= Math.exp(-TURRET_ANGULAR_DAMPING * dt);
   state.angularVelocity = clamp(
     state.angularVelocity,
-    -TURRET_MAX_ANGULAR_SPEED,
-    TURRET_MAX_ANGULAR_SPEED,
+    -TURRET_MAX_ANGULAR_SPEED * speedScale,
+    TURRET_MAX_ANGULAR_SPEED * speedScale,
   );
   state.angle = wrapAngle(state.angle + state.angularVelocity * dt);
 }
@@ -60,13 +69,14 @@ export function stepTurretAimInArc(
   centerAngle: number,
   halfAngle: number,
   dt: number,
+  speedScale = 1,
 ): boolean {
   if (!isAngleInArc(targetAngle, centerAngle, halfAngle)) {
     state.angularVelocity = 0;
     return false;
   }
 
-  stepTurretAim(state, targetAngle, dt);
+  stepTurretAim(state, targetAngle, dt, speedScale);
 
   const bounded = clampAngleToArc(state.angle, centerAngle, halfAngle);
   if (Math.abs(wrapAngle(bounded - state.angle)) > 1e-9) {
