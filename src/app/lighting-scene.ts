@@ -10,7 +10,7 @@ import type { FlightControls } from './ship-flight';
 import { createFlightTuner } from './flight-tuner';
 import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
-import { createEngineExhaust } from './engine-exhaust';
+import { FLAME_LOCAL_LENGTH, createEngineExhaust } from './engine-exhaust';
 import { PIXELS_PER_METER } from './world-scale';
 
 export interface Scene {
@@ -23,8 +23,8 @@ const MAX_DELTA_SECONDS = 0.05;
 // Lookahead is an offset of the ship from screen centre, as a fraction of the
 // short viewport edge. It eases in quadratically with speed and grows when the
 // camera is zoomed out.
-const LOOKAHEAD_BASE_OFFSET = 0.2;
-const LOOKAHEAD_MAX_OFFSET = 0.28;
+const LOOKAHEAD_BASE_OFFSET = 0.07;
+const LOOKAHEAD_MAX_OFFSET = 0.11;
 const LOOKAHEAD_ZOOM_BOOST = 1.5;
 
 /** World-space lighting shared by the lit meshes. */
@@ -97,8 +97,8 @@ export async function createScene(app: Application): Promise<Scene> {
     const { width, height } = app.screen;
     const gap = Math.max(24, width * 0.045);
 
-    let shipScale = Math.min(height * 0.7, width * 0.62) / shipColor.height;
-    let asteroidScale = Math.min(height * 0.54, width * 0.34) / asteroidColor.width;
+    let shipScale = Math.min(height * 0.48, width * 0.52) / shipColor.height;
+    let asteroidScale = Math.min(height * 0.44, width * 0.3) / asteroidColor.width;
 
     const shipWidth = shipColor.width * shipScale;
     const asteroidWidth = asteroidColor.width * asteroidScale;
@@ -142,7 +142,10 @@ export async function createScene(app: Application): Promise<Scene> {
     const baseOffsetPx = shortEdge * LOOKAHEAD_BASE_OFFSET;
     const maxOffsetPx = shortEdge * LOOKAHEAD_MAX_OFFSET;
     const zoomBoost = 1 + (1 - dust.zoom) * LOOKAHEAD_ZOOM_BOOST;
-    const offsetPx = Math.min(maxOffsetPx, baseOffsetPx * curve * zoomBoost);
+    const shipHalf = (shipColor.height * shipBaseScale * dust.zoom) / 2;
+    const flameScreen = FLAME_LOCAL_LENGTH * shipBaseScale * dust.zoom;
+    const exhaustRoom = Math.max(0, height / 2 - shipHalf - flameScreen - 90);
+    const offsetPx = Math.min(maxOffsetPx, baseOffsetPx * curve * zoomBoost, exhaustRoom);
     const offsetMeters = offsetPx / (PIXELS_PER_METER * dust.zoom);
 
     // Cancel the follow camera's steady-state lag, then add the desired

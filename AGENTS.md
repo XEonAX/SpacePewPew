@@ -57,9 +57,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/world-scale.ts` — `PIXELS_PER_METER = 64`; all flight physics is in metres.
 - `src/app/ground-grid.ts` — screen-space 1 m × 1 m grid fixed to the near dust layer
   (64 world px per metre; major lines every 5 m).
-- `src/app/engine-exhaust.ts` — three cyan cone-flame sprites plus dust-world smoke particles
-  emitted from the cone tips; emission continues with residual speed after throttle cut so the
-  trail stays continuous; smoke fades over 10 s.
+- `src/app/engine-exhaust.ts` — three cyan cone-flame sprites plus dense dust-world smoke
+  particles emitted from the cone tips only while engine power is on; old puffs fade over 10 s.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.
@@ -118,8 +117,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   so at any zoom a layer's screen pan is `parallax × zoom`; the near dust/grid layer (parallax 1)
   is always fastest. No independent drift.
 - **Camera lookahead is quadratic.** `followCamera()` applies a `speed²` curve (near-zero at
-  slow speed, max near terminal), boosts the offset as zoom decreases, and cancels the follow
-  camera's lag using `CAMERA_FOLLOW_RATE`. Tune in `lighting-scene.ts`/`background.ts`.
+  slow speed, max near terminal), boosts the offset as zoom decreases, and caps it so the
+  engine cone tips/smoke stay on screen. It cancels the follow camera's lag using
+  `CAMERA_FOLLOW_RATE`. Tune in `lighting-scene.ts`/`background.ts`.
 - **Zoom is depth-weighted.** Far stars/nebulas stay at a fixed scale; mid/near stars respond
   partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`1` (1× is the
   default and maximum zoom-in) and exposed as

@@ -1,13 +1,13 @@
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 import { createRng, randomRange } from '../utils/random';
-import { PIXELS_PER_METER } from './world-scale';
 
 const ENGINE_X_OFFSETS = [-80, 0, 80] as const;
 const ENGINE_Y_OFFSET = 410;
 const FLAME_WIDTH = 44;
-const FLAME_BASE_HEIGHT = 190;
+export const FLAME_LOCAL_LENGTH = 190;
+const FLAME_BASE_HEIGHT = FLAME_LOCAL_LENGTH;
 const SMOKE_LIFETIME = 10;
-const SMOKE_POOL_SIZE = 360;
+const SMOKE_POOL_SIZE = 720;
 const SMOKE_TEXTURE_SIZE = 128;
 const SMOKE_TINTS = [0xa8c6cc, 0x91b6bf, 0xcce1e4] as const;
 
@@ -178,9 +178,9 @@ export function createEngineExhaust(): EngineExhaust {
     particle.active = true;
     particle.life = SMOKE_LIFETIME;
     particle.maxLife = SMOKE_LIFETIME;
-    particle.size = randomRange(rng, 10, 24);
-    particle.growth = randomRange(rng, 6, 16);
-    particle.baseAlpha = randomRange(rng, 0.2, 0.34);
+    particle.size = randomRange(rng, 16, 32);
+    particle.growth = randomRange(rng, 10, 22);
+    particle.baseAlpha = randomRange(rng, 0.3, 0.48);
     particle.rotationSpeed = randomRange(rng, -0.18, 0.18);
     particle.sprite.position.set(
       worldX + randomRange(rng, -4, 4),
@@ -225,12 +225,11 @@ export function createEngineExhaust(): EngineExhaust {
       );
       smoke.scale.set(frame.zoom);
 
-      // Keep the smoke stream continuous when the throttle is cut: residual gas
-      // keeps flowing from the cone tips while the ship still has speed.
-      const speed = Math.hypot(frame.shipVx, frame.shipVy) / PIXELS_PER_METER;
-      const emission = Math.max(thrust, Math.min(1, speed / 12));
-      if (emission > 0.02 && frame.dt > 0) {
-        smokeAccumulator += frame.dt * emission * 30;
+      // Smoke is only produced while the engine has power. Old puffs keep
+      // living for their 10 s lifetime, so cutting power stops new emission but
+      // leaves the previous trail to fade.
+      if (thrust > 0.02 && frame.dt > 0) {
+        smokeAccumulator += frame.dt * thrust * 60;
         while (smokeAccumulator >= 1) {
           spawnSmoke(nextEngine, frame);
           nextEngine = (nextEngine + 1) % ENGINE_X_OFFSETS.length;
@@ -256,7 +255,7 @@ export function createEngineExhaust(): EngineExhaust {
         particle.sprite.rotation += particle.rotationSpeed * frame.dt;
         particle.sprite.scale.set(particle.size / SMOKE_TEXTURE_SIZE);
         particle.sprite.alpha =
-          particle.baseAlpha * Math.min(1, progress * 12) * Math.pow(1 - progress, 2.2);
+          particle.baseAlpha * Math.min(1, 0.35 + progress * 20) * Math.pow(1 - progress, 1.6);
       }
     },
     destroy(): void {
