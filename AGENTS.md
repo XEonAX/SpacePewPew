@@ -50,7 +50,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/lighting-scene.ts` — the only scene: ship + asteroid layout, lighting state, WASD
   input. Places both objects with `Background.getDustTransform()` on the near dust layer.
 - `src/app/ship-flight.ts` — pure ramped arcade flight model (0.3 s input ramp, thrust, drag;
-  terminal speed emerges from thrust/drag). Unit-tested in `tests/ship-flight.test.ts`.
+  both axes damp while any input is active; terminal speed emerges from thrust/drag).
+  Unit-tested in `tests/ship-flight.test.ts`.
 - `src/app/flight-tuner.ts` — live DOM slider overlay that mutates `FlightTuning`; dev-facing.
 - `src/app/ground-grid.ts` — screen-space 1 m × 1 m grid fixed to the near dust layer
   (64 world px per metre; major lines every 5 m).

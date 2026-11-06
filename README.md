@@ -78,8 +78,9 @@ docs/                     Architecture decisions, reference art and agent workfl
 
 ## Controls
 
-- **W/S** thrust forward/back; **A/D** rotate. Inputs ramp in over 0.3 s, drag applies while
-  thrusting, and **thrust vs drag decide the terminal speed** — no separate speed cap.
+- **W/S** thrust forward/back; **A/D** rotate. Inputs ramp in over 0.3 s. Drag applies to both
+  linear and angular motion whenever any input is active; **thrust vs drag decide terminal
+  speeds** — no separate speed cap.
 - The ship flies on the **near dust layer**; the camera smoothly pans with it so it stays in the
   center region. The asteroid is fixed on that layer, and the layer is rigid (dust only moves
   with the camera, never on its own).

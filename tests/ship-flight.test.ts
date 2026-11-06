@@ -62,6 +62,28 @@ describe('ship flight', () => {
     expect(speed).toBeLessThan(terminal * 1.02);
   });
 
+  it('applies angular drag while any input is active', () => {
+    const state = createFlightState();
+    state.angularVelocity = 2;
+
+    stepFlight(state, press({ forward: true }), 0.1);
+
+    expect(state.angularInput).toBe(0);
+    expect(state.angularVelocity).toBeGreaterThan(0);
+    expect(state.angularVelocity).toBeLessThan(2);
+  });
+
+  it('applies linear drag while only angular input is active', () => {
+    const state = createFlightState();
+    state.vx = 100;
+
+    stepFlight(state, press({ turnLeft: true }), 0.1);
+
+    expect(state.linearInput).toBe(0);
+    expect(state.vx).toBeGreaterThan(0);
+    expect(state.vx).toBeLessThan(100);
+  });
+
   it('coasts without drag once input is zero', () => {
     const state = createFlightState();
     state.vx = 100;

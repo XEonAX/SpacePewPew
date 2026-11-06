@@ -82,17 +82,18 @@ export function stepFlight(
   state.vy += forwardY * thrust * state.linearInput * dt;
   state.angularVelocity += state.angularInput * tuning.angularAccel * dt;
 
-  // Drag only while the corresponding input is non-zero; with a positive drag
-  // the thrust/drag ratio sets a finite terminal speed. After key-up the input
-  // still takes inputRampSeconds to reach 0, so drag stays on for that whole
-  // tail; once it hits zero the ship coasts on its momentum.
-  if (state.linearInput !== 0) {
-    const drag = Math.exp(-tuning.linearDrag * dt);
-    state.vx *= drag;
-    state.vy *= drag;
-  }
-  if (state.angularInput !== 0) {
-    state.angularVelocity *= Math.exp(-tuning.angularDrag * dt);
+  // Drag applies to both axes whenever any input is active; with a positive
+  // drag the thrust/drag ratio sets finite terminal speeds. After key-up the
+  // input still takes inputRampSeconds to reach 0, so drag stays on for that
+  // whole tail; once all inputs hit zero the ship coasts on its momentum.
+  const anyInput = state.linearInput !== 0 || state.angularInput !== 0;
+  if (anyInput) {
+    const linearDrag = Math.exp(-tuning.linearDrag * dt);
+    state.vx *= linearDrag;
+    state.vy *= linearDrag;
+
+    const angularDrag = Math.exp(-tuning.angularDrag * dt);
+    state.angularVelocity *= angularDrag;
   }
 
   state.rotation += state.angularVelocity * dt;
