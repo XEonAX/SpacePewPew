@@ -91,8 +91,8 @@ with `LightSprite` + normal maps:
 - **Ambient fill** for readability.
 - The shadow map is baked once while there are no shadow casters.
 - The art already has baked cel shading, so the normal maps are baked at ~0.30 strength; at full
-  strength the diffuse lighting reads as embossed metal. Raise it in the normal-map processing if
-  you want a stronger 2.5D relief.
+  strength the diffuse lighting reads as embossed metal. See
+  [docs/lighting-grid.png](docs/lighting-grid.png) for the strength sweep.
 
 ## Reference art
 
