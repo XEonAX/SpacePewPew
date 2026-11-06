@@ -30,7 +30,7 @@ export interface BulletFrame {
 
 export interface Bullets {
   container: Container;
-  spawn(x: number, y: number, vx: number, vy: number): void;
+  spawn(x: number, y: number, vx: number, vy: number, rotation: number): void;
   update(frame: BulletFrame): void;
   destroy(): void;
 }
@@ -85,7 +85,7 @@ export function createBullets(): Bullets {
 
   return {
     container,
-    spawn(x: number, y: number, vx: number, vy: number): void {
+    spawn(x: number, y: number, vx: number, vy: number, rotation: number): void {
       const bullet = bullets.find((candidate) => !candidate.active);
       if (!bullet) return;
       bullet.active = true;
@@ -95,7 +95,8 @@ export function createBullets(): Bullets {
       bullet.vy = vy;
       bullet.travelled = 0;
       bullet.sprite.position.set(x * PIXELS_PER_METER, y * PIXELS_PER_METER);
-      bullet.sprite.rotation = Math.atan2(vy, vx);
+      // The tracer points along the barrel; ship momentum still affects travel.
+      bullet.sprite.rotation = rotation;
       bullet.sprite.alpha = 1;
       bullet.sprite.visible = true;
     },

@@ -124,6 +124,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
         y,
         flight.vx + Math.sin(angle) * BULLET_SPEED_METERS_PER_SECOND,
         flight.vy - Math.cos(angle) * BULLET_SPEED_METERS_PER_SECOND,
+        angle - Math.PI / 2,
       );
     }
 
