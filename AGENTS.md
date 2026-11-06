@@ -98,7 +98,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   into `CanvasSource`s and composed with batched sprites/TilingSprites. Avoid per-frame
   full-screen shaders or filters unless profiling justifies them.
 - **Zoom is depth-weighted.** Far stars/nebulas stay at a fixed scale; mid/near stars respond
-  partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`6` and exposed as
+  partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`1` (1× is the
+  default and maximum zoom-in) and exposed as
   `Background.setZoom()` for velocity-driven camera work.
 
 ## Agent workflow

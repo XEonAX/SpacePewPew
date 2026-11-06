@@ -78,8 +78,8 @@ docs/                     Architecture decisions, reference art and agent workfl
 - The ship and asteroid slowly counter-rotate so you can judge the top-right directional key
   light across their normal-mapped faces.
 - Ship and asteroid ride the **near dust layer**: drag/zoom moves them with it.
-- **Drag the canvas** to pan the background; **scroll / pinch** to zoom it (`0.02×–6×`,
-  50× max zoom-out). **Double-click** resets the view.
+- **Drag the canvas** to pan the background; **scroll / pinch** to zoom out from the default
+  1× (`0.02×–1×`, 50× max zoom-out). **Double-click** resets the view.
 - **Click** for the placeholder sound; **M** mutes/unmutes.
 - `Background.setZoom()` is exposed for velocity-driven background zoom.
 

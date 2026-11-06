@@ -94,7 +94,8 @@ velocity (zoom out at higher speeds). Zoom is depth-weighted rather than uniform
 - mid/near star layers respond partially (`zoomResponse` in `starfield-model`),
 - near-field dust takes the full pan and zoom.
 
-Zoom is clamped to **0.02×–6×**; the 0.02 floor is the requested 50× zoom-out limit. The
+Zoom is clamped to **0.02×–1×**; 1× is both the default and the maximum zoom-in, and the
+0.02 floor is the requested 50× zoom-out limit. The
 background exposes `setZoom(zoom)` (smoothed target) and `resetView()` so gameplay can ease the
 camera out from velocity without coupling the game loop to rendering.
 

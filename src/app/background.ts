@@ -49,9 +49,9 @@ export interface Background {
 const MAX_DELTA_SECONDS = 0.05;
 const HERO_STAR_COUNT = 14;
 
-/** Hard camera limits: 50× zoom-out (0.02) up to 6× zoom-in. */
+/** Hard camera limits: 50× zoom-out (0.02); 1× default is the max zoom-in. */
 const MIN_ZOOM = 0.02;
-const MAX_ZOOM = 6;
+const MAX_ZOOM = 1;
 
 const NEBULA_LAYERS = [
   { parallax: 0.03, alpha: 0.32, tileScaleFactor: 1.9 },
