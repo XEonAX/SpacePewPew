@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+.pnpm-store/
+.agent/
+public/audio/
+pnpm-lock.yaml

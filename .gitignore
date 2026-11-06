@@ -1,0 +1,24 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+coverage/
+
+# generated assets and agent artifacts
+.agent/
+.playwright-mcp/
+
+# local env / editor noise
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# vite temp files
+vite.config.ts.timestamp-*

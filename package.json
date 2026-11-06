@@ -1,0 +1,49 @@
+{
+  "name": "space-pew-pew",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "SpacePewPew \u2014 PixiJS v8 + Vite + TypeScript starter with Howler audio and an agent-inspectable browser workflow",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "browser:inspect": "node scripts/browser.mjs inspect",
+    "browser:open": "node scripts/browser.mjs open",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build",
+    "browser:act": "node scripts/browser.mjs act",
+    "mcp:browser": "node scripts/mcp-browser.mjs",
+    "browser:stop": "node scripts/browser.mjs stop"
+  },
+  "dependencies": {
+    "howler": "^2.2.4",
+    "pixi.js": "^8.22.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/mcp": "0.0.84",
+    "@types/howler": "^2.2.13",
+    "@types/node": "^26.6.6",
+    "@types/web": "^0.0.360",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.14.0",
+    "playwright": "^1.65.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  }
+}
