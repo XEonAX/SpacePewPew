@@ -69,17 +69,18 @@ export async function createScene(app: Application): Promise<Scene> {
   light2DSystem.addAmbientLight(ambient);
 
   // A distant, very wide point light approximates a directional key light.
-  // One light per object lets us counter-rotate its direction so shading stays
-  // correct while the sprites themselves rotate (the library samples normals
-  // in texture space and does not rotate them with the sprite).
+  // One key light per object lets us counter-rotate its direction so shading
+  // stays correct while the sprites rotate (the library samples normals in
+  // texture space and does not rotate them with the sprite).
   const makeKeyLight = (): PointLight =>
     new PointLight({ color: 0xfff2d8, intensity: 1.7, radius: 5000 });
-  const makePointerLight = (): PointLight =>
-    new PointLight({ color: 0x9fe0ff, intensity: 1.8, radius: 500 });
 
   const keyLights = [makeKeyLight(), makeKeyLight()];
-  const pointerLights = [makePointerLight(), makePointerLight()];
-  for (const light of [...keyLights, ...pointerLights]) {
+  // The omni light is one real world-space light at the pointer, shared by both
+  // objects, so it always reads as attached to the cursor.
+  const pointerLight = new PointLight({ color: 0x9fe0ff, intensity: 1.3, radius: 500 });
+
+  for (const light of [...keyLights, pointerLight]) {
     app.stage.addChild(light);
     light2DSystem.addLight(light);
   }
@@ -112,7 +113,7 @@ export async function createScene(app: Application): Promise<Scene> {
     asteroid.position.set(centerX + gap / 2 + asteroidWidth / 2, centerY);
 
     for (const light of keyLights) light.radius = Math.max(width, height) * 6;
-    for (const light of pointerLights) light.radius = Math.min(width, height) * 0.55;
+    pointerLight.radius = Math.min(width, height) * 0.5;
 
     if (!pointerPlaced) {
       pointerSource.x = width * 0.5;
@@ -142,8 +143,9 @@ export async function createScene(app: Application): Promise<Scene> {
 
     targets.forEach((target, index) => {
       placeRotatedLight(keyLights[index]!, target, keySource);
-      placeRotatedLight(pointerLights[index]!, target, pointerSource);
     });
+
+    pointerLight.position.set(pointerSource.x, pointerSource.y);
   };
 
   const onPointerMove = (event: PointerEvent): void => {
@@ -201,7 +203,7 @@ export async function createScene(app: Application): Promise<Scene> {
       window.removeEventListener('resize', onResize);
       canvas.removeEventListener('pointermove', onPointerMove);
 
-      const sceneLights = [...keyLights, ...pointerLights];
+      const sceneLights = [...keyLights, pointerLight];
       light2DSystem.lights = light2DSystem.lights.filter((light) => !sceneLights.includes(light));
       light2DSystem.ambientLights = light2DSystem.ambientLights.filter(
         (light) => light !== ambient,
