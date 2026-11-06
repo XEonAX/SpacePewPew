@@ -5,8 +5,9 @@ import { joinBaseUrl } from '../utils/paths';
 import { createBackground } from './background';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
-import { createFlightState, stepFlight } from './ship-flight';
+import { createFlightState, stepFlight, DEFAULT_FLIGHT_TUNING } from './ship-flight';
 import type { FlightControls } from './ship-flight';
+import { createFlightTuner } from './flight-tuner';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -65,6 +66,7 @@ export async function createScene(app: Application): Promise<Scene> {
   app.stage.addChild(hint);
 
   const flight = createFlightState();
+  const tuning = { ...DEFAULT_FLIGHT_TUNING };
   const asteroidWorld = { x: 0, y: 0 };
   const controls: FlightControls = {
     forward: false,
@@ -136,7 +138,7 @@ export async function createScene(app: Application): Promise<Scene> {
     const deltaSeconds = Math.min(ticker.deltaMS / 1000, MAX_DELTA_SECONDS);
     lighting.time += deltaSeconds;
 
-    stepFlight(flight, controls, deltaSeconds);
+    stepFlight(flight, controls, deltaSeconds, tuning);
     asteroid.mesh.rotation -= deltaSeconds * 0.22;
 
     layout();
@@ -170,6 +172,9 @@ export async function createScene(app: Application): Promise<Scene> {
     controls.turnRight = false;
   };
 
+  const flightTuner = createFlightTuner(tuning);
+  document.body.append(flightTuner.element);
+
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', onBlur);
@@ -188,6 +193,7 @@ export async function createScene(app: Application): Promise<Scene> {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
+      flightTuner.destroy();
       ship.mesh.destroy({ children: true });
       asteroid.mesh.destroy({ children: true });
       hint.destroy();

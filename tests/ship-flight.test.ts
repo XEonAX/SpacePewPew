@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  INPUT_RAMP_SECONDS,
-  MAX_ANGULAR_SPEED,
-  MAX_LINEAR_SPEED,
-  createFlightState,
-  stepFlight,
-} from '../src/app/ship-flight';
+import { DEFAULT_FLIGHT_TUNING, createFlightState, stepFlight } from '../src/app/ship-flight';
 import type { FlightControls } from '../src/app/ship-flight';
 
 const idle: FlightControls = {
@@ -22,18 +16,18 @@ function press(partial: Partial<FlightControls>): FlightControls {
 describe('ship flight', () => {
   it('ramps input to full over INPUT_RAMP_SECONDS', () => {
     const state = createFlightState();
-    stepFlight(state, press({ forward: true }), INPUT_RAMP_SECONDS / 2);
+    stepFlight(state, press({ forward: true }), DEFAULT_FLIGHT_TUNING.inputRampSeconds / 2);
     expect(state.linearInput).toBeCloseTo(0.5, 5);
 
-    stepFlight(state, press({ forward: true }), INPUT_RAMP_SECONDS / 2);
+    stepFlight(state, press({ forward: true }), DEFAULT_FLIGHT_TUNING.inputRampSeconds / 2);
     expect(state.linearInput).toBe(1);
   });
 
   it('ramps angular input in both directions over the same time', () => {
     const left = createFlightState();
     const right = createFlightState();
-    stepFlight(left, press({ turnLeft: true }), INPUT_RAMP_SECONDS);
-    stepFlight(right, press({ turnRight: true }), INPUT_RAMP_SECONDS);
+    stepFlight(left, press({ turnLeft: true }), DEFAULT_FLIGHT_TUNING.inputRampSeconds);
+    stepFlight(right, press({ turnRight: true }), DEFAULT_FLIGHT_TUNING.inputRampSeconds);
     expect(left.angularInput).toBe(-1);
     expect(right.angularInput).toBe(1);
   });
@@ -57,14 +51,14 @@ describe('ship flight', () => {
 
   it('caps linear and angular speed', () => {
     const state = createFlightState();
-    state.vx = MAX_LINEAR_SPEED * 10;
-    state.vy = MAX_LINEAR_SPEED * 10;
-    state.angularVelocity = MAX_ANGULAR_SPEED * 10;
+    state.vx = DEFAULT_FLIGHT_TUNING.maxLinearSpeed * 10;
+    state.vy = DEFAULT_FLIGHT_TUNING.maxLinearSpeed * 10;
+    state.angularVelocity = DEFAULT_FLIGHT_TUNING.maxAngularSpeed * 10;
 
     stepFlight(state, idle, 1 / 60);
 
-    expect(Math.hypot(state.vx, state.vy)).toBeCloseTo(MAX_LINEAR_SPEED, 6);
-    expect(state.angularVelocity).toBeCloseTo(MAX_ANGULAR_SPEED, 6);
+    expect(Math.hypot(state.vx, state.vy)).toBeCloseTo(DEFAULT_FLIGHT_TUNING.maxLinearSpeed, 6);
+    expect(state.angularVelocity).toBeCloseTo(DEFAULT_FLIGHT_TUNING.maxAngularSpeed, 6);
   });
 
   it('coasts without drag once input is zero', () => {
@@ -81,9 +75,9 @@ describe('ship flight', () => {
     const state = createFlightState();
     state.vx = 100;
 
-    stepFlight(state, press({ forward: true }), INPUT_RAMP_SECONDS);
+    stepFlight(state, press({ forward: true }), DEFAULT_FLIGHT_TUNING.inputRampSeconds);
     const accelerated = Math.hypot(state.vx, state.vy);
-    stepFlight(state, idle, INPUT_RAMP_SECONDS);
+    stepFlight(state, idle, DEFAULT_FLIGHT_TUNING.inputRampSeconds);
 
     expect(accelerated).toBeGreaterThan(0);
     expect(state.linearInput).toBe(0);

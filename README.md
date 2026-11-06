@@ -54,6 +54,7 @@ src/
   app/create-app.ts       PixiJS Application bootstrap
   app/lighting-scene.ts   Ship + asteroid lighting demo (keep small)
   app/ship-flight.ts      Pure ramped WASD flight model (tested)
+  app/flight-tuner.ts     Live overlay sliders for flight tuning
   app/lit-sprite.ts       Custom normal-map Mesh shader (directional + emissive)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
   app/background-textures.ts  One-time procedural canvas textures (nebula/galaxy/star/flare)
@@ -80,6 +81,8 @@ docs/                     Architecture decisions, reference art and agent workfl
   thrusting, and speeds are capped.
 - The ship flies on the **near dust layer**; the camera smoothly pans with it so it stays in the
   center region. The asteroid is fixed on that layer.
+- The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag,
+  speed/spin limits and input ramp.
 - **Drag the canvas** to look around (the follow cam eases back to the ship); **scroll / pinch**
   zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out). **Double-click** resets zoom.
 - **Click** for the placeholder sound; **M** mutes/unmutes.

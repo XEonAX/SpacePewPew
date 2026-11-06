@@ -51,6 +51,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   input. Places both objects with `Background.getDustTransform()` on the near dust layer.
 - `src/app/ship-flight.ts` — pure ramped arcade flight model (0.3 s input ramp, thrust, drag,
   speed caps). Unit-tested in `tests/ship-flight.test.ts`.
+- `src/app/flight-tuner.ts` — live DOM slider overlay that mutates `FlightTuning`; dev-facing.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.
