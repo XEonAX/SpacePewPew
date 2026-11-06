@@ -43,7 +43,7 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 | `pnpm check`                        | Typecheck + lint + format check + tests + build (definition of done) |
 | `pnpm browser:open`                 | Reuse the shared Chrome (launch once outside the sandbox)            |
 | `pnpm browser:inspect`              | Screenshot + console/state dump (`--headless` for a throwaway run)   |
-| `pnpm browser:act <action>`         | Drive the shared browser (click, type, eval, …)                      |
+| `pnpm browser:act <action>`         | Drive the shared browser (click, type, eval, maximize, …)            |
 | `pnpm browser:stop`                 | Close the shared browser                                             |
 | `pnpm mcp:browser`                  | Run the Playwright MCP stdio server manually                         |
 

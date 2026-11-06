@@ -5,7 +5,7 @@
  *   pnpm browser:open              launch the shared, visible Chrome (CDP on :9222)
  *   pnpm browser:inspect           screenshot + console/state dump of the shared browser
  *   pnpm browser:inspect --headless   run the same check in a throwaway headless browser
- *   pnpm browser:act <action> ...  drive the shared browser (click, type, eval, ...)
+ *   pnpm browser:act <action> ...  drive the shared browser (click, type, eval, maximize, ...)
  *
  * The human uses the same Chrome window directly, so agent actions are visible
  * live and the agent can screenshot what the human is doing.
@@ -212,7 +212,7 @@ async function act() {
 
   if (!action) {
     throw new Error(
-      'Usage: pnpm browser:act <goto|click|fill|type|press|hover|eval|wait|screenshot|reload|info> [args]',
+      'Usage: pnpm browser:act <goto|click|fill|type|press|hover|eval|wait|screenshot|reload|info|maximize> [args]',
     );
   }
 
@@ -278,6 +278,28 @@ async function act() {
         await page.reload({ waitUntil: 'domcontentloaded' });
         await waitForReady(page);
         result = { url: page.url() };
+        break;
+      }
+      case 'maximize': {
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send('Emulation.clearDeviceMetricsOverride');
+        try {
+          const { windowId } = await cdp.send('Browser.getWindowForTarget');
+          await cdp.send('Browser.setWindowBounds', {
+            windowId,
+            bounds: { windowState: 'maximized' },
+          });
+        } catch {
+          // Some window managers don't support maximizing over CDP; clearing the
+          // viewport override is still enough to let the page fill the window.
+        }
+        await page.waitForTimeout(150);
+        result = await page.evaluate(() => ({
+          innerWidth,
+          innerHeight,
+          outerWidth,
+          outerHeight,
+        }));
         break;
       }
       case 'screenshot': {
