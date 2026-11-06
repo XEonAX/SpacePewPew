@@ -17,7 +17,7 @@ import type { AudioManager } from '../audio/audio';
 import { createTurrets } from './turrets';
 import { createBullets } from './bullets';
 import { BULLET_SPEED_METERS_PER_SECOND } from './bullet-math';
-import { WEAPON_PAIRS, nextPairVariant } from './weapons';
+import { WEAPON_PAIRS, WEAPON_SHOT_DELAYS, nextPairVariant } from './weapons';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -99,16 +99,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   let firing = false;
   const pairCooldowns = [0, 0, 0, 0];
   const pairCursors = [0, 0, 0, 0];
+  const pendingShots: Array<{ pairIndex: number; remaining: number }> = [];
 
-  const fireWeapon = (pairIndex: number): void => {
-    const pair = WEAPON_PAIRS[pairIndex];
-    if (!pair) return;
-    const next = nextPairVariant(pair, pairCursors[pairIndex] ?? 0);
-    pairCursors[pairIndex] = next.cursor;
-
-    const pan = clamp((pointer.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7);
-    const volume = pair.volume * (0.92 + Math.random() * 0.16);
-
+  const spawnBullets = (pairIndex: number): void => {
     const shipCos = Math.cos(flight.rotation);
     const shipSin = Math.sin(flight.rotation);
     const localToMeters = shipBaseScale / PIXELS_PER_METER;
@@ -127,6 +120,20 @@ export async function createScene(app: Application, audio: AudioManager): Promis
         angle - Math.PI / 2,
       );
     }
+  };
+
+  const fireWeapon = (pairIndex: number): void => {
+    const pair = WEAPON_PAIRS[pairIndex];
+    if (!pair) return;
+    const next = nextPairVariant(pair, pairCursors[pairIndex] ?? 0);
+    pairCursors[pairIndex] = next.cursor;
+    pendingShots.push({
+      pairIndex,
+      remaining: WEAPON_SHOT_DELAYS[next.sound] ?? 0,
+    });
+
+    const pan = clamp((pointer.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7);
+    const volume = pair.volume * (0.92 + Math.random() * 0.16);
 
     if (pairIndex === 0) {
       // The front pair has two barrels: two slightly detuned voices panned
@@ -148,6 +155,14 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   };
 
   const updateWeapons = (dt: number): void => {
+    for (let index = pendingShots.length - 1; index >= 0; index -= 1) {
+      const pending = pendingShots[index]!;
+      pending.remaining -= dt;
+      if (pending.remaining > 0) continue;
+      spawnBullets(pending.pairIndex);
+      pendingShots.splice(index, 1);
+    }
+
     const active = turrets.getActivePairs();
     for (let index = 0; index < WEAPON_PAIRS.length; index += 1) {
       pairCooldowns[index] = Math.max(0, (pairCooldowns[index] ?? 0) - dt);

@@ -75,7 +75,7 @@ src/
   main.ts                 Entry point, HMR cleanup, inspection hook
 public/
   favicon.svg
-  audio/weapons/          Processed weapon SFX (1 beam + 5 blast variants)
+  audio/weapons/          Processed weapon SFX (1 beam + 3 blasts)
   assets/lighting/        Processed color/normal maps + ship emissive/glow maps
 scripts/
   browser.mjs             Shared-browser CLI (open / inspect / act / stop)
@@ -106,7 +106,7 @@ docs/                     Architecture decisions, reference art and agent workfl
 - Eight turrets track the mouse with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
 - **Scroll** zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out).
   Camera dragging and click-to-reset are intentionally disabled.
-- **Click / hold** to fire the turret pair(s) aimed at the mouse: front pair uses the beam, rear pairs alternate blast variants with randomized pitch, volume, and stereo pan. Rounds are 1 m glowing tracers aligned with the barrel that inherit ship momentum, travel 100 m, and fade over the last 50 m. Barrel tips glow cyan when a pair is charged; firing hides the glow until that pair recharges. **M** mutes/unmutes.
+- **Click / hold** to fire the turret pair(s) aimed at the mouse: front pair uses the beam, rear pairs alternate blast variants with randomized pitch, volume, and stereo pan. Rounds are 1 m glowing tracers aligned with the barrel that inherit ship momentum, travel 100 m, and fade over the last 50 m. Each tracer is scheduled from the sound's measured attack transient, so the visual shot lands with the audio impact. Barrel tips glow cyan when a pair is charged; firing hides the glow until that pair recharges. **M** mutes/unmutes.
 
 ## Lighting
 
@@ -134,11 +134,16 @@ runtime copies live in [public/assets/lighting/](public/assets/lighting/).
 
 ## Audio
 
-Howler is wired through `src/audio/audio.ts`. The six committed weapon clips in
-`public/audio/weapons/` were trimmed, faded, and normalized from the supplied sources:
+Howler is wired through `src/audio/audio.ts`. The four committed weapon clips in
+`public/audio/weapons/` were split, faded, and normalized from the supplied sources, with their
+full attacks preserved:
 
 - `beam-front.wav` — front pair,
-- `blast-1.wav` … `blast-5.wav` — three rear pair variant pools.
+- `blast-1.wav` … `blast-3.wav` — rear pair variant pools.
+
+The original `blast-4`/`blast-5` sections contained long charge wind-ups and were dropped. The
+remaining sounds are scheduled by `WEAPON_SHOT_DELAYS`; the tracer appears at the clip's
+measured attack, not at playback start.
 
 Each pair cycles its pool without repeating the previous shot, and every shot gets small
 playback-rate, volume, and stereo-pan variation. Keep clips small and avoid build-time asset

@@ -16,9 +16,17 @@ export interface WeaponPairSpec {
 export const WEAPON_PAIRS: readonly WeaponPairSpec[] = [
   { sounds: ['beam-front'], cooldown: 0.85, volume: 0.65 },
   { sounds: ['blast-1', 'blast-2'], cooldown: 0.9, volume: 0.62 },
-  { sounds: ['blast-3', 'blast-4'], cooldown: 1.2, volume: 0.58 },
-  { sounds: ['blast-5', 'blast-2'], cooldown: 1.35, volume: 0.55 },
+  { sounds: ['blast-3', 'blast-1'], cooldown: 1.2, volume: 0.58 },
+  { sounds: ['blast-2', 'blast-3'], cooldown: 1.35, volume: 0.55 },
 ];
+
+/** Time from clip start to its first audible shot transient. */
+export const WEAPON_SHOT_DELAYS: Record<SoundName, number> = {
+  'beam-front': 0.035,
+  'blast-1': 0.12,
+  'blast-2': 0.025,
+  'blast-3': 0.09,
+};
 
 export function nextPairVariant(
   pair: WeaponPairSpec,

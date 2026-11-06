@@ -65,7 +65,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   `tests/engine-mix.test.ts`.
 - `src/app/turrets.ts` — eight turret mounts with finite-speed mouse tracking, per-mount aiming cones, and charge glows at the barrel tips.
 - `src/app/turret-aim.ts` — pure angular spring-damper aim, unit-tested.
-- `src/app/weapons.ts` — turret-pair sound pools and cadence.
+- `src/app/weapons.ts` — turret-pair sound pools, cadence, and per-sound tracer delays.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 100 m range and 50 m fade.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
