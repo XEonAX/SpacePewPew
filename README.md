@@ -55,7 +55,9 @@ src/
   app/lighting-scene.ts   Ship + asteroid lighting demo (keep small)
   app/ship-flight.ts      Pure ramped WASD flight model (tested)
   app/flight-tuner.ts     Live overlay sliders for flight tuning
-  app/ground-grid.ts      Screen-space grid fixed to the near dust layer
+  app/flight-telemetry.ts Read-only terminal/velocity/input telemetry overlay
+  app/ground-grid.ts      Screen-space 1 m grid fixed to the near dust layer
+  app/world-scale.ts      Metres ↔ pixels conversion (64 px per metre)
   app/lit-sprite.ts       Custom normal-map Mesh shader (directional + emissive)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
   app/background-textures.ts  One-time procedural canvas textures (nebula/galaxy/star/flare)
@@ -87,7 +89,8 @@ docs/                     Architecture decisions, reference art and agent workfl
 - A subtle cyan **ground grid** is fixed to that layer: minor cells are **1 m × 1 m** (64 world
   px per metre), major lines every 5 m. Ship movement and speed read against it.
 - The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag
-  and input ramp.
+  and input ramp. The top-right **FLIGHT TELEMETRY** panel shows terminal W/S/A-D speeds,
+  current velocity, angular velocity, and ramped inputs (all linear units in metres).
 - **Drag the canvas** to look around (the follow cam eases back to the ship); **scroll / pinch**
   zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out). **Double-click** resets zoom.
 - **Click** for the placeholder sound; **M** mutes/unmutes.

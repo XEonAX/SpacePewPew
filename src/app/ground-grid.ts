@@ -1,7 +1,5 @@
 import { Mesh, MeshGeometry, Shader, UniformGroup } from 'pixi.js';
-
-/** World scale: at zoom 1, one metre is 64 screen pixels. */
-export const PIXELS_PER_METER = 64;
+import { PIXELS_PER_METER } from './world-scale';
 
 /** 1 m minor cells, 5 m major cells. */
 const MINOR_CELL = PIXELS_PER_METER;

@@ -8,7 +8,9 @@ import type { LightingState, LitSprite } from './lit-sprite';
 import { createFlightState, stepFlight, DEFAULT_FLIGHT_TUNING } from './ship-flight';
 import type { FlightControls } from './ship-flight';
 import { createFlightTuner } from './flight-tuner';
+import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
+import { PIXELS_PER_METER } from './world-scale';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -101,10 +103,10 @@ export async function createScene(app: Application): Promise<Scene> {
     const asteroidScreenX = centerX + gap / 2 + (asteroidColor.width * asteroidScale) / 2;
 
     if (!shipPlaced) {
-      // Flight uses zoom-1 screen pixels relative to the viewport centre so the
-      // ship's heading and speed look the same in both axes.
-      flight.x = shipScreenX - width / 2;
-      flight.y = centerY - height / 2;
+      // Flight is in metres relative to the viewport centre; rendering converts
+      // metres to screen pixels with PIXELS_PER_METER.
+      flight.x = (shipScreenX - width / 2) / PIXELS_PER_METER;
+      flight.y = (centerY - height / 2) / PIXELS_PER_METER;
       shipPlaced = true;
     }
 
@@ -121,10 +123,13 @@ export async function createScene(app: Application): Promise<Scene> {
 
     ground.setView(dust.x, dust.y, dust.zoom, width, height);
 
+    const shipWorldX = flight.x * PIXELS_PER_METER;
+    const shipWorldY = flight.y * PIXELS_PER_METER;
+
     ship.mesh.scale.set(shipBaseScale * dust.zoom);
     ship.mesh.position.set(
-      (flight.x - dust.x * width) * dust.zoom + width / 2,
-      (flight.y - dust.y * height) * dust.zoom + height / 2,
+      (shipWorldX - dust.x * width) * dust.zoom + width / 2,
+      (shipWorldY - dust.y * height) * dust.zoom + height / 2,
     );
     ship.mesh.rotation = flight.rotation;
 
@@ -148,7 +153,11 @@ export async function createScene(app: Application): Promise<Scene> {
     asteroid.mesh.rotation -= deltaSeconds * 0.22;
 
     layout();
-    background.setFollowTarget(flight.x / app.screen.width, flight.y / app.screen.height);
+    telemetry.update();
+    background.setFollowTarget(
+      (flight.x * PIXELS_PER_METER) / app.screen.width,
+      (flight.y * PIXELS_PER_METER) / app.screen.height,
+    );
     updateTransforms();
     updateLighting();
   };
@@ -181,12 +190,20 @@ export async function createScene(app: Application): Promise<Scene> {
   const flightTuner = createFlightTuner(tuning);
   document.body.append(flightTuner.element);
 
+  const telemetry = createFlightTelemetry(flight, tuning);
+  document.body.append(telemetry.element);
+
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', onBlur);
   app.ticker.add(tick);
   layout();
-  background.setFollowTarget(flight.x / app.screen.width, flight.y / app.screen.height, true);
+  telemetry.update();
+  background.setFollowTarget(
+    (flight.x * PIXELS_PER_METER) / app.screen.width,
+    (flight.y * PIXELS_PER_METER) / app.screen.height,
+    true,
+  );
   updateTransforms();
   updateLighting();
 
@@ -202,6 +219,7 @@ export async function createScene(app: Application): Promise<Scene> {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
       flightTuner.destroy();
+      telemetry.destroy();
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroid.mesh.destroy({ children: true });

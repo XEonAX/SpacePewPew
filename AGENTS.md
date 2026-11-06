@@ -49,10 +49,12 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/create-app.ts` — creates and initialises the PixiJS `Application`.
 - `src/app/lighting-scene.ts` — the only scene: ship + asteroid layout, lighting state, WASD
   input. Places both objects with `Background.getDustTransform()` on the near dust layer.
-- `src/app/ship-flight.ts` — pure ramped arcade flight model (0.3 s input ramp, thrust, drag;
-  both axes damp while any input is active; terminal speed emerges from thrust/drag).
-  Unit-tested in `tests/ship-flight.test.ts`.
+- `src/app/ship-flight.ts` — pure ramped arcade flight model in metres (0.3 s input ramp,
+  thrust, drag; both axes damp while any input is active; terminal speed emerges from
+  thrust/drag). Unit-tested in `tests/ship-flight.test.ts`.
 - `src/app/flight-tuner.ts` — live DOM slider overlay that mutates `FlightTuning`; dev-facing.
+- `src/app/flight-telemetry.ts` — read-only DOM overlay for terminal/current/ramped state.
+- `src/app/world-scale.ts` — `PIXELS_PER_METER = 64`; all flight physics is in metres.
 - `src/app/ground-grid.ts` — screen-space 1 m × 1 m grid fixed to the near dust layer
   (64 world px per metre; major lines every 5 m).
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
@@ -105,6 +107,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - **Background textures are baked once.** Nebula/galaxy/glow textures are generated at startup
   into `CanvasSource`s and composed with batched sprites/TilingSprites. Avoid per-frame
   full-screen shaders or filters unless profiling justifies them.
+- **Flight physics is metric.** Keep velocities/accelerations/positions in metres; convert to
+  screen pixels only at render time with `PIXELS_PER_METER`. Grid/telemetry display metres.
 - **Zoom is depth-weighted.** Far stars/nebulas stay at a fixed scale; mid/near stars respond
   partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`1` (1× is the
   default and maximum zoom-in) and exposed as

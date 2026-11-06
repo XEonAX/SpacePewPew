@@ -1,4 +1,4 @@
-/** Ramped arcade flight: small forces, capped speeds, drag only while thrusting. */
+/** Ramped arcade flight in metres; thrust/drag set terminal speeds. */
 
 export interface FlightControls {
   forward: boolean;
@@ -17,8 +17,8 @@ export interface FlightTuning {
 }
 
 export const DEFAULT_FLIGHT_TUNING: FlightTuning = {
-  forwardAccel: 560,
-  reverseAccel: 300,
+  forwardAccel: 9,
+  reverseAccel: 5,
   angularAccel: 4.8,
   linearDrag: 1.7,
   angularDrag: 2.4,
@@ -26,10 +26,11 @@ export const DEFAULT_FLIGHT_TUNING: FlightTuning = {
 };
 
 export interface FlightState {
-  /** World position in screen pixels at zoom 1, relative to the viewport center. */
+  /** World position in metres at zoom 1, relative to the viewport center. */
   x: number;
   y: number;
   rotation: number;
+  /** Velocity in metres per second. */
   vx: number;
   vy: number;
   angularVelocity: number;
