@@ -10,6 +10,7 @@ import type { FlightControls } from './ship-flight';
 import { createFlightTuner } from './flight-tuner';
 import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
+import { createShipTrail } from './ship-trail';
 import { PIXELS_PER_METER } from './world-scale';
 
 export interface Scene {
@@ -61,7 +62,8 @@ export async function createScene(app: Application): Promise<Scene> {
   app.stage.addChild(content);
 
   const ground = createGroundGrid();
-  content.addChild(ground.mesh);
+  const trail = createShipTrail();
+  content.addChild(ground.mesh, trail.graphics);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
   const asteroid: LitSprite = createLitSprite(asteroidColor, asteroidNormal);
@@ -165,6 +167,21 @@ export async function createScene(app: Application): Promise<Scene> {
     const shipWorldX = flight.x * PIXELS_PER_METER;
     const shipWorldY = flight.y * PIXELS_PER_METER;
 
+    const engineOffset = shipColor.height * 0.42 * shipBaseScale;
+    const engineX = shipWorldX - Math.sin(flight.rotation) * engineOffset;
+    const engineY = shipWorldY + Math.cos(flight.rotation) * engineOffset;
+    trail.update({
+      x: engineX,
+      y: engineY,
+      active: Math.abs(flight.linearInput) > 0.02,
+      now: lighting.time,
+      cameraX: dust.x,
+      cameraY: dust.y,
+      zoom: dust.zoom,
+      width,
+      height,
+    });
+
     ship.mesh.scale.set(shipBaseScale * dust.zoom);
     ship.mesh.position.set(
       (shipWorldX - dust.x * width) * dust.zoom + width / 2,
@@ -252,6 +269,7 @@ export async function createScene(app: Application): Promise<Scene> {
       window.removeEventListener('blur', onBlur);
       flightTuner.destroy();
       telemetry.destroy();
+      trail.destroy();
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroid.mesh.destroy({ children: true });
