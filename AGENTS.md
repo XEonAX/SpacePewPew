@@ -57,10 +57,12 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/world-scale.ts` — `PIXELS_PER_METER = 64`; all flight physics is in metres.
 - `src/app/ground-grid.ts` — screen-space 1 m × 1 m grid fixed to the near dust layer
   (64 world px per metre; major lines every 5 m).
-- `src/app/engine-exhaust.ts` — three main cone flames plus two reverse-engine flames from the
-  baked wing nozzles, individually mixed from ramped linear/angular input (turn-left = left
-  reverse + right main; W+left cuts left main). Dense dust-world smoke leaves active cone tips;
-  old puffs fade over 10 s.
+- `src/app/engine-exhaust.ts` — flames and dust-world smoke driven by the engine mix; flame
+  length/alpha are proportional to each engine's ramped output and smoke emission is weighted
+  per engine.
+- `src/app/engine-layout.ts` — shared main/reverse nozzle geometry (must match the baked texture).
+- `src/app/engine-mix.ts` — pure ramped engine-output mixer, unit-tested in
+  `tests/engine-mix.test.ts`.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.

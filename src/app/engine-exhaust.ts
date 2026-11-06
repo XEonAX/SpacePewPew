@@ -1,17 +1,19 @@
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 import { createRng, randomRange } from '../utils/random';
+import { MAIN_ENGINE_LAYOUT, REVERSE_ENGINE_LAYOUT } from './engine-layout';
+import { computeEngineOutputs } from './engine-mix';
 
-const ENGINE_X_OFFSETS = [-80, 0, 80] as const;
-const ENGINE_Y_OFFSET = 410;
-const FLAME_WIDTH = 44;
-export const FLAME_LOCAL_LENGTH = 190;
+const ENGINE_X_OFFSETS = MAIN_ENGINE_LAYOUT.xOffsets;
+const ENGINE_Y_OFFSET = MAIN_ENGINE_LAYOUT.yOffset;
+const FLAME_WIDTH = MAIN_ENGINE_LAYOUT.flameWidth;
+export const FLAME_LOCAL_LENGTH = MAIN_ENGINE_LAYOUT.flameLength;
 const FLAME_BASE_HEIGHT = FLAME_LOCAL_LENGTH;
 
-// Baked reverse-engine copies: x ±167, y +50, 0.58× scale, rotated 180°.
-const REVERSE_ENGINE_X_OFFSETS = [-167, 167] as const;
-const REVERSE_ENGINE_SCALE = 0.58;
-const REVERSE_FLAME_BASE_Y = 31;
-const REVERSE_FLAME_LOCAL_LENGTH = FLAME_BASE_HEIGHT * REVERSE_ENGINE_SCALE;
+const REVERSE_ENGINE_X_OFFSETS = REVERSE_ENGINE_LAYOUT.xOffsets;
+const REVERSE_ENGINE_SCALE = REVERSE_ENGINE_LAYOUT.scale;
+const REVERSE_FLAME_BASE_Y = REVERSE_ENGINE_LAYOUT.flameBaseY;
+const REVERSE_FLAME_LOCAL_LENGTH = REVERSE_ENGINE_LAYOUT.flameLength;
+const SMOKE_RATE_PER_OUTPUT = 20;
 const SMOKE_LIFETIME = 10;
 const SMOKE_POOL_SIZE = 720;
 const SMOKE_TEXTURE_SIZE = 128;
@@ -169,19 +171,21 @@ export function createEngineExhaust(): EngineExhaust {
     const sprite = new Sprite({ texture: flameTexture, anchor: { x: 0.5, y: 0 } });
     sprite.x = offset;
     sprite.y = REVERSE_FLAME_BASE_Y;
-    sprite.rotation = Math.PI;
-    sprite.width = FLAME_WIDTH * REVERSE_ENGINE_SCALE;
+    sprite.rotation = REVERSE_ENGINE_LAYOUT.rotation;
+    sprite.width = REVERSE_ENGINE_LAYOUT.flameWidth;
     sprite.height = REVERSE_FLAME_LOCAL_LENGTH;
     sprite.blendMode = 'add';
     flames.addChild(sprite);
     return sprite;
   });
 
-  const flameLengths = ENGINE_X_OFFSETS.map(() => FLAME_BASE_HEIGHT);
-  const reverseFlameLengths = REVERSE_ENGINE_X_OFFSETS.map(() => REVERSE_FLAME_LOCAL_LENGTH);
+  const flameLengths: number[] = ENGINE_X_OFFSETS.map(() => FLAME_BASE_HEIGHT);
+  const reverseFlameLengths: number[] = REVERSE_ENGINE_X_OFFSETS.map(
+    () => REVERSE_FLAME_LOCAL_LENGTH,
+  );
   const rng = createRng(0x51ed_270b ^ 0x9e37_79b9);
-  let smokeAccumulator = 0;
-  let nextEngine = 0;
+  const mainSmokeAccumulators = ENGINE_X_OFFSETS.map(() => 0);
+  const reverseSmokeAccumulators = REVERSE_ENGINE_X_OFFSETS.map(() => 0);
 
   const spawnSmoke = (
     localX: number,
@@ -230,19 +234,10 @@ export function createEngineExhaust(): EngineExhaust {
       flames.rotation = frame.rotation;
       flames.scale.set(frame.shipScale);
 
-      const forward = Math.max(0, frame.linearInput);
-      const reverse = Math.max(0, -frame.linearInput);
-      const turnLeft = Math.max(0, -frame.angularInput);
-      const turnRight = Math.max(0, frame.angularInput);
-
-      // Differential engine mix. Turning left lights the left reverse engine
-      // and the right main engine; with W held the left main engine is cut.
-      const mainOutputs = [
-        Math.max(forward * (1 - turnLeft), turnRight),
-        forward,
-        Math.max(forward * (1 - turnRight), turnLeft),
-      ];
-      const reverseOutputs = [Math.max(reverse, turnLeft), Math.max(reverse, turnRight)];
+      const { main: mainOutputs, reverse: reverseOutputs } = computeEngineOutputs(
+        frame.linearInput,
+        frame.angularInput,
+      );
 
       for (let index = 0; index < flameSprites.length; index += 1) {
         const sprite = flameSprites[index]!;
@@ -251,10 +246,10 @@ export function createEngineExhaust(): EngineExhaust {
           0.94 +
           0.05 * Math.sin(frame.now * 70 + index * 1.7) +
           0.02 * Math.sin(frame.now * 113 + index * 2.1);
-        const length = FLAME_BASE_HEIGHT * flicker * (0.45 + 0.55 * output);
+        const length = FLAME_BASE_HEIGHT * flicker * output;
         flameLengths[index] = length;
         sprite.height = length;
-        sprite.alpha = output > 0.02 ? 0.45 + 0.55 * output : 0;
+        sprite.alpha = output;
       }
 
       for (let index = 0; index < reverseFlameSprites.length; index += 1) {
@@ -264,10 +259,10 @@ export function createEngineExhaust(): EngineExhaust {
           0.94 +
           0.05 * Math.sin(frame.now * 74 + index * 1.3) +
           0.02 * Math.sin(frame.now * 121 + index * 2.7);
-        const length = REVERSE_FLAME_LOCAL_LENGTH * flicker * (0.45 + 0.55 * output);
+        const length = REVERSE_FLAME_LOCAL_LENGTH * flicker * output;
         reverseFlameLengths[index] = length;
         sprite.height = length;
-        sprite.alpha = output > 0.02 ? 0.45 + 0.55 * output : 0;
+        sprite.alpha = output;
       }
 
       smoke.position.set(
@@ -278,59 +273,47 @@ export function createEngineExhaust(): EngineExhaust {
 
       const cos = Math.cos(frame.rotation);
       const sin = Math.sin(frame.rotation);
-      const emitters: Array<{
-        localX: number;
-        localTipY: number;
-        exhaustX: number;
-        exhaustY: number;
-        sizeScale: number;
-        output: number;
-      }> = [];
+
+      const emit = (
+        accumulator: number,
+        output: number,
+        localX: number,
+        localTipY: number,
+        exhaustX: number,
+        exhaustY: number,
+        sizeScale: number,
+      ): number => {
+        if (output <= 0.02 || frame.dt <= 0) return 0;
+        let next = accumulator + frame.dt * output * SMOKE_RATE_PER_OUTPUT;
+        while (next >= 1) {
+          spawnSmoke(localX, localTipY, exhaustX, exhaustY, frame, sizeScale);
+          next -= 1;
+        }
+        return next;
+      };
 
       for (let index = 0; index < mainOutputs.length; index += 1) {
-        const output = mainOutputs[index] ?? 0;
-        if (output <= 0.02) continue;
-        emitters.push({
-          localX: ENGINE_X_OFFSETS[index]!,
-          localTipY: ENGINE_Y_OFFSET + flameLengths[index]!,
-          exhaustX: -sin,
-          exhaustY: cos,
-          sizeScale: 1,
-          output,
-        });
-      }
-      for (let index = 0; index < reverseOutputs.length; index += 1) {
-        const output = reverseOutputs[index] ?? 0;
-        if (output <= 0.02) continue;
-        emitters.push({
-          localX: REVERSE_ENGINE_X_OFFSETS[index]!,
-          localTipY: REVERSE_FLAME_BASE_Y - reverseFlameLengths[index]!,
-          exhaustX: sin,
-          exhaustY: -cos,
-          sizeScale: REVERSE_ENGINE_SCALE,
-          output,
-        });
+        mainSmokeAccumulators[index] = emit(
+          mainSmokeAccumulators[index]!,
+          mainOutputs[index]!,
+          ENGINE_X_OFFSETS[index]!,
+          ENGINE_Y_OFFSET + flameLengths[index]!,
+          -sin,
+          cos,
+          1,
+        );
       }
 
-      // Smoke is only produced while at least one engine has power. Old puffs
-      // keep living for their 10 s lifetime, so cutting power stops new
-      // emission but leaves the previous trail to fade.
-      const totalOutput = emitters.reduce((total, emitter) => total + emitter.output, 0);
-      if (totalOutput > 0.02 && frame.dt > 0 && emitters.length > 0) {
-        smokeAccumulator += frame.dt * totalOutput * 20;
-        while (smokeAccumulator >= 1) {
-          const emitter = emitters[nextEngine % emitters.length]!;
-          spawnSmoke(
-            emitter.localX,
-            emitter.localTipY,
-            emitter.exhaustX,
-            emitter.exhaustY,
-            frame,
-            emitter.sizeScale,
-          );
-          nextEngine = (nextEngine + 1) % emitters.length;
-          smokeAccumulator -= 1;
-        }
+      for (let index = 0; index < reverseOutputs.length; index += 1) {
+        reverseSmokeAccumulators[index] = emit(
+          reverseSmokeAccumulators[index]!,
+          reverseOutputs[index]!,
+          REVERSE_ENGINE_X_OFFSETS[index]!,
+          REVERSE_FLAME_BASE_Y - reverseFlameLengths[index]!,
+          sin,
+          -cos,
+          REVERSE_ENGINE_SCALE,
+        );
       }
 
       for (const particle of particles) {
