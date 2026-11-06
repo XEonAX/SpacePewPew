@@ -12,7 +12,7 @@ export interface Size {
 }
 
 export interface Star {
-  /** Normalized position in an endlessly repeating field (0–1). */
+  /** Position in the repeating field, centered on the origin: `[-0.5, 0.5)`. */
   x: number;
   y: number;
   /** Rendered glow radius in CSS pixels. */
@@ -83,8 +83,8 @@ export function generateStars(seed: number = STARFIELD_SEED): Star[] {
 
 function createStar(rng: Rng, layer: StarLayer): Star {
   return {
-    x: rng(),
-    y: rng(),
+    x: rng() - 0.5,
+    y: rng() - 0.5,
     radius: randomRange(rng, layer.radius[0], layer.radius[1]),
     alpha: randomRange(rng, layer.alpha[0], layer.alpha[1]),
     tint: pickOne(rng, STAR_TINTS),
@@ -100,22 +100,28 @@ export function wrap01(value: number): number {
   return ((value % 1) + 1) % 1;
 }
 
+/** Normalizes any number into the centered field range `[-0.5, 0.5)`. */
+function wrapCentered(value: number): number {
+  return wrap01(value + 0.5) - 0.5;
+}
+
 export function advanceStars(stars: Star[], deltaSeconds: number): void {
   for (const star of stars) {
-    star.y = wrap01(star.y + star.drift * deltaSeconds);
+    star.y = wrapCentered(star.y + star.drift * deltaSeconds);
   }
 }
 
 /**
  * Projects a star's repeating field position into screen space.
  *
+ * The field is centered on the origin, so `(0, 0)` maps to the viewport center.
  * The camera is unbounded, so panning can continue forever; stars wrap
  * seamlessly at the viewport edges.
  */
 export function projectStar(star: Star, camera: Vec2, viewport: Size): Vec2 {
   return {
-    x: wrap01(star.x - camera.x * star.parallax) * viewport.width,
-    y: wrap01(star.y - camera.y * star.parallax) * viewport.height,
+    x: wrap01(star.x - camera.x * star.parallax + 0.5) * viewport.width,
+    y: wrap01(star.y - camera.y * star.parallax + 0.5) * viewport.height,
   };
 }
 

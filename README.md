@@ -71,6 +71,8 @@ docs/                     Architecture decisions and agent workflow
 ## Controls
 
 - **Drag the canvas** to pan the starfield infinitely; the parallax layers wrap at the edges.
+- The field is **centered on the origin**, so the initial view is centered and panning continues
+  symmetrically in every direction.
 - **Click** for the placeholder sound; **M** mutes/unmutes.
 
 ## Audio
