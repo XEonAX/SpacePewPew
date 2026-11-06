@@ -9,7 +9,7 @@ SpacePewPew is a **starter/demo**, not a game loop yet. It contains:
 
 - PixiJS v8 rendering a procedural space background and a normal-mapped ship/asteroid demo,
 - a small custom GLSL normal-map lighting shader (directional key + emissive panels),
-- a typed Howler audio wrapper playing a small committed placeholder sound,
+- a typed Howler audio wrapper playing committed weapon SFX with per-shot variation,
 - Vite + TypeScript + Vitest + ESLint + Prettier wiring,
 - a shared, visible Chrome instance that both the human and agents can drive,
 - Playwright MCP configured to attach to that shared browser.
@@ -65,6 +65,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   `tests/engine-mix.test.ts`.
 - `src/app/turrets.ts` — eight turret mounts with finite-speed mouse tracking and per-mount aiming cones (front forward, middle sideways, rear side-to-rear).
 - `src/app/turret-aim.ts` — pure angular spring-damper aim, unit-tested.
+- `src/app/weapons.ts` — turret-pair sound pools and cadence.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.
@@ -90,9 +91,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   listeners on HMR.
 - **Audio goes through `AudioManager`.** Browsers require a user gesture, so call `enable()`
   from a pointer/keyboard handler. Never construct `Howl` elsewhere.
-- **Audio assets are small and committed.** `public/audio/blip.wav` is a placeholder; replace
-  it with real assets and update `SOUND_SOURCES` in `src/audio/audio.ts`. Do not add build-time
-  asset-generation pipelines for placeholder content.
+- **Audio assets are small and committed.** Weapon WAVs live in `public/audio/weapons/` and are
+  registered in `SOUND_SOURCES`. Trim/fade/normalize offline; do not add a build-time audio pipeline.
 - **Browser artifacts are disposable.** `.agent/` and `.playwright-mcp/` are gitignored.
 - **Shared browser is shared.** Prefer `browser:inspect` / `browser:act`; they attach over CDP
   without closing the window. Do not launch a second persistent browser or kill the shared one

@@ -12,7 +12,10 @@ import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
 import { FLAME_LOCAL_LENGTH, createEngineExhaust } from './engine-exhaust';
 import { PIXELS_PER_METER } from './world-scale';
+import { clamp } from '../utils/math';
+import type { AudioManager } from '../audio/audio';
 import { createTurrets } from './turrets';
+import { WEAPON_PAIRS, nextPairVariant } from './weapons';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -46,7 +49,7 @@ const assetUrl = (path: string): string => joinBaseUrl(import.meta.env.BASE_URL,
  * light from the top-right. WASD flies the ship; the cyan panels use a baked
  * emissive map plus a blurred glow map.
  */
-export async function createScene(app: Application): Promise<Scene> {
+export async function createScene(app: Application, audio: AudioManager): Promise<Scene> {
   const background = createBackground(app);
 
   const [
@@ -81,15 +84,74 @@ export async function createScene(app: Application): Promise<Scene> {
 
   const canvas = app.canvas as HTMLCanvasElement;
   const pointer = { x: app.screen.width / 2, y: app.screen.height / 2, active: false };
-  const onPointerMove = (event: PointerEvent): void => {
+  const shipScreen = { x: 0, y: 0 };
+  const updatePointer = (event: PointerEvent): void => {
     const bounds = canvas.getBoundingClientRect();
     pointer.x = ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * app.screen.width;
     pointer.y = ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * app.screen.height;
     pointer.active = true;
   };
+  const onPointerMove = (event: PointerEvent): void => updatePointer(event);
+
+  let firing = false;
+  const pairCooldowns = [0, 0, 0, 0];
+  const pairCursors = [0, 0, 0, 0];
+
+  const fireWeapon = (pairIndex: number): void => {
+    const pair = WEAPON_PAIRS[pairIndex];
+    if (!pair) return;
+    const next = nextPairVariant(pair, pairCursors[pairIndex] ?? 0);
+    pairCursors[pairIndex] = next.cursor;
+
+    const pan = clamp((pointer.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7);
+    const volume = pair.volume * (0.92 + Math.random() * 0.16);
+
+    if (pairIndex === 0) {
+      // The front pair has two barrels: two slightly detuned voices panned
+      // apart avoid the "same sample every shot" effect.
+      audio.play(next.sound, {
+        rate: 0.965 + Math.random() * 0.02,
+        volume: volume * 0.72,
+        pan: clamp(pan - 0.22, -1, 1),
+      });
+      audio.play(next.sound, {
+        rate: 1.015 + Math.random() * 0.025,
+        volume: volume * 0.68,
+        pan: clamp(pan + 0.22, -1, 1),
+      });
+      return;
+    }
+
+    audio.play(next.sound, { rate: 0.97 + Math.random() * 0.06, volume, pan });
+  };
+
+  const updateWeapons = (dt: number): void => {
+    if (!firing) return;
+    const active = turrets.getActivePairs();
+    for (let index = 0; index < WEAPON_PAIRS.length; index += 1) {
+      pairCooldowns[index] = Math.max(0, (pairCooldowns[index] ?? 0) - dt);
+      if (!active[index] || (pairCooldowns[index] ?? 0) > 0) continue;
+      fireWeapon(index);
+      const cooldown = WEAPON_PAIRS[index]?.cooldown ?? 1;
+      pairCooldowns[index] = cooldown * (0.94 + Math.random() * 0.12);
+    }
+  };
+
+  const onPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0) return;
+    updatePointer(event);
+    firing = true;
+    for (let index = 0; index < pairCooldowns.length; index += 1) {
+      pairCooldowns[index] = index * 0.05 + Math.random() * 0.02;
+    }
+    void audio.enable();
+  };
+  const stopFiring = (): void => {
+    firing = false;
+  };
 
   const hint = new Text({
-    text: 'W/S thrust · A/D turn · 1 m grid · M: mute',
+    text: 'W/S thrust · A/D turn · click: fire · M: mute',
     style: {
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       fontSize: 12,
@@ -196,6 +258,8 @@ export async function createScene(app: Application): Promise<Scene> {
 
     const shipScreenX = (shipWorldX - dust.x * width) * dust.zoom + width / 2;
     const shipScreenY = (shipWorldY - dust.y * height) * dust.zoom + height / 2;
+    shipScreen.x = shipScreenX;
+    shipScreen.y = shipScreenY;
     turrets.update({
       shipScreenX,
       shipScreenY,
@@ -255,6 +319,7 @@ export async function createScene(app: Application): Promise<Scene> {
     telemetry.update();
     followCamera();
     updateTransforms(deltaSeconds);
+    updateWeapons(deltaSeconds);
     updateLighting();
   };
 
@@ -281,6 +346,7 @@ export async function createScene(app: Application): Promise<Scene> {
     controls.reverse = false;
     controls.turnLeft = false;
     controls.turnRight = false;
+    firing = false;
   };
 
   const flightTuner = createFlightTuner(tuning);
@@ -289,7 +355,10 @@ export async function createScene(app: Application): Promise<Scene> {
   const telemetry = createFlightTelemetry(flight, tuning);
   document.body.append(telemetry.element);
 
+  canvas.addEventListener('pointerdown', onPointerDown);
   canvas.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', stopFiring);
+  window.addEventListener('pointercancel', stopFiring);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', onBlur);
@@ -303,12 +372,15 @@ export async function createScene(app: Application): Promise<Scene> {
   return {
     setMuted(muted: boolean): void {
       hint.text = muted
-        ? 'W/S thrust · A/D turn · 1 m grid · sound muted'
-        : 'W/S thrust · A/D turn · 1 m grid · M: mute';
+        ? 'W/S thrust · A/D turn · click: fire · sound muted'
+        : 'W/S thrust · A/D turn · click: fire · M: mute';
     },
     destroy(): void {
       app.ticker.remove(tick);
+      canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', stopFiring);
+      window.removeEventListener('pointercancel', stopFiring);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);

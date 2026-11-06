@@ -72,6 +72,7 @@ interface TurretFrame {
 export interface Turrets {
   container: Container;
   update(frame: TurretFrame): void;
+  getActivePairs(): readonly boolean[];
   destroy(): void;
 }
 
@@ -90,6 +91,7 @@ export function createTurrets(texture: Texture): Turrets {
     angle: config.restAngle,
     angularVelocity: 0,
   }));
+  let activePairs = [false, false, false, false];
 
   return {
     container,
@@ -100,6 +102,7 @@ export function createTurrets(texture: Texture): Turrets {
 
       const shipCos = Math.cos(frame.rotation);
       const shipSin = Math.sin(frame.rotation);
+      const nextActivePairs = [false, false, false, false];
 
       for (let index = 0; index < configs.length; index += 1) {
         const config = configs[index]!;
@@ -120,9 +123,16 @@ export function createTurrets(texture: Texture): Turrets {
         const rawTarget = wrapAngle(
           Math.atan2(frame.mouseX - mountScreenX, -(frame.mouseY - mountScreenY)) - frame.rotation,
         );
-        stepTurretAimInArc(aim, rawTarget, config.aimCenter, config.aimHalfAngle, frame.dt);
+        if (stepTurretAimInArc(aim, rawTarget, config.aimCenter, config.aimHalfAngle, frame.dt)) {
+          nextActivePairs[Math.floor(index / 2)] = true;
+        }
         sprite.rotation = aim.angle;
       }
+
+      activePairs = nextActivePairs;
+    },
+    getActivePairs(): readonly boolean[] {
+      return activePairs;
     },
     destroy(): void {
       container.destroy({ children: true });

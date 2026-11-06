@@ -26,16 +26,10 @@ async function main(): Promise<void> {
   const app = await createApp();
   mount.append(app.canvas);
 
-  const scene = await createScene(app);
+  const scene = await createScene(app, audio);
 
   const unlockAudio = (): void => {
     void audio.enable();
-  };
-
-  const playBlip = (): void => {
-    void audio.enable().then(() => {
-      audio.play('blip');
-    });
   };
 
   const onKeyDown = (event: KeyboardEvent): void => {
@@ -46,7 +40,7 @@ async function main(): Promise<void> {
     unlockAudio();
   };
 
-  window.addEventListener('pointerdown', playBlip);
+  window.addEventListener('pointerdown', unlockAudio);
   window.addEventListener('keydown', onKeyDown);
 
   await audio.load();
@@ -55,7 +49,7 @@ async function main(): Promise<void> {
 
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
-      window.removeEventListener('pointerdown', playBlip);
+      window.removeEventListener('pointerdown', unlockAudio);
       window.removeEventListener('keydown', onKeyDown);
       scene.destroy();
       audio.destroy();

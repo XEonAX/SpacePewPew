@@ -16,7 +16,7 @@ reference for API usage.
 
 ## ADR-002 — Small committed placeholder audio, Howler behind a wrapper
 
-**Status:** amended (2026-11-06) — the generated-asset pipeline was removed as over-engineering.
+**Status:** accepted (2026-11-06); superseded by ADR-009 for weapon audio.
 
 A single small placeholder WAV (`public/audio/blip.wav`, ~16 KB) is committed so the starter has
 working audio without any build-time asset pipeline. Howler is used only through
@@ -123,3 +123,17 @@ the Application pins `preference: 'webgl'`.
 
 **Consequences:** no lighting dependency; extend `lit-sprite.ts` for new light types or effects.
 No PBR/roughness/metalness support — this is a stylized diffuse shader.
+
+## ADR-009 — Committed weapon SFX with per-shot variation
+
+**Status:** accepted (2026-11-06); supersedes the placeholder-audio part of ADR-002.
+
+Six small WAV clips are committed in `public/audio/weapons/`: one front beam and five rear blast
+variants, trimmed/faded/normalized offline from the supplied sources. The front pair uses the
+beam (two detuned, panned voices); the three rear pairs cycle variant pools so consecutive shots
+do not repeat, with small per-shot rate, volume, and stereo-pan variation.
+
+Howler remains behind `src/audio/audio.ts`, which now supports per-shot rate, volume, and pan.
+No build-time audio pipeline.
+
+**Consequences:** audio changes mean replacing a committed clip and updating `SOUND_SOURCES`.

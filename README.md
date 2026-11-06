@@ -62,17 +62,18 @@ src/
   app/engine-mix.ts       Pure ramped engine-output mixer (tested)
   app/turrets.ts          Eight turret mounts with finite-speed mouse tracking
   app/turret-aim.ts       Pure angular aim physics (tested)
+  app/weapons.ts          Per-pair weapon sound pools + cadence
   app/world-scale.ts      Metres ↔ pixels conversion (64 px per metre)
   app/lit-sprite.ts       Custom normal-map Mesh shader (directional + emissive)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
   app/background-textures.ts  One-time procedural canvas textures (nebula/galaxy/star/flare)
   app/starfield-model.ts  Deterministic star generation + projection (tested)
-  audio/audio.ts          Howler wrapper: load, play, mute, unlock
+  audio/audio.ts          Howler wrapper: load, play, mute, unlock, per-shot rate/pan
   utils/                  Small pure helpers (tested)
   main.ts                 Entry point, HMR cleanup, inspection hook
 public/
   favicon.svg
-  audio/blip.wav          Small committed placeholder UI sound
+  audio/weapons/          Processed weapon SFX (1 beam + 5 blast variants)
   assets/lighting/        Processed color/normal maps + ship emissive/glow maps
 scripts/
   browser.mjs             Shared-browser CLI (open / inspect / act / stop)
@@ -103,7 +104,7 @@ docs/                     Architecture decisions, reference art and agent workfl
 - Eight turrets track the mouse with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
 - **Scroll** zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out).
   **Double-click** resets zoom. Camera dragging is intentionally disabled.
-- **Click** for the placeholder sound; **M** mutes/unmutes.
+- **Click / hold** to fire the turret pair(s) aimed at the mouse: front pair uses the beam, rear pairs alternate blast variants with randomized pitch, volume, and stereo pan. **M** mutes/unmutes.
 
 ## Lighting
 
@@ -131,9 +132,15 @@ runtime copies live in [public/assets/lighting/](public/assets/lighting/).
 
 ## Audio
 
-Howler is wired through `src/audio/audio.ts`, with a tiny committed placeholder
-(`public/audio/blip.wav`) so the starter has working sound out of the box. Replace it with real
-assets and update `SOUND_SOURCES`; keep clips small and avoid build-time asset pipelines.
+Howler is wired through `src/audio/audio.ts`. The six committed weapon clips in
+`public/audio/weapons/` were trimmed, faded, and normalized from the supplied sources:
+
+- `beam-front.wav` — front pair,
+- `blast-1.wav` … `blast-5.wav` — three rear pair variant pools.
+
+Each pair cycles its pool without repeating the previous shot, and every shot gets small
+playback-rate, volume, and stereo-pan variation. Keep clips small and avoid build-time asset
+pipelines.
 
 ## Agentic development
 

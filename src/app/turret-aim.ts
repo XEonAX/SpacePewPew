@@ -60,10 +60,10 @@ export function stepTurretAimInArc(
   centerAngle: number,
   halfAngle: number,
   dt: number,
-): void {
+): boolean {
   if (!isAngleInArc(targetAngle, centerAngle, halfAngle)) {
     state.angularVelocity = 0;
-    return;
+    return false;
   }
 
   stepTurretAim(state, targetAngle, dt);
@@ -73,4 +73,6 @@ export function stepTurretAimInArc(
     state.angle = bounded;
     state.angularVelocity = 0;
   }
+
+  return true;
 }

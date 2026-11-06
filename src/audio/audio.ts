@@ -1,15 +1,33 @@
 import { Howl, Howler } from 'howler';
 import { joinBaseUrl } from '../utils/paths';
 
-export type SoundName = 'blip';
+export type SoundName = 'beam-front' | 'blast-1' | 'blast-2' | 'blast-3' | 'blast-4' | 'blast-5';
+
+export interface PlayOptions {
+  /** Playback rate, default 1. */
+  rate?: number;
+  /** Per-shot volume multiplier, default 1. */
+  volume?: number;
+  /** Stereo pan from -1 (left) to 1 (right). */
+  pan?: number;
+}
 
 const SOUND_SOURCES: Record<SoundName, string> = {
-  blip: 'audio/blip.wav',
+  'beam-front': 'audio/weapons/beam-front.wav',
+  'blast-1': 'audio/weapons/blast-1.wav',
+  'blast-2': 'audio/weapons/blast-2.wav',
+  'blast-3': 'audio/weapons/blast-3.wav',
+  'blast-4': 'audio/weapons/blast-4.wav',
+  'blast-5': 'audio/weapons/blast-5.wav',
 };
 
 export interface AudioManagerOptions {
   baseUrl?: string;
   volume?: number;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 /**
@@ -55,13 +73,22 @@ export class AudioManager {
     }
   }
 
-  play(name: SoundName): void {
+  play(name: SoundName, options: PlayOptions = {}): void {
     if (!this.#enabled || this.#muted) return;
 
     const sound = this.#sounds.get(name);
     if (!sound || sound.state() !== 'loaded') return;
 
-    sound.play();
+    const id = sound.play();
+    if (id < 1) return;
+
+    sound.volume(clamp(this.#volume * (options.volume ?? 1), 0, 1), id);
+    if (options.rate !== undefined) {
+      sound.rate(clamp(options.rate, 0.5, 4), id);
+    }
+    if (options.pan !== undefined && Math.abs(options.pan) > 0.001) {
+      sound.stereo(clamp(options.pan, -1, 1), id);
+    }
   }
 
   setMuted(muted: boolean): void {
