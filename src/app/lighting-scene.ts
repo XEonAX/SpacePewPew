@@ -65,19 +65,19 @@ export async function createScene(app: Application): Promise<Scene> {
   hint.anchor.set(0.5);
   app.stage.addChild(hint);
 
-  const ambient = new AmbientLight({ color: 0x93a3cc, intensity: 0.34 });
+  const ambient = new AmbientLight({ color: 0x9aa8d0, intensity: 0.5 });
   light2DSystem.addAmbientLight(ambient);
 
   // A distant, very wide point light approximates a directional key light.
   const keyLight = new PointLight({
     color: 0xfff2d8,
-    intensity: 2.4,
+    intensity: 1.7,
     radius: 5000,
   });
 
   const pointerLight = new PointLight({
     color: 0x9fe0ff,
-    intensity: 2.2,
+    intensity: 1.8,
     radius: 500,
   });
 

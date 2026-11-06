@@ -119,6 +119,13 @@ four lights, so the map is baked once (with no casters) and refreshed per frame 
 `shadowSystem.casters` is non-empty. The package imports a Spine peer (`@esotericsoftware/spine-pixi-v8`)
 even when Spine isn't used, so that peer is installed as a runtime dependency.
 
+The library is diffuse-only, so there is no roughness/metalness response. Because the
+reference art already includes baked shading, full-strength tangent-space normals read as
+embossed/polished metal. The processed normal maps are therefore softened to ~0.30 strength
+(blended toward flat) and the key light is kept soft.
+
 **Consequences:** lighting is WebGL-only; keep `preference: 'webgl'` in the app. Processed
 runtime art lives in `public/assets/lighting/`. Replacing the lighting library later means
-replacing `LightSprite` usage in `lighting-scene.ts` only.
+replacing `LightSprite` usage in `lighting-scene.ts` only. If real PBR materials are needed,
+this approach and art are not enough — that requires albedo/roughness/metalness maps and a
+different shading model.

@@ -16,7 +16,9 @@ Processing steps (one-off, not a runtime pipeline):
 - resampled in premultiplied alpha (LANCZOS) at roughly 2× their on-screen size,
 - trimmed to the silhouette with a 4 px transparent gutter,
 - color and normal maps dilated into the gutter so linear filtering has no dark halo,
-- normal maps masked with the color alpha and paired at identical framing.
+- normal maps masked with the color alpha and paired at identical framing,
+- normal strength softened to **~0.30** (blended toward a flat `(0, 0, 1)` normal) because the
+  reference art already contains baked shading; full-strength normals read as polished metal.
 
 `pixijs-light2d` expects normal maps with RGB encoded in tangent space (red = X, green = Y,
 blue = Z). Both pairs come from the supplied reference art; re-export lossless versions if the
