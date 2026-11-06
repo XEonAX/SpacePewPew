@@ -63,6 +63,8 @@ src/
   app/turrets.ts          Eight turret mounts with finite-speed mouse tracking
   app/turret-aim.ts       Pure angular aim physics (tested)
   app/weapons.ts          Per-pair weapon sound pools + cadence
+  app/bullets.ts          Pooled 1 m glowing tracers (100 m range)
+  app/bullet-math.ts      Bullet range/fade math (tested)
   app/world-scale.ts      Metres ↔ pixels conversion (64 px per metre)
   app/lit-sprite.ts       Custom normal-map Mesh shader (directional + emissive)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
@@ -104,7 +106,7 @@ docs/                     Architecture decisions, reference art and agent workfl
 - Eight turrets track the mouse with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
 - **Scroll** zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out).
   Camera dragging and click-to-reset are intentionally disabled.
-- **Click / hold** to fire the turret pair(s) aimed at the mouse: front pair uses the beam, rear pairs alternate blast variants with randomized pitch, volume, and stereo pan. **M** mutes/unmutes.
+- **Click / hold** to fire the turret pair(s) aimed at the mouse: front pair uses the beam, rear pairs alternate blast variants with randomized pitch, volume, and stereo pan. Rounds are 1 m glowing tracers that inherit ship momentum, travel 100 m, and fade over the last 10 m. **M** mutes/unmutes.
 
 ## Lighting
 

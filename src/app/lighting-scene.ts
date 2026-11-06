@@ -15,6 +15,8 @@ import { PIXELS_PER_METER } from './world-scale';
 import { clamp } from '../utils/math';
 import type { AudioManager } from '../audio/audio';
 import { createTurrets } from './turrets';
+import { createBullets } from './bullets';
+import { BULLET_SPEED_METERS_PER_SECOND } from './bullet-math';
 import { WEAPON_PAIRS, nextPairVariant } from './weapons';
 
 export interface Scene {
@@ -80,7 +82,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
   const asteroid: LitSprite = createLitSprite(asteroidColor, asteroidNormal);
   const turrets = createTurrets(turretTexture);
-  content.addChild(ship.mesh, turrets.container, exhaust.flames, asteroid.mesh);
+  const bullets = createBullets();
+  content.addChild(ship.mesh, turrets.container, exhaust.flames, bullets.container, asteroid.mesh);
 
   const canvas = app.canvas as HTMLCanvasElement;
   const pointer = { x: app.screen.width / 2, y: app.screen.height / 2, active: false };
@@ -105,6 +108,24 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
     const pan = clamp((pointer.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7);
     const volume = pair.volume * (0.92 + Math.random() * 0.16);
+
+    const shipCos = Math.cos(flight.rotation);
+    const shipSin = Math.sin(flight.rotation);
+    const localToMeters = shipBaseScale / PIXELS_PER_METER;
+    for (const muzzle of turrets.getMuzzles()) {
+      if (muzzle.pairIndex !== pairIndex) continue;
+      const localX = muzzle.x * localToMeters;
+      const localY = muzzle.y * localToMeters;
+      const x = flight.x + localX * shipCos - localY * shipSin;
+      const y = flight.y + localX * shipSin + localY * shipCos;
+      const angle = flight.rotation + muzzle.angle;
+      bullets.spawn(
+        x,
+        y,
+        flight.vx + Math.sin(angle) * BULLET_SPEED_METERS_PER_SECOND,
+        flight.vy - Math.cos(angle) * BULLET_SPEED_METERS_PER_SECOND,
+      );
+    }
 
     if (pairIndex === 0) {
       // The front pair has two barrels: two slightly detuned voices panned
@@ -271,6 +292,15 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       dt: deltaSeconds,
     });
 
+    bullets.update({
+      dustX: dust.x,
+      dustY: dust.y,
+      zoom: dust.zoom,
+      width,
+      height,
+      dt: deltaSeconds,
+    });
+
     exhaust.update({
       shipWorldX,
       shipWorldY,
@@ -387,6 +417,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       flightTuner.destroy();
       telemetry.destroy();
       turrets.destroy();
+      bullets.destroy();
       exhaust.destroy();
       ground.destroy();
       ship.mesh.destroy({ children: true });

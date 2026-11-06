@@ -58,6 +58,15 @@ const TURRET_LAYOUT: readonly TurretMountConfig[] = [
   mount(97, 201, Math.PI / 2, REAR_CENTER, REAR_CONE),
 ];
 
+export interface TurretMuzzle {
+  pairIndex: number;
+  /** Muzzle position in ship-texture pixels relative to the ship centre. */
+  x: number;
+  y: number;
+  /** Local turret angle; add the ship rotation for the world direction. */
+  angle: number;
+}
+
 interface TurretFrame {
   shipScreenX: number;
   shipScreenY: number;
@@ -73,6 +82,7 @@ export interface Turrets {
   container: Container;
   update(frame: TurretFrame): void;
   getActivePairs(): readonly boolean[];
+  getMuzzles(): readonly TurretMuzzle[];
   destroy(): void;
 }
 
@@ -80,6 +90,9 @@ export function createTurrets(texture: Texture): Turrets {
   const configs = TURRET_LAYOUT.map((config) => ({ ...config }));
   const container = new Container();
   const baseScale = NATIVE_WIDTH / texture.width;
+  const muzzleLengths = configs.map(
+    (config) => ANCHOR_Y * texture.height * baseScale * config.scale,
+  );
   const sprites = configs.map((config) => {
     const sprite = new Sprite({ texture, anchor: { x: ANCHOR_X, y: ANCHOR_Y } });
     sprite.position.set(config.x, config.y);
@@ -92,6 +105,7 @@ export function createTurrets(texture: Texture): Turrets {
     angularVelocity: 0,
   }));
   let activePairs = [false, false, false, false];
+  let muzzles: TurretMuzzle[] = [];
 
   return {
     container,
@@ -103,6 +117,7 @@ export function createTurrets(texture: Texture): Turrets {
       const shipCos = Math.cos(frame.rotation);
       const shipSin = Math.sin(frame.rotation);
       const nextActivePairs = [false, false, false, false];
+      const nextMuzzles: TurretMuzzle[] = [];
 
       for (let index = 0; index < configs.length; index += 1) {
         const config = configs[index]!;
@@ -124,15 +139,27 @@ export function createTurrets(texture: Texture): Turrets {
           Math.atan2(frame.mouseX - mountScreenX, -(frame.mouseY - mountScreenY)) - frame.rotation,
         );
         if (stepTurretAimInArc(aim, rawTarget, config.aimCenter, config.aimHalfAngle, frame.dt)) {
-          nextActivePairs[Math.floor(index / 2)] = true;
+          const pairIndex = Math.floor(index / 2);
+          nextActivePairs[pairIndex] = true;
+          const muzzleLength = muzzleLengths[index]!;
+          nextMuzzles.push({
+            pairIndex,
+            x: config.x + Math.sin(aim.angle) * muzzleLength,
+            y: config.y - Math.cos(aim.angle) * muzzleLength,
+            angle: aim.angle,
+          });
         }
         sprite.rotation = aim.angle;
       }
 
       activePairs = nextActivePairs;
+      muzzles = nextMuzzles;
     },
     getActivePairs(): readonly boolean[] {
       return activePairs;
+    },
+    getMuzzles(): readonly TurretMuzzle[] {
+      return muzzles;
     },
     destroy(): void {
       container.destroy({ children: true });
