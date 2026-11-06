@@ -53,6 +53,7 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 src/
   app/create-app.ts       PixiJS Application bootstrap
   app/lighting-scene.ts   Ship + asteroid lighting demo (keep small)
+  app/ship-flight.ts      Pure ramped WASD flight model (tested)
   app/lit-sprite.ts       Custom normal-map Mesh shader (directional + emissive)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
   app/background-textures.ts  One-time procedural canvas textures (nebula/galaxy/star/flare)
@@ -75,11 +76,12 @@ docs/                     Architecture decisions, reference art and agent workfl
 
 ## Controls
 
-- The ship and asteroid slowly counter-rotate so you can judge the top-right directional key
-  light across their normal-mapped faces.
-- Ship and asteroid ride the **near dust layer**: drag/zoom moves them with it.
-- **Drag the canvas** to pan the background; **scroll / pinch** to zoom out from the default
-  1× (`0.02×–1×`, 50× max zoom-out). **Double-click** resets the view.
+- **W/S** thrust forward/back; **A/D** rotate. Inputs ramp in over 0.3 s, drag applies while
+  thrusting, and speeds are capped.
+- The ship flies on the **near dust layer**; the camera smoothly pans with it so it stays in the
+  center region. The asteroid is fixed on that layer.
+- **Drag the canvas** to look around (the follow cam eases back to the ship); **scroll / pinch**
+  zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out). **Double-click** resets zoom.
 - **Click** for the placeholder sound; **M** mutes/unmutes.
 - `Background.setZoom()` is exposed for velocity-driven background zoom.
 

@@ -42,6 +42,11 @@ export interface Background {
   getZoom(): number;
   /** Transform of the nearest layer (stars/asteroid should ride with it). */
   getDustTransform(): DustTransform;
+  /**
+   * Smoothly pans the camera toward a normalized world point (the ship).
+   * Call every frame; the background eases toward it for an arcade follow cam.
+   */
+  setFollowTarget(x: number, y: number, immediate?: boolean): void;
   resetView(): void;
   destroy(): void;
 }
@@ -143,6 +148,7 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
   let lastHeight = 0;
   let activePointerId: number | null = null;
   let lastPointer = { x: 0, y: 0 };
+  let followTarget: { x: number; y: number } | null = null;
 
   // Nebulas first so stars and galaxies sit in front of them.
   const nebulas: NebulaLayer[] = NEBULA_LAYERS.map((config, index) => {
@@ -300,6 +306,14 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
       zoom = targetZoom;
     }
 
+    if (followTarget) {
+      const ease = 1 - Math.exp(-deltaSeconds * 7);
+      camera.x += (followTarget.x - camera.x) * ease;
+      camera.y += (followTarget.y - camera.y) * ease;
+      dustCamera.x += (followTarget.x - dustCamera.x) * ease;
+      dustCamera.y += (followTarget.y - dustCamera.y) * ease;
+    }
+
     advanceStars(stars, deltaSeconds);
     advanceDust(dust, deltaSeconds);
     project();
@@ -379,6 +393,15 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     setZoom,
     getZoom: () => zoom,
     getDustTransform: () => ({ x: dustCamera.x, y: dustCamera.y, zoom }),
+    setFollowTarget(x: number, y: number, immediate = false): void {
+      followTarget = { x, y };
+      if (immediate) {
+        camera.x = x;
+        camera.y = y;
+        dustCamera.x = x;
+        dustCamera.y = y;
+      }
+    },
     resetView: onDoubleClick,
     destroy(): void {
       app.ticker.remove(tick);

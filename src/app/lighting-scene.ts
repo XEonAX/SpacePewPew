@@ -5,6 +5,8 @@ import { joinBaseUrl } from '../utils/paths';
 import { createBackground } from './background';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
+import { createFlightState, stepFlight } from './ship-flight';
+import type { FlightControls } from './ship-flight';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -22,12 +24,14 @@ const lighting: LightingState = {
   time: 0,
 };
 
+const CONTROL_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD']);
+
 const assetUrl = (path: string): string => joinBaseUrl(import.meta.env.BASE_URL, path);
 
 /**
  * Ship + asteroid lit by a small custom normal-map shader: one directional key
- * light from the top-right. The cyan ship panels use a baked emissive map plus
- * a blurred glow map.
+ * light from the top-right. WASD flies the ship; the cyan panels use a baked
+ * emissive map plus a blurred glow map.
  */
 export async function createScene(app: Application): Promise<Scene> {
   const background = createBackground(app);
@@ -50,7 +54,7 @@ export async function createScene(app: Application): Promise<Scene> {
   content.addChild(ship.mesh, asteroid.mesh);
 
   const hint = new Text({
-    text: 'directional light: top-right · M: mute',
+    text: 'W/S thrust · A/D turn · M: mute',
     style: {
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       fontSize: 12,
@@ -60,8 +64,15 @@ export async function createScene(app: Application): Promise<Scene> {
   hint.anchor.set(0.5);
   app.stage.addChild(hint);
 
-  const shipWorld = { x: 0, y: 0 };
+  const flight = createFlightState();
   const asteroidWorld = { x: 0, y: 0 };
+  const controls: FlightControls = {
+    forward: false,
+    reverse: false,
+    turnLeft: false,
+    turnRight: false,
+  };
+  let shipPlaced = false;
   let shipBaseScale = 1;
   let asteroidBaseScale = 1;
 
@@ -83,12 +94,16 @@ export async function createScene(app: Application): Promise<Scene> {
     const shipScreenX = centerX - gap / 2 - (shipColor.width * shipScale) / 2;
     const asteroidScreenX = centerX + gap / 2 + (asteroidColor.width * asteroidScale) / 2;
 
-    // Convert the layout into dust-camera world space (camera 0,0 = zoom 1).
-    shipWorld.x = (shipScreenX - width / 2) / width;
-    shipWorld.y = (centerY - height / 2) / height;
+    if (!shipPlaced) {
+      // Flight uses zoom-1 screen pixels relative to the viewport centre so the
+      // ship's heading and speed look the same in both axes.
+      flight.x = shipScreenX - width / 2;
+      flight.y = centerY - height / 2;
+      shipPlaced = true;
+    }
+
     asteroidWorld.x = (asteroidScreenX - width / 2) / width;
     asteroidWorld.y = (centerY - height / 2) / height;
-
     shipBaseScale = shipScale;
     asteroidBaseScale = asteroidScale;
     hint.position.set(centerX, height - 28);
@@ -99,11 +114,13 @@ export async function createScene(app: Application): Promise<Scene> {
     const dust = background.getDustTransform();
 
     ship.mesh.scale.set(shipBaseScale * dust.zoom);
-    asteroid.mesh.scale.set(asteroidBaseScale * dust.zoom);
     ship.mesh.position.set(
-      (shipWorld.x - dust.x) * width * dust.zoom + width / 2,
-      (shipWorld.y - dust.y) * height * dust.zoom + height / 2,
+      (flight.x - dust.x * width) * dust.zoom + width / 2,
+      (flight.y - dust.y * height) * dust.zoom + height / 2,
     );
+    ship.mesh.rotation = flight.rotation;
+
+    asteroid.mesh.scale.set(asteroidBaseScale * dust.zoom);
     asteroid.mesh.position.set(
       (asteroidWorld.x - dust.x) * width * dust.zoom + width / 2,
       (asteroidWorld.y - dust.y) * height * dust.zoom + height / 2,
@@ -119,27 +136,58 @@ export async function createScene(app: Application): Promise<Scene> {
     const deltaSeconds = Math.min(ticker.deltaMS / 1000, MAX_DELTA_SECONDS);
     lighting.time += deltaSeconds;
 
-    ship.mesh.rotation += deltaSeconds * 0.28;
+    stepFlight(flight, controls, deltaSeconds);
     asteroid.mesh.rotation -= deltaSeconds * 0.22;
 
     layout();
+    background.setFollowTarget(flight.x / app.screen.width, flight.y / app.screen.height);
     updateTransforms();
     updateLighting();
   };
 
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (!CONTROL_CODES.has(event.code)) return;
+
+    event.preventDefault();
+    if (event.code === 'KeyW') controls.forward = true;
+    if (event.code === 'KeyS') controls.reverse = true;
+    if (event.code === 'KeyA') controls.turnLeft = true;
+    if (event.code === 'KeyD') controls.turnRight = true;
+  };
+
+  const onKeyUp = (event: KeyboardEvent): void => {
+    if (event.code === 'KeyW') controls.forward = false;
+    if (event.code === 'KeyS') controls.reverse = false;
+    if (event.code === 'KeyA') controls.turnLeft = false;
+    if (event.code === 'KeyD') controls.turnRight = false;
+  };
+
+  const onBlur = (): void => {
+    controls.forward = false;
+    controls.reverse = false;
+    controls.turnLeft = false;
+    controls.turnRight = false;
+  };
+
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  window.addEventListener('blur', onBlur);
   app.ticker.add(tick);
   layout();
+  background.setFollowTarget(flight.x / app.screen.width, flight.y / app.screen.height, true);
   updateTransforms();
   updateLighting();
 
   return {
     setMuted(muted: boolean): void {
-      hint.text = muted
-        ? 'directional light: top-right · sound muted'
-        : 'directional light: top-right · M: mute';
+      hint.text = muted ? 'W/S thrust · A/D turn · sound muted' : 'W/S thrust · A/D turn · M: mute';
     },
     destroy(): void {
       app.ticker.remove(tick);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
       ship.mesh.destroy({ children: true });
       asteroid.mesh.destroy({ children: true });
       hint.destroy();

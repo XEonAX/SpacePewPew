@@ -47,10 +47,13 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 ## Architecture map
 
 - `src/app/create-app.ts` — creates and initialises the PixiJS `Application`.
-- `src/app/lighting-scene.ts` — the only scene: ship + asteroid layout, lighting state, spin.
-  It places both objects with `Background.getDustTransform()` so they ride the near dust layer.
+- `src/app/lighting-scene.ts` — the only scene: ship + asteroid layout, lighting state, WASD
+  input. Places both objects with `Background.getDustTransform()` on the near dust layer.
+- `src/app/ship-flight.ts` — pure ramped arcade flight model (0.3 s input ramp, thrust, drag,
+  speed caps). Unit-tested in `tests/ship-flight.test.ts`.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
-- `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares).
+- `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
+  and the smoothed camera that follows the ship.
 - `src/app/background-textures.ts` — one-time deterministic canvas textures for the background.
 - `src/app/starfield-model.ts` — deterministic star generation, projection, twinkle (pure).
 - `src/audio/audio.ts` — the only place Howler is used.
