@@ -63,7 +63,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/engine-layout.ts` — shared main/reverse nozzle geometry (must match the baked texture).
 - `src/app/engine-mix.ts` — pure ramped engine-output mixer, unit-tested in
   `tests/engine-mix.test.ts`.
-- `src/app/turrets.ts` — eight turret mounts with finite-speed mouse tracking and per-mount aiming cones (front forward, middle sideways, rear side-to-rear).
+- `src/app/turrets.ts` — eight turret mounts with finite-speed mouse tracking, per-mount aiming cones, and charge glows at the barrel tips.
 - `src/app/turret-aim.ts` — pure angular spring-damper aim, unit-tested.
 - `src/app/weapons.ts` — turret-pair sound pools and cadence.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 100 m range and 50 m fade.

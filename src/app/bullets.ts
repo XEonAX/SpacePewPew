@@ -74,7 +74,7 @@ export function createBullets(): Bullets {
   const bullets: Bullet[] = [];
 
   for (let index = 0; index < BULLET_POOL_SIZE; index += 1) {
-    const sprite = new Sprite({ texture, anchor: 0.5 });
+    const sprite = new Sprite({ texture, anchor: { x: 0, y: 0.5 } });
     sprite.width = BULLET_LENGTH_WORLD;
     sprite.height = BULLET_WIDTH_WORLD;
     sprite.blendMode = 'add';

@@ -1,5 +1,4 @@
-import { Container, Sprite } from 'pixi.js';
-import type { Texture } from 'pixi.js';
+import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 import { stepTurretAimInArc, wrapAngle } from './turret-aim';
 import type { TurretAimState } from './turret-aim';
 
@@ -28,6 +27,7 @@ const MID_CONE = Math.PI / 4; // covers ±45° around sideways
 const REAR_CENTER = (3 * Math.PI) / 4; // between side and rear
 const REAR_CONE = Math.PI / 4; // covers 90°..180° on each side
 const TURRET_SCALE = 1.5;
+const MUZZLE_GLOW_SIZE = 28;
 
 const mount = (
   x: number,
@@ -58,6 +58,26 @@ const TURRET_LAYOUT: readonly TurretMountConfig[] = [
   mount(97, 201, Math.PI / 2, REAR_CENTER, REAR_CONE),
 ];
 
+function createChargeGlowTexture(): Texture {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const half = size / 2;
+    const gradient = ctx.createRadialGradient(half, half, 0, half, half, half);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    gradient.addColorStop(0.16, 'rgba(180, 252, 255, 1)');
+    gradient.addColorStop(0.42, 'rgba(70, 225, 255, 0.72)');
+    gradient.addColorStop(0.72, 'rgba(25, 150, 220, 0.2)');
+    gradient.addColorStop(1, 'rgba(10, 90, 160, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+  }
+  return new Texture({ source: new CanvasSource({ resource: canvas }) });
+}
+
 export interface TurretMuzzle {
   pairIndex: number;
   /** Muzzle position in ship-texture pixels relative to the ship centre. */
@@ -76,6 +96,7 @@ interface TurretFrame {
   mouseY: number;
   mouseActive: boolean;
   dt: number;
+  now: number;
 }
 
 export interface Turrets {
@@ -83,6 +104,7 @@ export interface Turrets {
   update(frame: TurretFrame): void;
   getActivePairs(): readonly boolean[];
   getMuzzles(): readonly TurretMuzzle[];
+  setReadyPairs(ready: readonly boolean[]): void;
   destroy(): void;
 }
 
@@ -100,12 +122,23 @@ export function createTurrets(texture: Texture): Turrets {
     container.addChild(sprite);
     return sprite;
   });
+  const glowTexture = createChargeGlowTexture();
+  const glowSprites = configs.map(() => {
+    const glow = new Sprite({ texture: glowTexture, anchor: 0.5 });
+    glow.width = MUZZLE_GLOW_SIZE;
+    glow.height = MUZZLE_GLOW_SIZE;
+    glow.blendMode = 'add';
+    glow.visible = false;
+    container.addChild(glow);
+    return glow;
+  });
   const aims: TurretAimState[] = configs.map((config) => ({
     angle: config.restAngle,
     angularVelocity: 0,
   }));
   let activePairs = [false, false, false, false];
   let muzzles: TurretMuzzle[] = [];
+  let readyPairs: readonly boolean[] = [true, true, true, true];
 
   return {
     container,
@@ -123,33 +156,54 @@ export function createTurrets(texture: Texture): Turrets {
         const config = configs[index]!;
         const sprite = sprites[index]!;
         const aim = aims[index]!;
+        const pairIndex = Math.floor(index / 2);
 
+        let inArc = false;
         if (!frame.mouseActive) {
           aim.angle = wrapAngle(config.restAngle);
           aim.angularVelocity = 0;
-          sprite.rotation = aim.angle;
-          continue;
+        } else {
+          const localX = config.x * frame.shipScale;
+          const localY = config.y * frame.shipScale;
+          const mountScreenX = frame.shipScreenX + localX * shipCos - localY * shipSin;
+          const mountScreenY = frame.shipScreenY + localX * shipSin + localY * shipCos;
+          const rawTarget = wrapAngle(
+            Math.atan2(frame.mouseX - mountScreenX, -(frame.mouseY - mountScreenY)) -
+              frame.rotation,
+          );
+          inArc = stepTurretAimInArc(
+            aim,
+            rawTarget,
+            config.aimCenter,
+            config.aimHalfAngle,
+            frame.dt,
+          );
+        }
+        sprite.rotation = aim.angle;
+
+        const muzzleLength = muzzleLengths[index]!;
+        const muzzleX = config.x + Math.sin(aim.angle) * muzzleLength;
+        const muzzleY = config.y - Math.cos(aim.angle) * muzzleLength;
+
+        const glow = glowSprites[index]!;
+        glow.position.set(muzzleX, muzzleY);
+        glow.visible = readyPairs[pairIndex] ?? true;
+        if (glow.visible) {
+          const pulse = 1 + 0.06 * Math.sin(frame.now * 5 + index * 1.7);
+          glow.width = MUZZLE_GLOW_SIZE * pulse;
+          glow.height = MUZZLE_GLOW_SIZE * pulse;
+          glow.alpha = 0.58 + 0.18 * Math.sin(frame.now * 5 + index * 1.7);
         }
 
-        const localX = config.x * frame.shipScale;
-        const localY = config.y * frame.shipScale;
-        const mountScreenX = frame.shipScreenX + localX * shipCos - localY * shipSin;
-        const mountScreenY = frame.shipScreenY + localX * shipSin + localY * shipCos;
-        const rawTarget = wrapAngle(
-          Math.atan2(frame.mouseX - mountScreenX, -(frame.mouseY - mountScreenY)) - frame.rotation,
-        );
-        if (stepTurretAimInArc(aim, rawTarget, config.aimCenter, config.aimHalfAngle, frame.dt)) {
-          const pairIndex = Math.floor(index / 2);
+        if (inArc) {
           nextActivePairs[pairIndex] = true;
-          const muzzleLength = muzzleLengths[index]!;
           nextMuzzles.push({
             pairIndex,
-            x: config.x + Math.sin(aim.angle) * muzzleLength,
-            y: config.y - Math.cos(aim.angle) * muzzleLength,
+            x: muzzleX,
+            y: muzzleY,
             angle: aim.angle,
           });
         }
-        sprite.rotation = aim.angle;
       }
 
       activePairs = nextActivePairs;
@@ -161,8 +215,15 @@ export function createTurrets(texture: Texture): Turrets {
     getMuzzles(): readonly TurretMuzzle[] {
       return muzzles;
     },
+    setReadyPairs(ready: readonly boolean[]): void {
+      readyPairs = ready;
+      for (let index = 0; index < glowSprites.length; index += 1) {
+        glowSprites[index]!.visible = ready[Math.floor(index / 2)] ?? true;
+      }
+    },
     destroy(): void {
       container.destroy({ children: true });
+      glowTexture.destroy(true);
     },
   };
 }

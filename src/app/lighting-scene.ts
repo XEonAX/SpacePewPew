@@ -148,11 +148,10 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   };
 
   const updateWeapons = (dt: number): void => {
-    if (!firing) return;
     const active = turrets.getActivePairs();
     for (let index = 0; index < WEAPON_PAIRS.length; index += 1) {
       pairCooldowns[index] = Math.max(0, (pairCooldowns[index] ?? 0) - dt);
-      if (!active[index] || (pairCooldowns[index] ?? 0) > 0) continue;
+      if (!firing || !active[index] || (pairCooldowns[index] ?? 0) > 0) continue;
       fireWeapon(index);
       const cooldown = WEAPON_PAIRS[index]?.cooldown ?? 1;
       pairCooldowns[index] = cooldown * (0.94 + Math.random() * 0.12);
@@ -164,7 +163,10 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     updatePointer(event);
     firing = true;
     for (let index = 0; index < pairCooldowns.length; index += 1) {
-      pairCooldowns[index] = index * 0.05 + Math.random() * 0.02;
+      pairCooldowns[index] = Math.max(
+        pairCooldowns[index] ?? 0,
+        index * 0.05 + Math.random() * 0.02,
+      );
     }
     void audio.enable();
   };
@@ -291,6 +293,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       mouseY: pointer.y,
       mouseActive: pointer.active,
       dt: deltaSeconds,
+      now: lighting.time,
     });
 
     bullets.update({
@@ -351,6 +354,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     followCamera();
     updateTransforms(deltaSeconds);
     updateWeapons(deltaSeconds);
+    turrets.setReadyPairs(pairCooldowns.map((cooldown) => cooldown <= 0));
     updateLighting();
   };
 
