@@ -60,6 +60,11 @@ export async function createScene(app: Application): Promise<Scene> {
   hint.anchor.set(0.5);
   app.stage.addChild(hint);
 
+  const shipWorld = { x: 0, y: 0 };
+  const asteroidWorld = { x: 0, y: 0 };
+  let shipBaseScale = 1;
+  let asteroidBaseScale = 1;
+
   const layout = (): void => {
     const { width, height } = app.screen;
     const gap = Math.max(24, width * 0.045);
@@ -75,16 +80,34 @@ export async function createScene(app: Application): Promise<Scene> {
 
     const centerX = width / 2;
     const centerY = height * 0.5;
+    const shipScreenX = centerX - gap / 2 - (shipColor.width * shipScale) / 2;
+    const asteroidScreenX = centerX + gap / 2 + (asteroidColor.width * asteroidScale) / 2;
 
-    ship.mesh.scale.set(shipScale);
-    asteroid.mesh.scale.set(asteroidScale);
-    ship.mesh.position.set(centerX - gap / 2 - (shipColor.width * shipScale) / 2, centerY);
-    asteroid.mesh.position.set(
-      centerX + gap / 2 + (asteroidColor.width * asteroidScale) / 2,
-      centerY,
-    );
+    // Convert the layout into dust-camera world space (camera 0,0 = zoom 1).
+    shipWorld.x = (shipScreenX - width / 2) / width;
+    shipWorld.y = (centerY - height / 2) / height;
+    asteroidWorld.x = (asteroidScreenX - width / 2) / width;
+    asteroidWorld.y = (centerY - height / 2) / height;
 
+    shipBaseScale = shipScale;
+    asteroidBaseScale = asteroidScale;
     hint.position.set(centerX, height - 28);
+  };
+
+  const updateTransforms = (): void => {
+    const { width, height } = app.screen;
+    const dust = background.getDustTransform();
+
+    ship.mesh.scale.set(shipBaseScale * dust.zoom);
+    asteroid.mesh.scale.set(asteroidBaseScale * dust.zoom);
+    ship.mesh.position.set(
+      (shipWorld.x - dust.x) * width * dust.zoom + width / 2,
+      (shipWorld.y - dust.y) * height * dust.zoom + height / 2,
+    );
+    asteroid.mesh.position.set(
+      (asteroidWorld.x - dust.x) * width * dust.zoom + width / 2,
+      (asteroidWorld.y - dust.y) * height * dust.zoom + height / 2,
+    );
   };
 
   const updateLighting = (): void => {
@@ -100,11 +123,13 @@ export async function createScene(app: Application): Promise<Scene> {
     asteroid.mesh.rotation -= deltaSeconds * 0.22;
 
     layout();
+    updateTransforms();
     updateLighting();
   };
 
   app.ticker.add(tick);
   layout();
+  updateTransforms();
   updateLighting();
 
   return {

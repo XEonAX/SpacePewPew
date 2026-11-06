@@ -48,6 +48,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 
 - `src/app/create-app.ts` — creates and initialises the PixiJS `Application`.
 - `src/app/lighting-scene.ts` — the only scene: ship + asteroid layout, lighting state, spin.
+  It places both objects with `Background.getDustTransform()` so they ride the near dust layer.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares).
 - `src/app/background-textures.ts` — one-time deterministic canvas textures for the background.

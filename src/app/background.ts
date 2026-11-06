@@ -24,6 +24,14 @@ import {
 } from './starfield-model';
 import type { Star } from './starfield-model';
 
+export interface DustTransform {
+  /** Near-field dust camera offset, normalized to the viewport. */
+  x: number;
+  y: number;
+  /** Current eased camera zoom. */
+  zoom: number;
+}
+
 export interface Background {
   container: Container;
   /**
@@ -32,6 +40,8 @@ export interface Background {
    */
   setZoom(zoom: number): void;
   getZoom(): number;
+  /** Transform of the nearest layer (stars/asteroid should ride with it). */
+  getDustTransform(): DustTransform;
   resetView(): void;
   destroy(): void;
 }
@@ -368,6 +378,7 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     container,
     setZoom,
     getZoom: () => zoom,
+    getDustTransform: () => ({ x: dustCamera.x, y: dustCamera.y, zoom }),
     resetView: onDoubleClick,
     destroy(): void {
       app.ticker.remove(tick);
