@@ -109,6 +109,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   full-screen shaders or filters unless profiling justifies them.
 - **Flight physics is metric.** Keep velocities/accelerations/positions in metres; convert to
   screen pixels only at render time with `PIXELS_PER_METER`. Grid/telemetry display metres.
+- **Galaxies are fixed sky.** The two galaxy sprites have zero parallax/zoom response; only
+  stars, nebulas, and the near dust layer pan.
 - **Zoom is depth-weighted.** Far stars/nebulas stay at a fixed scale; mid/near stars respond
   partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`1` (1× is the
   default and maximum zoom-in) and exposed as

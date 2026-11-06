@@ -66,8 +66,10 @@ const GALAXIES = [
   {
     x: 0.31,
     y: -0.23,
-    parallax: 0.18,
-    zoomResponse: 0.05,
+    // Distant galaxies are fixed sky, not a parallax layer: at flight speed a
+    // non-zero parallax eventually carries them off-screen.
+    parallax: 0,
+    zoomResponse: 0,
     alpha: 0.62,
     scaleFactor: 0.56,
     rotation: -0.7,
@@ -76,8 +78,8 @@ const GALAXIES = [
   {
     x: -0.34,
     y: 0.28,
-    parallax: 0.26,
-    zoomResponse: 0.05,
+    parallax: 0,
+    zoomResponse: 0,
     alpha: 0.44,
     scaleFactor: 0.38,
     rotation: 2.2,

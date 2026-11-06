@@ -88,6 +88,8 @@ docs/                     Architecture decisions, reference art and agent workfl
   with the camera, never on its own).
 - A subtle cyan **ground grid** is fixed to that layer: minor cells are **1 m × 1 m** (64 world
   px per metre), major lines every 5 m. Ship movement and speed read against it.
+- The two distant galaxies are fixed to the sky (no parallax/zoom) so high-speed flight never
+  carries them off-screen.
 - The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag
   and input ramp. The top-right **FLIGHT TELEMETRY** panel shows terminal W/S/A-D speeds,
   current velocity, angular velocity, and ramped inputs (all linear units in metres).
