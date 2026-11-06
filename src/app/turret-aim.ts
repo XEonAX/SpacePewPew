@@ -12,6 +12,11 @@ export function wrapAngle(angle: number): number {
   return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
+export function isAngleInArc(angle: number, centerAngle: number, halfAngle: number): boolean {
+  const limit = Math.max(0, Math.min(Math.PI, halfAngle));
+  return Math.abs(wrapAngle(angle - centerAngle)) <= limit + 1e-9;
+}
+
 export function clampAngleToArc(
   targetAngle: number,
   centerAngle: number,
@@ -45,9 +50,9 @@ export function stepTurretAim(state: TurretAimState, targetAngle: number, dt: nu
 }
 
 /**
- * Aim at a target, but never let the result rotate outside the mount's arc.
- * Targets outside the arc clamp to the nearest edge; the body is then hard
- * stopped at the edge so angular momentum cannot carry it past the cone.
+ * Aim at a target only while it is inside this mount's arc. Outside the arc
+ * the turret holds its current aim, so opposite-side turrets do not sweep as
+ * the mouse passes on the other side of the ship.
  */
 export function stepTurretAimInArc(
   state: TurretAimState,
@@ -56,8 +61,12 @@ export function stepTurretAimInArc(
   halfAngle: number,
   dt: number,
 ): void {
-  const target = clampAngleToArc(targetAngle, centerAngle, halfAngle);
-  stepTurretAim(state, target, dt);
+  if (!isAngleInArc(targetAngle, centerAngle, halfAngle)) {
+    state.angularVelocity = 0;
+    return;
+  }
+
+  stepTurretAim(state, targetAngle, dt);
 
   const bounded = clampAngleToArc(state.angle, centerAngle, halfAngle);
   if (Math.abs(wrapAngle(bounded - state.angle)) > 1e-9) {

@@ -1,4 +1,5 @@
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Container, Sprite } from 'pixi.js';
+import type { Texture } from 'pixi.js';
 import { stepTurretAimInArc, wrapAngle } from './turret-aim';
 import type { TurretAimState } from './turret-aim';
 

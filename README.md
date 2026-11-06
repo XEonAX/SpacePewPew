@@ -100,7 +100,7 @@ docs/                     Architecture decisions, reference art and agent workfl
 - The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag
   and input ramp. The top-right **FLIGHT TELEMETRY** panel shows terminal W/S/A-D speeds,
   current velocity, angular velocity, and ramped inputs (all linear units in metres).
-- Eight turrets track the mouse with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone clamp to its edge and the turret is hard-stopped there.
+- Eight turrets track the mouse with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
 - **Drag the canvas** to look around (the follow cam eases back to the ship); **scroll / pinch**
   zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out). **Double-click** resets zoom.
 - **Click** for the placeholder sound; **M** mutes/unmutes.

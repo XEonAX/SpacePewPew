@@ -56,7 +56,7 @@ describe('turret aim', () => {
     expect(Math.abs(clampAngleToArc(Math.PI, -center, half))).toBeCloseTo(Math.PI, 6);
   });
 
-  it('never rotates outside the aiming cone, even when the mouse is outside it', () => {
+  it('holds still when the target is outside the cone', () => {
     const state: TurretAimState = { angle: Math.PI / 2, angularVelocity: 0 };
     const center = Math.PI / 2;
     const half = Math.PI / 4;
@@ -64,11 +64,23 @@ describe('turret aim', () => {
 
     for (let frame = 0; frame < 300; frame += 1) {
       stepTurretAimInArc(state, 0, center, half, dt);
-      expect(Math.abs(wrapAngle(state.angle - center))).toBeLessThanOrEqual(half + 1e-9);
     }
 
-    expect(state.angle).toBeCloseTo(Math.PI / 4, 6);
+    expect(state.angle).toBeCloseTo(center, 6);
     expect(state.angularVelocity).toBeCloseTo(0, 6);
+  });
+
+  it('keeps left turrets still while the mouse crosses the right side', () => {
+    const state: TurretAimState = { angle: -Math.PI / 2, angularVelocity: 0 };
+    const center = -Math.PI / 2;
+    const half = Math.PI / 4;
+    const dt = 1 / 60;
+
+    for (let frame = 0; frame < 240; frame += 1) {
+      const rightSideTarget = -0.4 + (frame / 240) * 2.9;
+      stepTurretAimInArc(state, rightSideTarget, center, half, dt);
+      expect(state.angle).toBeCloseTo(center, 6);
+    }
   });
 
   it('converges on a stationary target', () => {
