@@ -13,8 +13,6 @@ export interface FlightTuning {
   angularAccel: number;
   linearDrag: number;
   angularDrag: number;
-  maxLinearSpeed: number;
-  maxAngularSpeed: number;
   inputRampSeconds: number;
 }
 
@@ -24,8 +22,6 @@ export const DEFAULT_FLIGHT_TUNING: FlightTuning = {
   angularAccel: 4.8,
   linearDrag: 1.7,
   angularDrag: 2.4,
-  maxLinearSpeed: 360,
-  maxAngularSpeed: 2.2,
   inputRampSeconds: 0.3,
 };
 
@@ -86,8 +82,9 @@ export function stepFlight(
   state.vy += forwardY * thrust * state.linearInput * dt;
   state.angularVelocity += state.angularInput * tuning.angularAccel * dt;
 
-  // Drag only while the corresponding input is non-zero. Once it ramps back to
-  // zero the ship coasts; the speed limits below keep that finite.
+  // Drag only while the corresponding input is non-zero; with a positive drag
+  // the thrust/drag ratio sets a finite terminal speed. Once the input ramps
+  // back to zero the ship coasts on its momentum.
   if (state.linearInput !== 0) {
     const drag = Math.exp(-tuning.linearDrag * dt);
     state.vx *= drag;
@@ -96,17 +93,6 @@ export function stepFlight(
   if (state.angularInput !== 0) {
     state.angularVelocity *= Math.exp(-tuning.angularDrag * dt);
   }
-
-  const speed = Math.hypot(state.vx, state.vy);
-  if (speed > tuning.maxLinearSpeed) {
-    const scale = tuning.maxLinearSpeed / speed;
-    state.vx *= scale;
-    state.vy *= scale;
-  }
-  state.angularVelocity = Math.max(
-    -tuning.maxAngularSpeed,
-    Math.min(tuning.maxAngularSpeed, state.angularVelocity),
-  );
 
   state.rotation += state.angularVelocity * dt;
   state.x += state.vx * dt;

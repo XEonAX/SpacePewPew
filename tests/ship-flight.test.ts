@@ -49,16 +49,17 @@ describe('ship flight', () => {
     expect(left.rotation).toBeCloseTo(-right.rotation, 6);
   });
 
-  it('caps linear and angular speed', () => {
+  it('settles at the thrust/drag terminal speed', () => {
     const state = createFlightState();
-    state.vx = DEFAULT_FLIGHT_TUNING.maxLinearSpeed * 10;
-    state.vy = DEFAULT_FLIGHT_TUNING.maxLinearSpeed * 10;
-    state.angularVelocity = DEFAULT_FLIGHT_TUNING.maxAngularSpeed * 10;
+    const dt = 1 / 60;
+    for (let frame = 0; frame < 60 * 15; frame += 1) {
+      stepFlight(state, press({ forward: true }), dt);
+    }
 
-    stepFlight(state, idle, 1 / 60);
-
-    expect(Math.hypot(state.vx, state.vy)).toBeCloseTo(DEFAULT_FLIGHT_TUNING.maxLinearSpeed, 6);
-    expect(state.angularVelocity).toBeCloseTo(DEFAULT_FLIGHT_TUNING.maxAngularSpeed, 6);
+    const terminal = DEFAULT_FLIGHT_TUNING.forwardAccel / DEFAULT_FLIGHT_TUNING.linearDrag;
+    const speed = Math.hypot(state.vx, state.vy);
+    expect(speed).toBeGreaterThan(terminal * 0.98);
+    expect(speed).toBeLessThan(terminal * 1.02);
   });
 
   it('coasts without drag once input is zero', () => {

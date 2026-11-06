@@ -79,14 +79,14 @@ docs/                     Architecture decisions, reference art and agent workfl
 ## Controls
 
 - **W/S** thrust forward/back; **A/D** rotate. Inputs ramp in over 0.3 s, drag applies while
-  thrusting, and speeds are capped.
+  thrusting, and **thrust vs drag decide the terminal speed** — no separate speed cap.
 - The ship flies on the **near dust layer**; the camera smoothly pans with it so it stays in the
   center region. The asteroid is fixed on that layer, and the layer is rigid (dust only moves
   with the camera, never on its own).
 - A subtle cyan **ground grid** is fixed to that layer: minor cells are **1 m × 1 m** (64 world
   px per metre), major lines every 5 m. Ship movement and speed read against it.
-- The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag,
-  speed/spin limits and input ramp.
+- The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag
+  and input ramp.
 - **Drag the canvas** to look around (the follow cam eases back to the ship); **scroll / pinch**
   zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out). **Double-click** resets zoom.
 - **Click** for the placeholder sound; **M** mutes/unmutes.
