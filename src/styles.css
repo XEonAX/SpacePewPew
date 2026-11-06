@@ -31,3 +31,12 @@ body {
   height: 100%;
   touch-action: none;
 }
+
+/* Soft vignette for depth; composited by the browser, cheap on the GPU. */
+#app::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(2, 3, 10, 0) 42%, rgba(2, 3, 10, 0.55) 100%);
+}

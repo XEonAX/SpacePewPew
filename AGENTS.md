@@ -47,7 +47,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 
 - `src/app/create-app.ts` — creates and initialises the PixiJS `Application`.
 - `src/app/starter-scene.ts` — the only scene; layout, ring animation, hint text.
-- `src/app/starfield.ts` — infinitely pannable parallax starfield renderer.
+- `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares).
+- `src/app/background-textures.ts` — one-time deterministic canvas textures for the background.
 - `src/app/starfield-model.ts` — deterministic star generation, projection, twinkle (pure).
 - `src/audio/audio.ts` — the only place Howler is used.
 - `src/utils/random.ts` — seeded PRNG helpers for procedural content.
@@ -81,6 +82,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   a growing `starter-scene.ts`.
 - **Procedural content is deterministic.** Use `src/utils/random.ts` with a fixed seed and keep
   generation/projection math pure in `*-model.ts` files so it can be unit tested.
+- **Background textures are baked once.** Nebula/galaxy/glow textures are generated at startup
+  into `CanvasSource`s and composed with batched sprites/TilingSprites. Avoid per-frame
+  full-screen shaders or filters unless profiling justifies them.
 
 ## Agent workflow
 

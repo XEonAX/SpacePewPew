@@ -51,7 +51,8 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 src/
   app/create-app.ts       PixiJS Application bootstrap
   app/starter-scene.ts    Animated starter screen (keep small)
-  app/starfield.ts        Infinitely pannable parallax starfield
+  app/background.ts       Layered procedural background (nebulas, galaxies, stars)
+  app/background-textures.ts  One-time procedural canvas textures (nebula/galaxy/star/flare)
   app/starfield-model.ts  Deterministic star generation + projection (tested)
   audio/audio.ts          Howler wrapper: load, play, mute, unlock
   utils/                  Small pure helpers (tested)
@@ -70,7 +71,7 @@ docs/                     Architecture decisions and agent workflow
 
 ## Controls
 
-- **Drag the canvas** to pan the starfield infinitely; the parallax layers wrap at the edges.
+- **Drag the canvas** to pan the background infinitely; starfield and nebula layers wrap at the edges.
 - The field is **centered on the origin**, so the initial view is centered and panning continues
   symmetrically in every direction.
 - **Click** for the placeholder sound; **M** mutes/unmutes.

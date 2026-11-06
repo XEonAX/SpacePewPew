@@ -1,7 +1,7 @@
 import type { Application, Ticker } from 'pixi.js';
 import { Container, Graphics, Text } from 'pixi.js';
 import { clamp, lerp, smoothstep } from '../utils/math';
-import { createStarfield } from './starfield';
+import { createBackground } from './background';
 
 export interface StarterScene {
   setMuted(muted: boolean): void;
@@ -61,8 +61,8 @@ export function createStarterScene(app: Application): StarterScene {
   });
   hint.anchor.set(0.5);
 
-  // The starfield attaches itself behind everything already on the stage.
-  const starfield = createStarfield(app);
+  // The background attaches itself behind everything already on the stage.
+  const background = createBackground(app);
 
   root.addChild(ring, title, subtitle, hint);
   app.stage.addChild(root);
@@ -117,7 +117,7 @@ export function createStarterScene(app: Application): StarterScene {
     },
     destroy(): void {
       app.ticker.remove(tick);
-      starfield.destroy();
+      background.destroy();
       root.destroy({ children: true });
     },
   };

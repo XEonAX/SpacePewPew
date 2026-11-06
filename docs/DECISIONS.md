@@ -68,3 +68,17 @@ separated from PixiJS for unit testing.
 
 **Consequences:** do not grow `starter-scene.ts`; add modules instead and keep `pnpm check`
 green.
+
+## ADR-006 — Baked procedural background textures over a custom shader
+
+**Status:** accepted (2026-11-06)
+
+The nebulas, galaxies, star glow and hero-star flares are generated once into deterministic
+`CanvasSource` textures (seeded value-noise fbm, periodic so nebulas tile seamlessly) and
+composed with batched `Sprite` / `TilingSprite` layers. This was chosen over a full-screen
+fragment shader for predictable performance and simpler WebGL/WebGPU support: per-frame work is
+texture sampling instead of noise evaluation, and PixiJS batches the star sprites.
+
+**Consequences:** visual changes require re-baking textures; tileable nebulas repeat at very
+large camera distances. Keep the bake one-time and avoid per-frame full-screen shaders/filters
+unless profiling shows a need.
