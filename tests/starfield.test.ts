@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   STARFIELD_SEED,
+  advanceDust,
   advanceStars,
+  dustAlpha,
+  generateDust,
   generateStars,
   projectStar,
   starAlpha,
-  wrap01,
+  wrapField,
 } from '../src/app/starfield-model';
 import type { Star } from '../src/app/starfield-model';
 
@@ -21,17 +24,18 @@ function fixedStar(overrides: Partial<Star> = {}): Star {
     phase: 0,
     twinkleSpeed: 1,
     parallax: 1,
+    zoomResponse: 1,
     drift: 0.01,
     ...overrides,
   };
 }
 
-describe('wrap01', () => {
-  it('wraps values into [0, 1)', () => {
-    expect(wrap01(0.25)).toBe(0.25);
-    expect(wrap01(1.25)).toBeCloseTo(0.25);
-    expect(wrap01(-0.25)).toBeCloseTo(0.75);
-    expect(wrap01(-3.5)).toBeCloseTo(0.5);
+describe('wrapField', () => {
+  it('wraps values into [-1, 1)', () => {
+    expect(wrapField(0.25)).toBe(0.25);
+    expect(wrapField(-0.25)).toBeCloseTo(-0.25);
+    expect(wrapField(1.25)).toBeCloseTo(-0.75);
+    expect(wrapField(-1.5)).toBeCloseTo(0.5);
   });
 });
 
@@ -46,14 +50,16 @@ describe('generateStars', () => {
 
   it('produces valid stars', () => {
     for (const star of generateStars(STARFIELD_SEED)) {
-      expect(star.x).toBeGreaterThanOrEqual(-0.5);
-      expect(star.x).toBeLessThan(0.5);
-      expect(star.y).toBeGreaterThanOrEqual(-0.5);
-      expect(star.y).toBeLessThan(0.5);
+      expect(star.x).toBeGreaterThanOrEqual(-1);
+      expect(star.x).toBeLessThan(1);
+      expect(star.y).toBeGreaterThanOrEqual(-1);
+      expect(star.y).toBeLessThan(1);
       expect(star.radius).toBeGreaterThan(0);
       expect(star.alpha).toBeGreaterThan(0);
       expect(star.alpha).toBeLessThanOrEqual(1);
       expect(star.parallax).toBeGreaterThan(0);
+      expect(star.zoomResponse).toBeGreaterThanOrEqual(0);
+      expect(star.zoomResponse).toBeLessThanOrEqual(1);
       expect(star.drift).toBeGreaterThan(0);
     }
   });
@@ -61,10 +67,10 @@ describe('generateStars', () => {
 
 describe('advanceStars', () => {
   it('moves stars downward and wraps them', () => {
-    const stars = [fixedStar({ y: 0.45, drift: 0.5 })];
+    const stars = [fixedStar({ y: 0.9, drift: 0.5 })];
     advanceStars(stars, 1);
 
-    expect(stars[0]!.y).toBeCloseTo(-0.05);
+    expect(stars[0]!.y).toBeCloseTo(-0.6);
   });
 
   it('is deterministic', () => {
@@ -75,6 +81,33 @@ describe('advanceStars', () => {
     advanceStars(second, 2.5);
 
     expect(first).toEqual(second);
+  });
+});
+
+describe('generateDust', () => {
+  it('is deterministic for the same seed', () => {
+    expect(generateDust(STARFIELD_SEED)).toEqual(generateDust(STARFIELD_SEED));
+  });
+
+  it('produces valid motes', () => {
+    for (const mote of generateDust(STARFIELD_SEED)) {
+      expect(mote.x).toBeGreaterThanOrEqual(-1);
+      expect(mote.x).toBeLessThan(1);
+      expect(mote.y).toBeGreaterThanOrEqual(-1);
+      expect(mote.y).toBeLessThan(1);
+      expect(mote.radius).toBeGreaterThan(0);
+      expect(mote.alpha).toBeGreaterThan(0);
+      expect(mote.alpha).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe('advanceDust', () => {
+  it('drifts and wraps motes', () => {
+    const motes = [{ ...generateDust(1)[0]!, y: 0.99, drift: 0.5 }];
+    advanceDust(motes, 1);
+
+    expect(motes[0]!.y).toBeCloseTo(-0.51);
   });
 });
 
@@ -98,19 +131,36 @@ describe('projectStar', () => {
     });
   });
 
-  it('keeps projecting inside the viewport for any camera position', () => {
-    const star = fixedStar();
-    const projected = projectStar(star, { x: -12_345.6, y: 78_901.2 }, viewport);
+  it('applies zoom around the viewport center', () => {
+    const star = fixedStar({ x: 0.25, y: -0.25 });
+    expect(projectStar(star, { x: 0, y: 0 }, viewport, 2)).toEqual({
+      x: 100,
+      y: 0,
+    });
+  });
 
-    expect(projected.x).toBeGreaterThanOrEqual(0);
-    expect(projected.x).toBeLessThan(viewport.width);
-    expect(projected.y).toBeGreaterThanOrEqual(0);
-    expect(projected.y).toBeLessThan(viewport.height);
+  it('keeps the far sky fixed when zooming', () => {
+    const star = fixedStar({ x: 0.25, y: -0.25, zoomResponse: 0 });
+    expect(projectStar(star, { x: 0, y: 0 }, viewport, 8)).toEqual(
+      projectStar(star, { x: 0, y: 0 }, viewport, 1),
+    );
   });
 });
 
-describe('starAlpha', () => {
-  it('stays within [0, 1]', () => {
+describe('wrap bounds', () => {
+  it('keeps projections inside the field bounds for any camera position', () => {
+    const star = fixedStar();
+    const projected = projectStar(star, { x: -12_345.6, y: 78_901.2 }, viewport);
+
+    expect(projected.x).toBeGreaterThanOrEqual(-viewport.width / 2);
+    expect(projected.x).toBeLessThan(viewport.width * 1.5);
+    expect(projected.y).toBeGreaterThanOrEqual(-viewport.height / 2);
+    expect(projected.y).toBeLessThan(viewport.height * 1.5);
+  });
+});
+
+describe('alpha helpers', () => {
+  it('keep star alpha within [0, 1]', () => {
     const star = fixedStar();
 
     for (const time of [0, 0.5, 1.5, 20]) {
@@ -120,8 +170,19 @@ describe('starAlpha', () => {
     }
   });
 
-  it('twinkles over time', () => {
+  it('twinkles stars over time', () => {
     const star = fixedStar();
     expect(starAlpha(star, 0)).not.toBeCloseTo(starAlpha(star, 0.8), 5);
+  });
+
+  it('keep dust alpha within [0, 1]', () => {
+    const [mote] = generateDust(1);
+    expect(mote).toBeDefined();
+
+    for (const time of [0, 0.5, 1.5, 20]) {
+      const alpha = dustAlpha(mote!, time);
+      expect(alpha).toBeGreaterThanOrEqual(0);
+      expect(alpha).toBeLessThanOrEqual(1);
+    }
   });
 });

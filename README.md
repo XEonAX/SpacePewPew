@@ -72,9 +72,11 @@ docs/                     Architecture decisions and agent workflow
 ## Controls
 
 - **Drag the canvas** to pan the background infinitely; starfield and nebula layers wrap at the edges.
-- The field is **centered on the origin**, so the initial view is centered and panning continues
-  symmetrically in every direction.
+- **Scroll / pinch** to zoom. The fixed sky holds its scale, while near star layers and the
+  foreground dust pan/zoom with the camera. Limits: **0.02×–6×** (50× max zoom-out).
+- **Double-click** resets pan and zoom to the origin.
 - **Click** for the placeholder sound; **M** mutes/unmutes.
+- `Background.setZoom()` is exposed for velocity-driven zoom (ease it out as ship speed rises).
 
 ## Audio
 

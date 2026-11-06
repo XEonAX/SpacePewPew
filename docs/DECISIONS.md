@@ -82,3 +82,23 @@ texture sampling instead of noise evaluation, and PixiJS batches the star sprite
 **Consequences:** visual changes require re-baking textures; tileable nebulas repeat at very
 large camera distances. Keep the bake one-time and avoid per-frame full-screen shaders/filters
 unless profiling shows a need.
+
+## ADR-007 — Depth-weighted zoom with a 50× zoom-out limit
+
+**Status:** accepted (2026-11-06)
+
+The background is built for a 2.5D flying game where camera zoom will be driven by ship
+velocity (zoom out at higher speeds). Zoom is depth-weighted rather than uniform:
+
+- far star layers, nebulas and galaxies keep a fixed scale (the "sky"),
+- mid/near star layers respond partially (`zoomResponse` in `starfield-model`),
+- near-field dust takes the full pan and zoom.
+
+Zoom is clamped to **0.02×–6×**; the 0.02 floor is the requested 50× zoom-out limit. The
+background exposes `setZoom(zoom)` (smoothed target) and `resetView()` so gameplay can ease the
+camera out from velocity without coupling the game loop to rendering.
+
+**Consequences:** zooming far out leaves the sky stable and shrinks/removes the near layers,
+which suits high-speed gameplay: the background does not fly apart while ships/entities (added
+later) scale with the camera. The star field spans 2×2 world units to stay covered at the
+zoom-out limit.

@@ -52,7 +52,7 @@ export function createStarterScene(app: Application): StarterScene {
   subtitle.anchor.set(0.5);
 
   const hint = new Text({
-    text: 'drag to pan · click for sound · M to mute',
+    text: 'drag to pan · wheel to zoom · M to mute',
     style: {
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       fontSize: 12,
@@ -112,8 +112,8 @@ export function createStarterScene(app: Application): StarterScene {
   return {
     setMuted(muted: boolean): void {
       hint.text = muted
-        ? 'drag to pan · sound muted · M to unmute'
-        : 'drag to pan · click for sound · M to mute';
+        ? 'drag to pan · wheel to zoom · sound muted'
+        : 'drag to pan · wheel to zoom · M to mute';
     },
     destroy(): void {
       app.ticker.remove(tick);
