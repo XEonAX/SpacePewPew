@@ -189,10 +189,10 @@ export function createTurrets(texture: Texture): Turrets {
         glow.position.set(muzzleX, muzzleY);
         glow.visible = readyPairs[pairIndex] ?? true;
         if (glow.visible) {
-          const pulse = 1 + 0.06 * Math.sin(frame.now * 5 + index * 1.7);
+          const pulse = 1 + 0.015 * Math.sin(frame.now * 5 + index * 1.7);
           glow.width = MUZZLE_GLOW_SIZE * pulse;
           glow.height = MUZZLE_GLOW_SIZE * pulse;
-          glow.alpha = 0.58 + 0.18 * Math.sin(frame.now * 5 + index * 1.7);
+          glow.alpha = 0.92 + 0.04 * Math.sin(frame.now * 5 + index * 1.7);
         }
 
         if (inArc) {
