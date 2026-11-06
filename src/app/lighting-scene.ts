@@ -97,6 +97,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const onPointerMove = (event: PointerEvent): void => updatePointer(event);
 
   let firing = false;
+  let firingJustStarted = false;
   const pairCooldowns = [0, 0, 0, 0];
   const pairCursors = [0, 0, 0, 0];
 
@@ -149,6 +150,18 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   const updateWeapons = (dt: number): void => {
     const active = turrets.getActivePairs();
+    if (firingJustStarted) {
+      // Stagger only the pairs actually aimed at the mouse. Other pairs keep
+      // their charged state and glow.
+      for (let index = 0; index < WEAPON_PAIRS.length; index += 1) {
+        if (!active[index]) continue;
+        pairCooldowns[index] = Math.max(
+          pairCooldowns[index] ?? 0,
+          index * 0.05 + Math.random() * 0.02,
+        );
+      }
+      firingJustStarted = false;
+    }
     for (let index = 0; index < WEAPON_PAIRS.length; index += 1) {
       pairCooldowns[index] = Math.max(0, (pairCooldowns[index] ?? 0) - dt);
       if (!firing || !active[index] || (pairCooldowns[index] ?? 0) > 0) continue;
@@ -162,12 +175,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     if (event.button !== 0) return;
     updatePointer(event);
     firing = true;
-    for (let index = 0; index < pairCooldowns.length; index += 1) {
-      pairCooldowns[index] = Math.max(
-        pairCooldowns[index] ?? 0,
-        index * 0.05 + Math.random() * 0.02,
-      );
-    }
+    firingJustStarted = true;
     void audio.enable();
   };
   const stopFiring = (): void => {
