@@ -1,5 +1,5 @@
 import type { Application, Ticker } from 'pixi.js';
-import { Assets, Container, Text, extensions } from 'pixi.js';
+import { Assets, Container, Text, UPDATE_PRIORITY, extensions } from 'pixi.js';
 import type { Texture } from 'pixi.js';
 import {
   AmbientLight,
@@ -69,24 +69,24 @@ export async function createScene(app: Application): Promise<Scene> {
   light2DSystem.addAmbientLight(ambient);
 
   // A distant, very wide point light approximates a directional key light.
-  const keyLight = new PointLight({
-    color: 0xfff2d8,
-    intensity: 1.7,
-    radius: 5000,
-  });
+  // One light per object lets us counter-rotate its direction so shading stays
+  // correct while the sprites themselves rotate (the library samples normals
+  // in texture space and does not rotate them with the sprite).
+  const makeKeyLight = (): PointLight =>
+    new PointLight({ color: 0xfff2d8, intensity: 1.7, radius: 5000 });
+  const makePointerLight = (): PointLight =>
+    new PointLight({ color: 0x9fe0ff, intensity: 1.8, radius: 500 });
 
-  const pointerLight = new PointLight({
-    color: 0x9fe0ff,
-    intensity: 1.8,
-    radius: 500,
-  });
-
-  app.stage.addChild(keyLight, pointerLight);
-  light2DSystem.addLight(keyLight);
-  light2DSystem.addLight(pointerLight);
+  const keyLights = [makeKeyLight(), makeKeyLight()];
+  const pointerLights = [makePointerLight(), makePointerLight()];
+  for (const light of [...keyLights, ...pointerLights]) {
+    app.stage.addChild(light);
+    light2DSystem.addLight(light);
+  }
 
   const canvas = app.canvas as HTMLCanvasElement;
-  let pointerLightPlaced = false;
+  const pointerSource = { x: app.screen.width * 0.5, y: app.screen.height * 0.45 };
+  let pointerPlaced = false;
 
   const layout = (): void => {
     const { width, height } = app.screen;
@@ -111,23 +111,48 @@ export async function createScene(app: Application): Promise<Scene> {
     ship.position.set(centerX - gap / 2 - shipWidth / 2, centerY);
     asteroid.position.set(centerX + gap / 2 + asteroidWidth / 2, centerY);
 
-    keyLight.position.set(width * 0.95, -height * 0.05);
-    keyLight.radius = Math.max(width, height) * 6;
-    pointerLight.radius = Math.min(width, height) * 0.55;
+    for (const light of keyLights) light.radius = Math.max(width, height) * 6;
+    for (const light of pointerLights) light.radius = Math.min(width, height) * 0.55;
 
-    if (!pointerLightPlaced) {
-      pointerLight.position.set(width * 0.5, height * 0.45);
+    if (!pointerPlaced) {
+      pointerSource.x = width * 0.5;
+      pointerSource.y = height * 0.45;
     }
 
     hint.position.set(width / 2, height - 28);
   };
 
+  const placeRotatedLight = (
+    light: PointLight,
+    target: { x: number; y: number; rotation: number },
+    source: { x: number; y: number },
+  ): void => {
+    const dx = source.x - target.x;
+    const dy = source.y - target.y;
+    const angle = -target.rotation;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    light.position.set(target.x + dx * cos - dy * sin, target.y + dx * sin + dy * cos);
+  };
+
+  const updateLights = (): void => {
+    const { width, height } = app.screen;
+    const keySource = { x: width * 0.95, y: -height * 0.05 };
+    const targets = [ship, asteroid] as const;
+
+    targets.forEach((target, index) => {
+      placeRotatedLight(keyLights[index]!, target, keySource);
+      placeRotatedLight(pointerLights[index]!, target, pointerSource);
+    });
+  };
+
   const onPointerMove = (event: PointerEvent): void => {
     const bounds = canvas.getBoundingClientRect();
-    const x = ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * app.screen.width;
-    const y = ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * app.screen.height;
-    pointerLight.position.set(x, y);
-    pointerLightPlaced = true;
+    pointerSource.x =
+      ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * app.screen.width;
+    pointerSource.y =
+      ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * app.screen.height;
+    pointerPlaced = true;
   };
 
   const updateShadowMap = (): void => {
@@ -138,8 +163,15 @@ export async function createScene(app: Application): Promise<Scene> {
   };
 
   const tick = (ticker: Ticker): void => {
+    const deltaSeconds = Math.min(ticker.deltaMS / 1000, 0.05);
     void ticker;
+
+    // Slow counter-rotation so the corner key light can be judged across faces.
+    ship.rotation += deltaSeconds * 0.28;
+    asteroid.rotation -= deltaSeconds * 0.22;
+
     layout();
+    updateLights();
     // With no casters the shadow map is a constant "unoccluded" map, so bake it
     // once. Once casters exist it must be refreshed each frame.
     if (shadowSystem.casters.length > 0) updateShadowMap();
@@ -151,8 +183,11 @@ export async function createScene(app: Application): Promise<Scene> {
 
   window.addEventListener('resize', onResize);
   canvas.addEventListener('pointermove', onPointerMove);
-  app.ticker.add(tick);
+  // HIGH priority so the light positions are current before Light2DSystem
+  // uploads its uniforms for the frame.
+  app.ticker.add(tick, undefined, UPDATE_PRIORITY.HIGH);
   layout();
+  updateLights();
   updateShadowMap();
 
   return {
@@ -166,16 +201,16 @@ export async function createScene(app: Application): Promise<Scene> {
       window.removeEventListener('resize', onResize);
       canvas.removeEventListener('pointermove', onPointerMove);
 
-      light2DSystem.lights = light2DSystem.lights.filter(
-        (light) => light !== keyLight && light !== pointerLight,
-      );
+      const sceneLights = [...keyLights, ...pointerLights];
+      light2DSystem.lights = light2DSystem.lights.filter((light) => !sceneLights.includes(light));
       light2DSystem.ambientLights = light2DSystem.ambientLights.filter(
         (light) => light !== ambient,
       );
 
-      app.stage.removeChild(keyLight, pointerLight);
-      keyLight.destroy();
-      pointerLight.destroy();
+      for (const light of sceneLights) {
+        app.stage.removeChild(light);
+        light.destroy();
+      }
       ambient.destroy();
 
       content.destroy({ children: true });

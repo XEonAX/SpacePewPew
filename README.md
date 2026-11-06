@@ -90,6 +90,9 @@ with `LightSprite` + normal maps:
 - **Omni light** — a point light follows the pointer.
 - **Ambient fill** for readability.
 - The shadow map is baked once while there are no shadow casters.
+- The ship and asteroid slowly counter-rotate so you can watch the corner key light move across
+  their normal-mapped faces. Because the library does not rotate the normal basis itself, each
+  object gets a light whose direction is counter-rotated into its local frame.
 - The art already has baked cel shading, so the normal maps are baked at **0.30 strength**; at
   full strength the diffuse lighting reads as embossed metal.
 
