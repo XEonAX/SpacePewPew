@@ -54,6 +54,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/utils/random.ts` — seeded PRNG helpers for procedural content.
 - `src/utils/` — pure helpers (safe to unit test).
 - `src/main.ts` — entry point, input handlers, HMR teardown, `window.__SPACEPEWPEW__` hook.
+- `docs/reference/` — supplied color/normal reference art for the ship and asteroid.
 - `scripts/browser.mjs` — CLI for the shared browser.
 - `scripts/lib/shared-browser.mjs` — browser lifecycle, CDP health checks, shared profile.
 - `scripts/mcp-browser.mjs` — Playwright MCP stdio wrapper.
@@ -82,6 +83,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   a growing `starter-scene.ts`.
 - **Procedural content is deterministic.** Use `src/utils/random.ts` with a fixed seed and keep
   generation/projection math pure in `*-model.ts` files so it can be unit tested.
+- **Reference art is source, not runtime.** Treat `docs/reference/` as supplied source art;
+  key/copy final variants into `public/` only when wiring runtime textures. Normal maps there
+  are lossy WebP references.
 - **Background textures are baked once.** Nebula/galaxy/glow textures are generated at startup
   into `CanvasSource`s and composed with batched sprites/TilingSprites. Avoid per-frame
   full-screen shaders or filters unless profiling justifies them.

@@ -1,0 +1,45 @@
+# Reference art
+
+Source art for the 2.5D flying game. These files are **references/source assets, not runtime
+textures yet**. The color images use a magenta chroma-key background; each has a companion
+tangent-space normal map for 2.5D lighting.
+
+## Ship
+
+Top-down fighter, 941 × 1672 px.
+
+<table>
+  <tr>
+    <td><img src="reference/ship-color.webp" width="280" alt="Ship color/key art" /></td>
+    <td><img src="reference/ship-normal.webp" width="280" alt="Ship normal map" /></td>
+  </tr>
+  <tr>
+    <td align="center"><code>ship-color.webp</code></td>
+    <td align="center"><code>ship-normal.webp</code></td>
+  </tr>
+</table>
+
+## Asteroid
+
+1330 × 1182 px.
+
+<table>
+  <tr>
+    <td><img src="reference/asteroid-color.webp" width="320" alt="Asteroid color/key art" /></td>
+    <td><img src="reference/asteroid-normal.webp" width="320" alt="Asteroid normal map" /></td>
+  </tr>
+  <tr>
+    <td align="center"><code>asteroid-color.webp</code></td>
+    <td align="center"><code>asteroid-normal.webp</code></td>
+  </tr>
+</table>
+
+## Notes for future use
+
+- Key out the magenta background before generating runtime sprites.
+- These normal maps are lossy WebP references; re-export lossless PNG (or compressed KTX2) if
+  they are used for real-time lighting.
+- Keep source art in `docs/reference/`; copy final runtime variants into `public/` only when a
+  feature needs them.
+- Ship color and normal maps share the same framing (941 × 1672), as do the asteroid pair
+  (1330 × 1182), so they can be layered directly.

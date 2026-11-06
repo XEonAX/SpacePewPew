@@ -78,6 +78,12 @@ docs/                     Architecture decisions and agent workflow
 - **Click** for the placeholder sound; **M** mutes/unmutes.
 - `Background.setZoom()` is exposed for velocity-driven zoom (ease it out as ship speed rises).
 
+## Reference art
+
+Source art for the 2.5D game (ship + asteroid, color/key and matching normal maps) lives in
+[docs/reference/](docs/reference/) — see [REFERENCE_ART.md](docs/REFERENCE_ART.md). These are
+source references, not runtime textures yet.
+
 ## Audio
 
 Howler is wired through `src/audio/audio.ts`, with a tiny committed placeholder
