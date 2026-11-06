@@ -122,9 +122,11 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   screen pixels only at render time with `PIXELS_PER_METER`. Grid/telemetry display metres.
 - **Galaxies are fixed sky.** The two galaxy sprites have zero parallax/zoom response; only
   stars, nebulas, and the near dust layer pan.
-- **Parallax is screen-consistent.** `projectPoint` scales camera movement by `zoom / layerScale`,
-  so at any zoom a layer's screen pan is `parallax × zoom`; the near dust/grid layer (parallax 1)
-  is always fastest. No independent drift.
+- **Parallax pan is integrated.** Each panned layer owns an accumulated pan offset advanced by
+  camera deltas (`advanceLayerPan` in `starfield-model.ts`), so at any zoom its screen pan rate
+  is `parallax × zoom` (the near dust/grid layer, parallax 1, is fastest) while wheel zoom only
+  scales layers about the viewport centre. Never recompute pan from the absolute camera — after
+  a long flight that translates every layer by `camera × parallax × Δzoom`. No independent drift.
 - **Camera lookahead is quadratic.** `followCamera()` applies a `speed²` curve (near-zero at
   slow speed, max near terminal), boosts the offset as zoom decreases, and caps it so the
   engine cone tips/smoke stay on screen. It cancels the follow camera's lag using

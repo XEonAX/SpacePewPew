@@ -12,6 +12,7 @@ import {
 } from './background-textures';
 import {
   STARFIELD_SEED,
+  advanceLayerPan,
   dustAlpha,
   generateDust,
   generateStars,
@@ -20,7 +21,7 @@ import {
   projectStar,
   starAlpha,
 } from './starfield-model';
-import type { Star } from './starfield-model';
+import type { Star, Vec2 } from './starfield-model';
 
 interface DustTransform {
   /** Near-field dust camera offset, normalized to the viewport. */
@@ -88,6 +89,9 @@ interface NebulaLayer {
   offsetX: number;
   offsetY: number;
   tileScaleToViewport: number;
+  /** Accumulated camera pan, in viewport fractions (see `advanceLayerPan`). */
+  panX: number;
+  panY: number;
 }
 
 interface GalaxyLayer {
@@ -104,7 +108,15 @@ interface GalaxyLayer {
 interface FlareLayer {
   sprite: Sprite;
   star: Star;
+  /** The same accumulated pan as the star layer the flare belongs to. */
+  pan: Vec2;
   spin: number;
+}
+
+interface StarPan {
+  pan: Vec2;
+  parallax: number;
+  zoomResponse: number;
 }
 
 interface DustLayer {
@@ -161,6 +173,8 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
       offsetX: rng(),
       offsetY: rng(),
       tileScaleToViewport: config.tileScaleFactor,
+      panX: 0,
+      panY: 0,
     };
   });
 
@@ -190,6 +204,24 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     return sprite;
   });
 
+  // One accumulated pan per distinct parallax/zoom-response layer, shared by
+  // every star in that layer.
+  const starPans = new Map<string, StarPan>();
+  const starPanFor = (star: Star): Vec2 => {
+    const key = `${star.parallax}:${star.zoomResponse}`;
+    let layer = starPans.get(key);
+    if (!layer) {
+      layer = {
+        pan: { x: 0, y: 0 },
+        parallax: star.parallax,
+        zoomResponse: star.zoomResponse,
+      };
+      starPans.set(key, layer);
+    }
+    return layer.pan;
+  };
+  const starPanByIndex = stars.map((star) => starPanFor(star));
+
   // Pick a deterministic set of brighter central stars to sparkle.
   const heroCandidates = stars
     .map((star, index) => ({ star, index }))
@@ -204,7 +236,7 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     const sprite = new Sprite({ texture: flareTexture, anchor: 0.5, tint: star.tint });
     sprite.blendMode = 'add';
     container.addChild(sprite);
-    return { sprite, star, spin: randomRange(rng, -0.35, 0.35) };
+    return { sprite, star, pan: starPanByIndex[index]!, spin: randomRange(rng, -0.35, 0.35) };
   });
 
   const dust = generateDust(seed);
@@ -214,6 +246,27 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     container.addChild(sprite);
     return { sprite, mote };
   });
+
+  /**
+   * Applies a camera move to every panned layer.
+   *
+   * Pan is integrated from camera *deltas*: zoom changes then only scale each
+   * layer about the viewport center, instead of translating it by the distance
+   * already flown (`camera × parallax × Δzoom`). Without this, a long flight
+   * makes every wheel notch slide the sky many screen heights.
+   */
+  const advanceCamera = (deltaX: number, deltaY: number): void => {
+    if (deltaX === 0 && deltaY === 0) return;
+
+    const cameraDelta = { x: deltaX, y: deltaY };
+    for (const layer of starPans.values()) {
+      advanceLayerPan(layer.pan, cameraDelta, layer.parallax, zoom, layer.zoomResponse);
+    }
+    for (const nebula of nebulas) {
+      nebula.panX += deltaX * nebula.parallax * zoom;
+      nebula.panY += deltaY * nebula.parallax * zoom;
+    }
+  };
 
   const layout = (): void => {
     const { width, height } = app.screen;
@@ -238,7 +291,7 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     for (let index = 0; index < stars.length; index += 1) {
       const star = stars[index]!;
       const sprite = starSprites[index]!;
-      const point = projectStar(star, camera, { width, height }, zoom);
+      const point = projectStar(star, starPanByIndex[index]!, { width, height }, zoom);
       const scale = layerZoom(star.zoomResponse, zoom);
 
       sprite.position.set(point.x, point.y);
@@ -247,7 +300,7 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     }
 
     for (const flare of flares) {
-      const point = projectStar(flare.star, camera, { width, height }, zoom);
+      const point = projectStar(flare.star, flare.pan, { width, height }, zoom);
       const scale = layerZoom(flare.star.zoomResponse, zoom);
 
       flare.sprite.position.set(point.x, point.y);
@@ -257,7 +310,7 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     }
 
     for (const { sprite, mote } of dustSprites) {
-      const point = projectPoint(mote, dustCamera, { width, height }, zoom, 1, 1);
+      const point = projectPoint(mote, dustCamera, { width, height }, zoom, 1);
 
       sprite.position.set(point.x, point.y);
       sprite.scale.set((mote.radius / (STAR_TEXTURE_SIZE / 2)) * zoom);
@@ -266,8 +319,8 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
 
     for (const nebula of nebulas) {
       const tileSize = maxDimension * nebula.tileScaleToViewport;
-      const panX = -camera.x * nebula.parallax * zoom * width;
-      const panY = -camera.y * nebula.parallax * zoom * height;
+      const panX = -nebula.panX * width;
+      const panY = -nebula.panY * height;
 
       nebula.sprite.tileScale.set(tileSize / NEBULA_TEXTURE_SIZE);
       nebula.sprite.tilePosition.set(
@@ -302,10 +355,13 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
 
     if (followTarget) {
       const ease = 1 - Math.exp(-deltaSeconds * CAMERA_FOLLOW_RATE);
+      const previousX = camera.x;
+      const previousY = camera.y;
       camera.x += (followTarget.x - camera.x) * ease;
       camera.y += (followTarget.y - camera.y) * ease;
       dustCamera.x += (followTarget.x - dustCamera.x) * ease;
       dustCamera.y += (followTarget.y - dustCamera.y) * ease;
+      advanceCamera(camera.x - previousX, camera.y - previousY);
     }
 
     // All background motion comes from camera parallax. No layer gets an
@@ -333,10 +389,13 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     setFollowTarget(x: number, y: number, immediate = false): void {
       followTarget = { x, y };
       if (immediate) {
+        const previousX = camera.x;
+        const previousY = camera.y;
         camera.x = x;
         camera.y = y;
         dustCamera.x = x;
         dustCamera.y = y;
+        advanceCamera(x - previousX, y - previousY);
       }
     },
     destroy(): void {

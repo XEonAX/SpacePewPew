@@ -170,27 +170,46 @@ export function advanceDust(motes: DustMote[], deltaSeconds: number): void {
 }
 
 /**
+ * Advances a layer's accumulated pan offset (in field units) by a camera move.
+ *
+ * Pan is integrated over time instead of being recomputed from the absolute
+ * camera position. Recomputing it as `camera × parallax × zoom` looks identical
+ * at a fixed zoom, but makes every layer jump by `camera × parallax × Δzoom`
+ * whenever the wheel moves — after a long flight that is many field widths, so
+ * zooming appeared to pan the whole sky relative to the ship. Integrating keeps
+ * the on-screen pan rate at `parallax × zoom × cameraSpeed` (so parallax still
+ * reads correctly at any zoom) while letting zoom scale the field about the
+ * viewport center without translating it.
+ */
+export function advanceLayerPan(
+  pan: Vec2,
+  cameraDelta: Vec2,
+  parallax: number,
+  zoom: number,
+  zoomResponse: number,
+): void {
+  const scale = layerZoom(zoomResponse, zoom);
+  pan.x += (cameraDelta.x * parallax * zoom) / scale;
+  pan.y += (cameraDelta.y * parallax * zoom) / scale;
+}
+
+/**
  * Projects a point in the repeating field into screen space.
  *
  * The field is centered on the origin, so `(0, 0)` maps to the viewport center.
- * `zoom` scales around that center, weighted by the layer's `zoomResponse`.
- * The camera is unbounded, so panning can continue forever.
+ * `pan` is the layer's accumulated pan offset (see `advanceLayerPan`); `zoom`
+ * scales around the viewport center, weighted by the layer's `zoomResponse`.
  */
 export function projectPoint(
   point: Vec2,
-  camera: Vec2,
+  pan: Vec2,
   viewport: Size,
   zoom: number,
-  parallax: number,
   zoomResponse: number,
 ): Vec2 {
   const scale = layerZoom(zoomResponse, zoom);
-  // Camera panning is a screen motion: scale it by the viewport zoom, not the
-  // layer's visual zoom. Otherwise a fixed-scale layer can pan faster than the
-  // near dust/grid layer when zoomed out.
-  const panScale = zoom / scale;
-  const x = wrapField(point.x - camera.x * parallax * panScale);
-  const y = wrapField(point.y - camera.y * parallax * panScale);
+  const x = wrapField(point.x - pan.x);
+  const y = wrapField(point.y - pan.y);
 
   return {
     x: x * viewport.width * scale + viewport.width / 2,
@@ -198,8 +217,8 @@ export function projectPoint(
   };
 }
 
-export function projectStar(star: Star, camera: Vec2, viewport: Size, zoom = 1): Vec2 {
-  return projectPoint(star, camera, viewport, zoom, star.parallax, star.zoomResponse);
+export function projectStar(star: Star, pan: Vec2, viewport: Size, zoom = 1): Vec2 {
+  return projectPoint(star, pan, viewport, zoom, star.zoomResponse);
 }
 
 /** Twinkling alpha as a deterministic function of elapsed time. */

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   STARFIELD_SEED,
   advanceDust,
+  advanceLayerPan,
   advanceStars,
   dustAlpha,
   generateDust,
@@ -123,11 +124,11 @@ describe('projectStar', () => {
     });
   });
 
-  it('applies camera parallax', () => {
-    const star = fixedStar({ parallax: 0.5 });
+  it('applies the layer pan', () => {
+    const star = fixedStar();
     expect(projectStar(star, { x: 0.25, y: 0.25 }, viewport)).toEqual({
-      x: 37.5,
-      y: 75,
+      x: 25,
+      y: 50,
     });
   });
 
@@ -139,20 +140,53 @@ describe('projectStar', () => {
     });
   });
 
-  it('scales camera pan with zoom instead of layer scale', () => {
-    const near = fixedStar({ parallax: 1, zoomResponse: 0.5 });
-    const center = projectStar(near, { x: 0, y: 0 }, viewport, 0.5);
-    const panned = projectStar(near, { x: 0.1, y: 0 }, viewport, 0.5);
-
-    // Screen pan = parallax × zoom × viewport width = 1 × 0.5 × 100 × 0.1.
-    expect(center.x - panned.x).toBeCloseTo(5, 6);
-  });
-
   it('keeps the far sky fixed when zooming', () => {
     const star = fixedStar({ x: 0.25, y: -0.25, zoomResponse: 0 });
-    expect(projectStar(star, { x: 0, y: 0 }, viewport, 8)).toEqual(
-      projectStar(star, { x: 0, y: 0 }, viewport, 1),
+    const pan = { x: 0.4, y: -0.6 };
+    expect(projectStar(star, pan, viewport, 8)).toEqual(projectStar(star, pan, viewport, 1));
+  });
+
+  it('does not translate when zooming after a long flight', () => {
+    // Regression: the old camera × parallax × zoom form slid every layer by
+    // camera × parallax × Δzoom, which after a few hundred metres of flight
+    // moved the whole sky many screen heights per wheel notch.
+    const star = fixedStar({ x: 0.1, y: -0.2, zoomResponse: 0.25 });
+    const pan = { x: 100, y: -310 };
+    const wide = projectStar(star, pan, viewport, 1);
+    const zoomed = projectStar(star, pan, viewport, 0.2);
+    const scaleRatio = 1 + (0.2 - 1) * 0.25;
+
+    expect(zoomed.x - viewport.width / 2).toBeCloseTo(
+      (wide.x - viewport.width / 2) * scaleRatio,
+      6,
     );
+    expect(zoomed.y - viewport.height / 2).toBeCloseTo(
+      (wide.y - viewport.height / 2) * scaleRatio,
+      6,
+    );
+  });
+});
+
+describe('advanceLayerPan', () => {
+  it('pans the screen at parallax × zoom × camera distance', () => {
+    const star = fixedStar({ parallax: 1, zoomResponse: 0.5 });
+    const pan = { x: 0, y: 0 };
+    const start = projectStar(star, pan, viewport, 0.5);
+
+    advanceLayerPan(pan, { x: 0.1, y: 0 }, 1, 0.5, 0.5);
+
+    const panned = projectStar(star, pan, viewport, 0.5);
+    // Screen pan = parallax × zoom × viewport width × camera distance.
+    expect(start.x - panned.x).toBeCloseTo(5, 6);
+  });
+
+  it('leaves the accumulated pan untouched when the camera is still', () => {
+    const pan = { x: 12.5, y: -31.2 };
+    const before = { ...pan };
+
+    advanceLayerPan(pan, { x: 0, y: 0 }, 0.5, 0.2, 0.25);
+
+    expect(pan).toEqual(before);
   });
 });
 

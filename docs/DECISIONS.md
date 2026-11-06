@@ -137,3 +137,24 @@ Howler remains behind `src/audio/audio.ts`, which now supports per-shot rate, vo
 No build-time audio pipeline.
 
 **Consequences:** audio changes mean replacing a committed clip and updating `SOUND_SOURCES`.
+
+## ADR-010 — Integrate parallax pan instead of deriving it from camera × zoom
+
+**Status:** accepted (2026-11-07).
+
+The background camera is an unbounded, normalized world coordinate and the starfield is a
+repeating 2×2 field. Projecting a layer as `wrap(point − camera × parallax × zoom / layerScale)`
+is fine at a fixed zoom, but every wheel notch then translated each layer by
+`camera × parallax × Δzoom`. After ~10 s of flight (~300 m, ~20 field repeats) that is several
+screen heights per zoom step, so zooming appeared to pan the sky up/down relative to the ship
+while the ship, grid, and dust stayed put.
+
+Layers now own an accumulated pan offset (`advanceLayerPan`) advanced by **camera deltas**.
+At a fixed zoom the result is identical, and the screen pan rate stays `parallax × zoom ×
+cameraSpeed`, but zoom only scales each layer about the viewport centre — it never translates
+by the distance already flown. Dust/grid keep using the raw camera offset, which already had
+this property.
+
+**Consequences:** never recompute pan from the absolute camera position; feed moves through
+`advanceCamera()` so zoom remains a pure scale. `projectPoint`/`projectStar` now take a layer pan
+(not a camera), which the unit tests assert.
