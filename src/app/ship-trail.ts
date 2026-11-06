@@ -1,7 +1,8 @@
 import { Graphics } from 'pixi.js';
 
-const TRAIL_LIFETIME_SECONDS = 0.28;
-const MAX_SAMPLES = 48;
+const TRAIL_LIFETIME_SECONDS = 10;
+const SAMPLE_INTERVAL_SECONDS = 0.05;
+const MAX_SAMPLES = 220;
 
 interface TrailSample {
   x: number;
@@ -38,12 +39,14 @@ export function createShipTrail(): ShipTrail {
   graphics.eventMode = 'none';
 
   const samples: TrailSample[] = [];
+  let lastSampleTime = -Infinity;
 
   return {
     graphics,
     update(frame: TrailFrame): void {
-      if (frame.active) {
+      if (frame.active && frame.now - lastSampleTime >= SAMPLE_INTERVAL_SECONDS) {
         samples.push({ x: frame.x, y: frame.y, time: frame.now });
+        lastSampleTime = frame.now;
         if (samples.length > MAX_SAMPLES) samples.shift();
       }
 

@@ -57,7 +57,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/world-scale.ts` — `PIXELS_PER_METER = 64`; all flight physics is in metres.
 - `src/app/ground-grid.ts` — screen-space 1 m × 1 m grid fixed to the near dust layer
   (64 world px per metre; major lines every 5 m).
-- `src/app/ship-trail.ts` — additive Graphics ribbon sampled from engine positions on the dust layer.
+- `src/app/ship-trail.ts` — additive Graphics ribbon sampled at 20 Hz from engine positions on the dust layer; 10 s fade.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.
