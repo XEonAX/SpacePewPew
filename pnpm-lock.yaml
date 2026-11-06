@@ -8,12 +8,18 @@ importers:
 
   .:
     dependencies:
+      '@esotericsoftware/spine-pixi-v8':
+        specifier: ^4.3.13
+        version: 4.3.13(pixi.js@8.22.0)
       howler:
         specifier: ^2.2.4
         version: 2.2.4
       pixi.js:
         specifier: ^8.22.0
         version: 8.22.0
+      pixijs-light2d:
+        specifier: 1.0.3
+        version: 1.0.3(@esotericsoftware/spine-pixi-v8@4.3.13(pixi.js@8.22.0))(pixi.js@8.22.0)
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -104,6 +110,17 @@ packages:
   '@eslint/plugin-kit@0.7.3':
     resolution: {integrity: sha512-IkO+/KEUvwbVpiURZg+P7zF74z5Jxe0UgJxVni+RtoHQ6IZieXaO02kmadomap/q+l6bc/jdPGGqTjhuZnuz1Q==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
+
+  '@esotericsoftware/spine-canvas@4.3.13':
+    resolution: {integrity: sha512-L4iIkYUAYJxnzBfNqZTs5Be2HifgvaN2f/KM3aopIG0tbQYQQdAcgbjf5HsvwKgM65studN+/9gGIX3QoRLDIA==}
+
+  '@esotericsoftware/spine-core@4.3.13':
+    resolution: {integrity: sha512-iGs/40qOWSQYicABebDzFSwFOS1Nsm0dCCS8sGqbpVuThRKdLYeI1cVJpmATSpEmtcetEABTmh97NoBnt7XLDw==}
+
+  '@esotericsoftware/spine-pixi-v8@4.3.13':
+    resolution: {integrity: sha512-cL+UCgHmaT6UA3J63JScHbT8ttJAUMGnfUVSGUYhI5/jElMb0gECbDmeJLFTAhLFj6a8YphDzSy+Pvhe8326og==}
+    peerDependencies:
+      pixi.js: ^8.16.0
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -717,6 +734,13 @@ packages:
   pixi.js@8.22.0:
     resolution: {integrity: sha512-QbTANHMZ751MIjLiLSUSM8a7LNMWwMIf0KbRCqlW+SPS9hNLfSVS+cl1O2SEp9g1K/wyLzj/OJHv+1TUfiPr/w==}
 
+  pixijs-light2d@1.0.3:
+    resolution: {integrity: sha512-XvkpbwJjPowOJUb9Im1s5n53uZgE6rdWYn03DTWvPNZpXzD6af8XaVmtzPtTsEut9+lAdf6ruiEHeZvJPXwqIA==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      '@esotericsoftware/spine-pixi-v8': ^4.2.0
+      pixi.js: ^8.0.0
+
   playwright-core@1.65.0:
     resolution: {integrity: sha512-vNSKgH6YqtN7cdT/L334zo0a+YwkrpicyrHJlWWPIm/Q+Nn2SWInil01oT0mbu96U4GgoRtCYQD9CzJQgju+lA==}
     engines: {node: '>=20'}
@@ -976,6 +1000,17 @@ snapshots:
     dependencies:
       '@eslint/core': 1.2.1
       levn: 0.4.1
+
+  '@esotericsoftware/spine-canvas@4.3.13':
+    dependencies:
+      '@esotericsoftware/spine-core': 4.3.13
+
+  '@esotericsoftware/spine-core@4.3.13': {}
+
+  '@esotericsoftware/spine-pixi-v8@4.3.13(pixi.js@8.22.0)':
+    dependencies:
+      '@esotericsoftware/spine-canvas': 4.3.13
+      pixi.js: 8.22.0
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -1513,6 +1548,11 @@ snapshots:
       ismobilejs: 1.1.1
       parse-svg-path: 0.2.0
       tiny-lru: 11.4.7
+
+  pixijs-light2d@1.0.3(@esotericsoftware/spine-pixi-v8@4.3.13(pixi.js@8.22.0))(pixi.js@8.22.0):
+    dependencies:
+      '@esotericsoftware/spine-pixi-v8': 4.3.13(pixi.js@8.22.0)
+      pixi.js: 8.22.0
 
   playwright-core@1.65.0: {}
 

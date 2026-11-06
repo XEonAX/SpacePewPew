@@ -5,9 +5,10 @@ should start with [README.md](README.md).
 
 ## What this repo is
 
-SpacePewPew is a **starter**, not a game yet. It contains:
+SpacePewPew is a **starter/demo**, not a game loop yet. It contains:
 
-- PixiJS v8 rendering a small animated starter screen,
+- PixiJS v8 rendering a procedural space background and a normal-mapped ship/asteroid demo,
+- `pixijs-light2d` lighting (directional-style key light + pointer omni light),
 - a typed Howler audio wrapper playing a small committed placeholder sound,
 - Vite + TypeScript + Vitest + ESLint + Prettier wiring,
 - a shared, visible Chrome instance that both the human and agents can drive,
@@ -46,7 +47,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 ## Architecture map
 
 - `src/app/create-app.ts` — creates and initialises the PixiJS `Application`.
-- `src/app/starter-scene.ts` — the only scene; layout, ring animation, hint text.
+- `src/app/lighting-scene.ts` — the only scene: ship + asteroid layout, lights, pointer input.
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares).
 - `src/app/background-textures.ts` — one-time deterministic canvas textures for the background.
 - `src/app/starfield-model.ts` — deterministic star generation, projection, twinkle (pure).
@@ -55,6 +56,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/utils/` — pure helpers (safe to unit test).
 - `src/main.ts` — entry point, input handlers, HMR teardown, `window.__SPACEPEWPEW__` hook.
 - `docs/reference/` — supplied color/normal reference art for the ship and asteroid.
+- `public/assets/lighting/` — processed runtime copies (color + normal maps) used by the scene.
 - `scripts/browser.mjs` — CLI for the shared browser.
 - `scripts/lib/shared-browser.mjs` — browser lifecycle, CDP health checks, shared profile.
 - `scripts/mcp-browser.mjs` — Playwright MCP stdio wrapper.
@@ -80,12 +82,15 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   keeps its own sandbox; later commands only attach. Do not add `--no-sandbox` to defaults.
   `SPACEPEWPEW_CHROME_NO_SANDBOX=1` is an explicit, disposable-CI-only escape hatch.
 - **Keep the starter small.** New gameplay should arrive as focused modules with tests, not as
-  a growing `starter-scene.ts`.
+  a growing `lighting-scene.ts`.
 - **Procedural content is deterministic.** Use `src/utils/random.ts` with a fixed seed and keep
   generation/projection math pure in `*-model.ts` files so it can be unit tested.
-- **Reference art is source, not runtime.** Treat `docs/reference/` as supplied source art;
-  key/copy final variants into `public/` only when wiring runtime textures. Normal maps there
-  are lossy WebP references.
+- **Reference art is source, not runtime.** Treat `docs/reference/` as supplied source art and
+  `public/assets/lighting/` as the processed runtime copies. Processing runs were a one-off
+  matte/despill/premultiplied-resample pass; don't add a build-time asset pipeline.
+- **Lighting goes through `pixijs-light2d`.** Register `LightSpritePipe` before app init, use
+  `LightSprite` with paired normal maps, keep lights in `light2DSystem`, and refresh the shadow
+  map only when casters exist. The renderer is pinned to WebGL for this library.
 - **Background textures are baked once.** Nebula/galaxy/glow textures are generated at startup
   into `CanvasSource`s and composed with batched sprites/TilingSprites. Avoid per-frame
   full-screen shaders or filters unless profiling justifies them.

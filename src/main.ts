@@ -1,7 +1,7 @@
 import './styles.css';
 import type { Application } from 'pixi.js';
 import { createApp } from './app/create-app';
-import { createStarterScene } from './app/starter-scene';
+import { createScene } from './app/lighting-scene';
 import { AudioManager } from './audio/audio';
 
 declare global {
@@ -26,7 +26,7 @@ async function main(): Promise<void> {
   const app = await createApp();
   mount.append(app.canvas);
 
-  const scene = createStarterScene(app);
+  const scene = await createScene(app);
 
   const unlockAudio = (): void => {
     void audio.enable();

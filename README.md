@@ -1,7 +1,8 @@
 # SpacePewPew
 
-Minimal **PixiJS v8 + Vite + TypeScript** starter with **Howler** audio and an agent-inspectable
-shared browser. There is intentionally no gameplay yet — this is the foundation to build on.
+**PixiJS v8 + Vite + TypeScript** starter with a procedural space background, a normal-mapped
+lighting demo (ship + asteroid), **Howler** audio, and an agent-inspectable shared browser.
+There is no gameplay loop yet — this is the foundation to build on.
 
 ![SpacePewPew starter screen](docs/screenshot.png)
 
@@ -16,16 +17,17 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 
 ## Stack
 
-| Area      | Choice                                                           |
-| --------- | ---------------------------------------------------------------- |
-| Rendering | [PixiJS v8](https://pixijs.com/)                                 |
-| Bundler   | [Vite 8](https://vite.dev/)                                      |
-| Language  | TypeScript 6 (strict)                                            |
-| Audio     | [Howler 2](https://howlerjs.com/) via a typed wrapper            |
-| Tests     | Vitest                                                           |
-| Quality   | ESLint (flat config), Prettier, EditorConfig                     |
-| Browser   | Playwright + Playwright MCP, shared via Chrome DevTools Protocol |
-| Package   | pnpm                                                             |
+| Area      | Choice                                                                                              |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| Rendering | [PixiJS v8](https://pixijs.com/)                                                                    |
+| Bundler   | [Vite 8](https://vite.dev/)                                                                         |
+| Language  | TypeScript 6 (strict)                                                                               |
+| Audio     | [Howler 2](https://howlerjs.com/) via a typed wrapper                                               |
+| Lighting  | [pixijs-light2d](https://www.npmjs.com/package/pixijs-light2d) (normal maps + point/ambient lights) |
+| Tests     | Vitest                                                                                              |
+| Quality   | ESLint (flat config), Prettier, EditorConfig                                                        |
+| Browser   | Playwright + Playwright MCP, shared via Chrome DevTools Protocol                                    |
+| Package   | pnpm                                                                                                |
 
 ## Scripts
 
@@ -50,7 +52,7 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 ```
 src/
   app/create-app.ts       PixiJS Application bootstrap
-  app/starter-scene.ts    Animated starter screen (keep small)
+  app/lighting-scene.ts   Ship + asteroid lighting demo (keep small)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
   app/background-textures.ts  One-time procedural canvas textures (nebula/galaxy/star/flare)
   app/starfield-model.ts  Deterministic star generation + projection (tested)
@@ -60,29 +62,40 @@ src/
 public/
   favicon.svg
   audio/blip.wav          Small committed placeholder UI sound
+  assets/lighting/        Processed ship/asteroid color + normal maps
 scripts/
   browser.mjs             Shared-browser CLI (open / inspect / act / stop)
   mcp-browser.mjs         Playwright MCP launcher (attaches to shared browser)
   lib/shared-browser.mjs  CDP/browser lifecycle helpers
 tests/                    Vitest unit tests
-docs/                     Architecture decisions and agent workflow
+docs/                     Architecture decisions, reference art and agent workflow
 .agent/                   Generated browser artifacts and profile (gitignored)
 ```
 
 ## Controls
 
-- **Drag the canvas** to pan the background infinitely; starfield and nebula layers wrap at the edges.
-- **Scroll / pinch** to zoom. The fixed sky holds its scale, while near star layers and the
-  foreground dust pan/zoom with the camera. Limits: **0.02×–6×** (50× max zoom-out).
-- **Double-click** resets pan and zoom to the origin.
+- **Move the mouse** to move the omni light. The ship and asteroid respond through their normal maps.
+- **Drag the canvas** to pan the background; **scroll / pinch** to zoom it (`0.02×–6×`,
+  50× max zoom-out). **Double-click** resets the background view.
 - **Click** for the placeholder sound; **M** mutes/unmutes.
-- `Background.setZoom()` is exposed for velocity-driven zoom (ease it out as ship speed rises).
+- `Background.setZoom()` is exposed for velocity-driven background zoom.
+
+## Lighting
+
+The scene uses [`pixijs-light2d`](https://www.npmjs.com/package/pixijs-light2d) (PixiJS v8)
+with `LightSprite` + normal maps:
+
+- **Directional key light from the top-right** — the library only exposes point/ambient lights,
+  so this is a distant, very wide point light positioned off the top-right corner.
+- **Omni light** — a point light follows the pointer.
+- **Ambient fill** for readability.
+- The shadow map is baked once while there are no shadow casters.
 
 ## Reference art
 
 Source art for the 2.5D game (ship + asteroid, color/key and matching normal maps) lives in
-[docs/reference/](docs/reference/) — see [REFERENCE_ART.md](docs/REFERENCE_ART.md). These are
-source references, not runtime textures yet.
+[docs/reference/](docs/reference/) — see [REFERENCE_ART.md](docs/REFERENCE_ART.md). Processed
+runtime copies live in [public/assets/lighting/](public/assets/lighting/).
 
 ## Audio
 

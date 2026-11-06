@@ -17,6 +17,7 @@ export async function createApp({
 
   await app.init({
     background,
+    preference: 'webgl',
     antialias: true,
     autoDensity: true,
     resolution: Math.min(window.devicePixelRatio || 1, 2),

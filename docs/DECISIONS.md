@@ -102,3 +102,23 @@ camera out from velocity without coupling the game loop to rendering.
 which suits high-speed gameplay: the background does not fly apart while ships/entities (added
 later) scale with the camera. The star field spans 2×2 world units to stay covered at the
 zoom-out limit.
+
+## ADR-008 — pixijs-light2d for normal-mapped lighting
+
+**Status:** accepted (2026-11-06)
+
+`@pixi/lights` (the well-known deferred-lighting plugin) targets PixiJS 6/7 and cannot run on
+PixiJS 8. The v8 option we adopted is
+[`pixijs-light2d`](https://www.npmjs.com/package/pixijs-light2d) (MIT), used through
+`LightSprite` with the ship/asteroid normal maps. It ships a custom batched render pipe and
+handles ambient + point lights.
+
+The library has no directional light type, so the requested top-right directional key light is
+approximated by a distant, very wide point light. Its shader samples a shadow map for the first
+four lights, so the map is baked once (with no casters) and refreshed per frame only when
+`shadowSystem.casters` is non-empty. The package imports a Spine peer (`@esotericsoftware/spine-pixi-v8`)
+even when Spine isn't used, so that peer is installed as a runtime dependency.
+
+**Consequences:** lighting is WebGL-only; keep `preference: 'webgl'` in the app. Processed
+runtime art lives in `public/assets/lighting/`. Replacing the lighting library later means
+replacing `LightSprite` usage in `lighting-scene.ts` only.

@@ -39,7 +39,8 @@ Top-down fighter, 941 × 1672 px.
 - Key out the magenta background before generating runtime sprites.
 - These normal maps are lossy WebP references; re-export lossless PNG (or compressed KTX2) if
   they are used for real-time lighting.
-- Keep source art in `docs/reference/`; copy final runtime variants into `public/` only when a
-  feature needs them.
+- Keep source art in `docs/reference/`; processed runtime variants live in
+  [`public/assets/lighting/`](../public/assets/lighting/) (see its README for the one-off
+  matte/despill/resample steps).
 - Ship color and normal maps share the same framing (941 × 1672), as do the asteroid pair
   (1330 × 1182), so they can be layered directly.

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "SpacePewPew \u2014 PixiJS v8 + Vite + TypeScript starter with Howler audio and an agent-inspectable browser workflow",
+  "description": "SpacePewPew — PixiJS v8 + Vite + TypeScript starter with Howler audio and an agent-inspectable browser workflow",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -27,8 +27,10 @@
     "browser:stop": "node scripts/browser.mjs stop"
   },
   "dependencies": {
+    "@esotericsoftware/spine-pixi-v8": "^4.3.13",
     "howler": "^2.2.4",
-    "pixi.js": "^8.22.0"
+    "pixi.js": "^8.22.0",
+    "pixijs-light2d": "1.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
