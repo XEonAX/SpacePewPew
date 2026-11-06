@@ -78,6 +78,16 @@ function createChargeGlowTexture(): Texture {
   return new Texture({ source: new CanvasSource({ resource: canvas }) });
 }
 
+export interface TurretAimCone {
+  pairIndex: number;
+  /** Cone origin in ship-texture pixels relative to the ship centre. */
+  x: number;
+  y: number;
+  /** Local arc centre; add the ship rotation for the screen angle. */
+  center: number;
+  halfAngle: number;
+}
+
 export interface TurretMuzzle {
   pairIndex: number;
   /** Muzzle position in ship-texture pixels relative to the ship centre. */
@@ -104,6 +114,7 @@ export interface Turrets {
   update(frame: TurretFrame): void;
   getActivePairs(): readonly boolean[];
   getMuzzles(): readonly TurretMuzzle[];
+  getAimCones(): readonly TurretAimCone[];
   setGlowLevels(levels: readonly number[]): void;
   destroy(): void;
 }
@@ -135,6 +146,13 @@ export function createTurrets(texture: Texture): Turrets {
   const aims: TurretAimState[] = configs.map((config) => ({
     angle: config.restAngle,
     angularVelocity: 0,
+  }));
+  const aimCones: readonly TurretAimCone[] = configs.map((config, index) => ({
+    pairIndex: Math.floor(index / 2),
+    x: config.x,
+    y: config.y,
+    center: config.aimCenter,
+    halfAngle: config.aimHalfAngle,
   }));
   let activePairs = [false, false, false, false];
   let muzzles: TurretMuzzle[] = [];
@@ -223,6 +241,9 @@ export function createTurrets(texture: Texture): Turrets {
     },
     getMuzzles(): readonly TurretMuzzle[] {
       return muzzles;
+    },
+    getAimCones(): readonly TurretAimCone[] {
+      return aimCones;
     },
     setGlowLevels(levels: readonly number[]): void {
       glowLevels = levels;

@@ -107,6 +107,7 @@ docs/                     Architecture decisions, reference art and agent workfl
   bottom-left **RATE OF FIRE** panel tunes the cooldown of each weapon pair, clamped to the
   pair's charge duration.
 - Eight turrets track the mouse with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
+- Experimental turret aim cones are drawn to **100 m**, colour-coded by row, to visualize their fields of fire.
 - **Scroll** zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out).
   Camera dragging and click-to-reset are intentionally disabled.
 - **Click / hold** to fire the turret pair(s) aimed at the mouse: front pair uses the beam, rear pairs alternate blast variants with randomized pitch, volume, and stereo pan. Rounds are 1 m glowing tracers aligned with the barrel that inherit ship momentum, travel 100 m, and fade over the last 50 m. Clicking starts the weapon's charge sound; the tracer is scheduled for the measured blast impact, so the visual shot lands with the audio. Rear-pair barrel tips glow cyan when charged, intensify while their charge sound plays, then extinguish at the shot until that pair recharges. The front beam keeps the normal charged/empty state. **M** mutes/unmutes.

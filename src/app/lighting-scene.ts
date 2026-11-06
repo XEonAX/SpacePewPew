@@ -1,5 +1,5 @@
 import type { Application, Ticker } from 'pixi.js';
-import { Assets, Container, Text } from 'pixi.js';
+import { Assets, Container, Graphics, Text } from 'pixi.js';
 import type { Texture } from 'pixi.js';
 import { joinBaseUrl } from '../utils/paths';
 import { CAMERA_FOLLOW_RATE, createBackground } from './background';
@@ -78,7 +78,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   const ground = createGroundGrid();
   const exhaust = createEngineExhaust();
-  content.addChild(ground.mesh, exhaust.smoke);
+  const aimCones = new Graphics();
+  content.addChild(ground.mesh, exhaust.smoke, aimCones);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
   const asteroid: LitSprite = createLitSprite(asteroidColor, asteroidNormal);
@@ -284,6 +285,36 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     );
   };
 
+  const drawAimCones = (
+    shipScreenX: number,
+    shipScreenY: number,
+    shipScale: number,
+    rotation: number,
+    zoom: number,
+  ): void => {
+    aimCones.clear();
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    const radius = 100 * PIXELS_PER_METER * zoom;
+    const colors = [0x7fe8ff, 0x7dffb2, 0xffd166, 0xff7ad9];
+
+    for (const cone of turrets.getAimCones()) {
+      const x = shipScreenX + (cone.x * shipScale * cos - cone.y * shipScale * sin);
+      const y = shipScreenY + (cone.x * shipScale * sin + cone.y * shipScale * cos);
+      const center = rotation + cone.center - Math.PI / 2;
+      const start = center - cone.halfAngle;
+      const end = center + cone.halfAngle;
+      const color = colors[cone.pairIndex] ?? 0x7fe8ff;
+
+      // Two boundary rays are enough to read the field of fire.
+      aimCones.moveTo(x, y);
+      aimCones.lineTo(x + Math.cos(start) * radius, y + Math.sin(start) * radius);
+      aimCones.moveTo(x, y);
+      aimCones.lineTo(x + Math.cos(end) * radius, y + Math.sin(end) * radius);
+      aimCones.stroke({ color, alpha: 0.42, width: 1 });
+    }
+  };
+
   const updateTransforms = (deltaSeconds: number): void => {
     const { width, height } = app.screen;
     const dust = background.getDustTransform();
@@ -308,6 +339,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       dt: deltaSeconds,
       now: lighting.time,
     });
+
+    drawAimCones(shipScreenX, shipScreenY, shipBaseScale * dust.zoom, flight.rotation, dust.zoom);
 
     bullets.update({
       dustX: dust.x,
