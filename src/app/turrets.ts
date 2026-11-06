@@ -1,5 +1,5 @@
 import { Container, Sprite, Texture } from 'pixi.js';
-import { clampAngleToArc, stepTurretAim, wrapAngle } from './turret-aim';
+import { stepTurretAimInArc, wrapAngle } from './turret-aim';
 import type { TurretAimState } from './turret-aim';
 
 const NATIVE_WIDTH = 41;
@@ -178,9 +178,7 @@ export function createTurrets(
         const rawTarget = wrapAngle(
           Math.atan2(frame.mouseX - mountScreenX, -(frame.mouseY - mountScreenY)) - frame.rotation,
         );
-        const target = clampAngleToArc(rawTarget, config.aimCenter, config.aimHalfAngle);
-
-        stepTurretAim(aim, target, frame.dt);
+        stepTurretAimInArc(aim, rawTarget, config.aimCenter, config.aimHalfAngle, frame.dt);
         sprite.rotation = aim.angle;
       }
     },

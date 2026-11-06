@@ -43,3 +43,25 @@ export function stepTurretAim(state: TurretAimState, targetAngle: number, dt: nu
   );
   state.angle = wrapAngle(state.angle + state.angularVelocity * dt);
 }
+
+/**
+ * Aim at a target, but never let the result rotate outside the mount's arc.
+ * Targets outside the arc clamp to the nearest edge; the body is then hard
+ * stopped at the edge so angular momentum cannot carry it past the cone.
+ */
+export function stepTurretAimInArc(
+  state: TurretAimState,
+  targetAngle: number,
+  centerAngle: number,
+  halfAngle: number,
+  dt: number,
+): void {
+  const target = clampAngleToArc(targetAngle, centerAngle, halfAngle);
+  stepTurretAim(state, target, dt);
+
+  const bounded = clampAngleToArc(state.angle, centerAngle, halfAngle);
+  if (Math.abs(wrapAngle(bounded - state.angle)) > 1e-9) {
+    state.angle = bounded;
+    state.angularVelocity = 0;
+  }
+}
