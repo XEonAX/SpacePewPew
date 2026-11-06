@@ -116,7 +116,8 @@ with a small custom GLSL Mesh shader in `src/app/lit-sprite.ts`:
 - diffuse + normal + emissive + glow textures,
 - one directional key light + ambient,
 - normals rotated by the mesh rotation, so rotating ships shade correctly,
-- emissive maps for the ship's cyan panels.
+- emissive maps for the ship's cyan panels,
+- auto-generated mipmaps for texture LOD during camera zoom-out.
 
 The pointer omni light was a test aid and has been removed. Lighting is WebGL-only (GLSL), so
 the Application pins `preference: 'webgl'`.

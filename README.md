@@ -90,6 +90,8 @@ no external lighting package:
 
 - one **directional key light from the top-right** plus ambient fill,
 - tangent-space **normals rotated by each mesh's rotation**, so spinning ships shade correctly,
+- lit textures **auto-generate mipmaps (texture LOD)**, so zooming far out doesn't shimmer; MSAA
+  stays on for geometry edges,
 - the ship's cyan panels use baked **emissive + blurred glow** maps with a subtle pulse,
 - the ship runtime texture is **mirrored across the vertical axis** (the source AI art was not
   symmetrical); rear cyan engine ovals are excluded from the emissive layer for later special

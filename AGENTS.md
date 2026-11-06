@@ -93,7 +93,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - **Lighting is a custom Mesh shader.** Lit meshes come from `src/app/lit-sprite.ts`; normals
   are rotated by each mesh's rotation and combined with one directional key light + ambient.
   The renderer is pinned to WebGL because the shader is GLSL. Do not add a lighting library back
-  without solving directional lighting and normal rotation.
+  without solving directional lighting and normal rotation. Lit textures enable auto-generated
+  mipmaps (texture LOD); keep that on so camera zoom-out doesn't shimmer.
 - **Background textures are baked once.** Nebula/galaxy/glow textures are generated at startup
   into `CanvasSource`s and composed with batched sprites/TilingSprites. Avoid per-frame
   full-screen shaders or filters unless profiling justifies them.

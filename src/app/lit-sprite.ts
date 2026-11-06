@@ -100,12 +100,28 @@ function createEmptyTexture(): Texture {
 
 const EMPTY_TEXTURE = createEmptyTexture();
 
+/**
+ * Lit art is authored at ~2× on-screen size and gets tiny when the camera zooms
+ * out. Auto-generated mipmaps (texture LOD) keep the downscaled ship/asteroid
+ * from shimmering; MSAA alone only smooths geometry edges.
+ */
+function enableTextureLod(texture: Texture): void {
+  if (texture.width > 1 && texture.height > 1) {
+    texture.source.autoGenerateMipmaps = true;
+  }
+}
+
 export function createLitSprite(
   diffuse: Texture,
   normalMap: Texture,
   emissive: Texture = EMPTY_TEXTURE,
   glow: Texture = EMPTY_TEXTURE,
 ): LitSprite {
+  enableTextureLod(diffuse);
+  enableTextureLod(normalMap);
+  enableTextureLod(emissive);
+  enableTextureLod(glow);
+
   const width = diffuse.width;
   const height = diffuse.height;
 
