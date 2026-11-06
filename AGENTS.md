@@ -47,7 +47,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 
 - `src/app/create-app.ts` — creates and initialises the PixiJS `Application`.
 - `src/app/starter-scene.ts` — the only scene; layout, ring animation, hint text.
+- `src/app/starfield.ts` — infinitely pannable parallax starfield renderer.
+- `src/app/starfield-model.ts` — deterministic star generation, projection, twinkle (pure).
 - `src/audio/audio.ts` — the only place Howler is used.
+- `src/utils/random.ts` — seeded PRNG helpers for procedural content.
 - `src/utils/` — pure helpers (safe to unit test).
 - `src/main.ts` — entry point, input handlers, HMR teardown, `window.__SPACEPEWPEW__` hook.
 - `scripts/browser.mjs` — CLI for the shared browser.
@@ -76,6 +79,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   `SPACEPEWPEW_CHROME_NO_SANDBOX=1` is an explicit, disposable-CI-only escape hatch.
 - **Keep the starter small.** New gameplay should arrive as focused modules with tests, not as
   a growing `starter-scene.ts`.
+- **Procedural content is deterministic.** Use `src/utils/random.ts` with a fixed seed and keep
+  generation/projection math pure in `*-model.ts` files so it can be unit tested.
 
 ## Agent workflow
 

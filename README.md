@@ -51,6 +51,8 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 src/
   app/create-app.ts       PixiJS Application bootstrap
   app/starter-scene.ts    Animated starter screen (keep small)
+  app/starfield.ts        Infinitely pannable parallax starfield
+  app/starfield-model.ts  Deterministic star generation + projection (tested)
   audio/audio.ts          Howler wrapper: load, play, mute, unlock
   utils/                  Small pure helpers (tested)
   main.ts                 Entry point, HMR cleanup, inspection hook
@@ -65,6 +67,11 @@ tests/                    Vitest unit tests
 docs/                     Architecture decisions and agent workflow
 .agent/                   Generated browser artifacts and profile (gitignored)
 ```
+
+## Controls
+
+- **Drag the canvas** to pan the starfield infinitely; the parallax layers wrap at the edges.
+- **Click** for the placeholder sound; **M** mutes/unmutes.
 
 ## Audio
 

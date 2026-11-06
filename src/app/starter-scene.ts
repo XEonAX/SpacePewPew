@@ -1,6 +1,7 @@
 import type { Application, Ticker } from 'pixi.js';
 import { Container, Graphics, Text } from 'pixi.js';
 import { clamp, lerp, smoothstep } from '../utils/math';
+import { createStarfield } from './starfield';
 
 export interface StarterScene {
   setMuted(muted: boolean): void;
@@ -51,7 +52,7 @@ export function createStarterScene(app: Application): StarterScene {
   subtitle.anchor.set(0.5);
 
   const hint = new Text({
-    text: 'click for audio · M to mute',
+    text: 'drag to pan · click for sound · M to mute',
     style: {
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       fontSize: 12,
@@ -59,6 +60,9 @@ export function createStarterScene(app: Application): StarterScene {
     },
   });
   hint.anchor.set(0.5);
+
+  // The starfield attaches itself behind everything already on the stage.
+  const starfield = createStarfield(app);
 
   root.addChild(ring, title, subtitle, hint);
   app.stage.addChild(root);
@@ -107,10 +111,13 @@ export function createStarterScene(app: Application): StarterScene {
 
   return {
     setMuted(muted: boolean): void {
-      hint.text = muted ? 'sound muted · M to unmute' : 'click for audio · M to mute';
+      hint.text = muted
+        ? 'drag to pan · sound muted · M to unmute'
+        : 'drag to pan · click for sound · M to mute';
     },
     destroy(): void {
       app.ticker.remove(tick);
+      starfield.destroy();
       root.destroy({ children: true });
     },
   };
