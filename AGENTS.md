@@ -98,7 +98,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   `app.init()`, shape-then-fill `Graphics`, `deltaMS`-based updates, and destroy tickers and
   listeners on HMR.
 - **Audio goes through `AudioManager`.** Browsers require a user gesture, so call `enable()`
-  from a pointer/keyboard handler. Never construct `Howl` elsewhere.
+  from a pointer/keyboard handler. Never construct `Howl` elsewhere. Camera distance is applied
+  with `audio.setListenerGain(listenerGainForZoom(zoom))` (Howler master gain), so it scales
+  one-shots and loops alike; do not bake zoom into individual voice gains.
 - **Audio assets are small and committed.** Weapon WAVs live in `public/audio/weapons/`,
   seamless engine loops in `public/audio/engines/`; both are registered in
   `src/audio/audio.ts`. Trim/fade/normalize offline; do not add a build-time audio pipeline.

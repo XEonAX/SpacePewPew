@@ -82,6 +82,8 @@ export class AudioManager {
   readonly #volume: number;
   #enabled = false;
   #muted = false;
+  #listenerGain = 1;
+  #listenerGainApplied = false;
 
   constructor({ baseUrl = '/', volume = 0.6 }: AudioManagerOptions = {}) {
     this.#baseUrl = baseUrl;
@@ -90,6 +92,20 @@ export class AudioManager {
 
   get muted(): boolean {
     return this.#muted;
+  }
+
+  /**
+   * Scales every voice (one-shots and loops) by camera distance.
+   *
+   * Applied through Howler's master gain so mute/unmute restores the current
+   * distance level, and so already-playing one-shots fade with the camera too.
+   */
+  setListenerGain(gain: number): void {
+    const next = clamp(gain, 0, 1);
+    if (this.#listenerGainApplied && Math.abs(next - this.#listenerGain) < 0.001) return;
+    this.#listenerGain = next;
+    this.#listenerGainApplied = true;
+    Howler.volume(next);
   }
 
   async load(): Promise<void> {

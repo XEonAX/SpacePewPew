@@ -20,6 +20,7 @@ import { createEngineAudio } from './engine-audio';
 import { PIXELS_PER_METER } from './world-scale';
 import { clamp } from '../utils/math';
 import type { AudioManager } from '../audio/audio';
+import { listenerGainForZoom } from '../audio/listener-gain';
 import { createTurrets } from './turrets';
 import { createBullets } from './bullets';
 import { BULLET_SPEED_METERS_PER_SECOND } from './bullet-math';
@@ -295,6 +296,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const dust = background.getDustTransform();
 
     ground.setView(dust.x, dust.y, dust.zoom, width, height);
+    audio.setListenerGain(listenerGainForZoom(dust.zoom));
 
     const shipWorldX = flight.x * PIXELS_PER_METER;
     const shipWorldY = flight.y * PIXELS_PER_METER;

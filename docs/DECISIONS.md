@@ -237,3 +237,25 @@ headroom), the rush bed's gain is `speedFraction^1.35` up to 0.85 and its rate s
 
 **Consequences:** keep new engine layers sparse, phase-randomised and free of clipping; if a
 loop sounds buzzy, suspect dense harmonics or saturation before adding EQ.
+
+## ADR-014 — Camera zoom scales the listener volume
+
+**Status:** accepted (2026-11-07).
+
+Zoom already changes apparent distance (the ship and dust shrink, the sky holds), but the mix
+stayed at full level, so pulling out felt visually farther without sounding it. `AudioManager`
+now exposes `setListenerGain()`, which drives Howler's master gain, and the scene feeds it
+`listenerGainForZoom(zoom)`:
+
+- 1× (default, max zoom-in) = full volume,
+- 0.02× (50× zoom-out limit) = 0.20 (−14 dB),
+- a `zoom^0.7` curve so the first wheel notches fade gently and far zoom-out reads clearly.
+
+Driving Howler's master (rather than per-voice gains) means one-shots already in flight fade
+with the camera, and mute/unmute restores the current distance level (`Howler.mute` restores
+`Howler._volume`). Zoom is already eased at 8/s, so the gain changes are smooth without extra
+ramping; `setListenerGain` skips sub-0.001 updates.
+
+**Consequences:** new audio automatically respects zoom as long as it goes through
+`AudioManager`; if per-voice distance tweaks are ever needed, apply them _on top of_ the master
+listener gain, not instead of it.
