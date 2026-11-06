@@ -170,6 +170,10 @@ audio as well as the exhaust:
 - the two side main engines → `engine-side.wav`, a normal mid-range rocket,
 - the two reverse engines → `engine-reverse.wav`, lighter and brighter.
 
+The loops are deliberately tuned "sweet" rather than aggressive: soft saturation, a warmth
+EQ bump around 90–500 Hz, rolled-off top end with just a little air, added consonant fifths,
+and slow vibrato on the upper tones instead of broadband hiss.
+
 The three loops are generated offline and committed. Seamlessness is structural rather than
 faded: tones and LFOs are quantised to integer cycles per loop, and the noise beds are
 synthesised in the frequency domain with random phases, so the last sample joins the first with
