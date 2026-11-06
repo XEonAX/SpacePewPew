@@ -6,6 +6,12 @@ const ENGINE_Y_OFFSET = 410;
 const FLAME_WIDTH = 44;
 export const FLAME_LOCAL_LENGTH = 190;
 const FLAME_BASE_HEIGHT = FLAME_LOCAL_LENGTH;
+
+// Baked reverse-engine copies: x ±167, y +50, 0.58× scale, rotated 180°.
+const REVERSE_ENGINE_X_OFFSETS = [-167, 167] as const;
+const REVERSE_ENGINE_SCALE = 0.58;
+const REVERSE_FLAME_BASE_Y = 31;
+const REVERSE_FLAME_LOCAL_LENGTH = FLAME_BASE_HEIGHT * REVERSE_ENGINE_SCALE;
 const SMOKE_LIFETIME = 10;
 const SMOKE_POOL_SIZE = 720;
 const SMOKE_TEXTURE_SIZE = 128;
@@ -30,6 +36,8 @@ interface ExhaustFrame {
   height: number;
   /** Ramped linear input magnitude, 0..1. */
   thrust: number;
+  /** S/reverse thrust is active. */
+  reverse: boolean;
   shipVx: number;
   shipVy: number;
   dt: number;
@@ -157,29 +165,45 @@ export function createEngineExhaust(): EngineExhaust {
     });
   }
 
+  const reverseFlameSprites = REVERSE_ENGINE_X_OFFSETS.map((offset) => {
+    const sprite = new Sprite({ texture: flameTexture, anchor: { x: 0.5, y: 0 } });
+    sprite.x = offset;
+    sprite.y = REVERSE_FLAME_BASE_Y;
+    sprite.rotation = Math.PI;
+    sprite.width = FLAME_WIDTH * REVERSE_ENGINE_SCALE;
+    sprite.height = REVERSE_FLAME_LOCAL_LENGTH;
+    sprite.blendMode = 'add';
+    flames.addChild(sprite);
+    return sprite;
+  });
+
   const flameLengths = ENGINE_X_OFFSETS.map(() => FLAME_BASE_HEIGHT);
+  const reverseFlameLengths = REVERSE_ENGINE_X_OFFSETS.map(() => REVERSE_FLAME_LOCAL_LENGTH);
   const rng = createRng(0x51ed_270b ^ 0x9e37_79b9);
   let smokeAccumulator = 0;
   let nextEngine = 0;
 
-  const spawnSmoke = (engineIndex: number, frame: ExhaustFrame): void => {
+  const spawnSmoke = (
+    localX: number,
+    localTipY: number,
+    exhaustX: number,
+    exhaustY: number,
+    frame: ExhaustFrame,
+    sizeScale: number,
+  ): void => {
     const particle = particles.find((candidate) => !candidate.active);
     if (!particle) return;
 
-    const localX = ENGINE_X_OFFSETS[engineIndex]!;
-    const localY = ENGINE_Y_OFFSET + flameLengths[engineIndex]!;
     const cos = Math.cos(frame.rotation);
     const sin = Math.sin(frame.rotation);
-    const worldX = frame.shipWorldX + (localX * cos - localY * sin) * frame.shipBaseScale;
-    const worldY = frame.shipWorldY + (localX * sin + localY * cos) * frame.shipBaseScale;
-    const backX = -sin;
-    const backY = cos;
+    const worldX = frame.shipWorldX + (localX * cos - localTipY * sin) * frame.shipBaseScale;
+    const worldY = frame.shipWorldY + (localX * sin + localTipY * cos) * frame.shipBaseScale;
 
     particle.active = true;
     particle.life = SMOKE_LIFETIME;
     particle.maxLife = SMOKE_LIFETIME;
-    particle.size = randomRange(rng, 16, 32);
-    particle.growth = randomRange(rng, 10, 22);
+    particle.size = randomRange(rng, 16, 32) * sizeScale;
+    particle.growth = randomRange(rng, 10, 22) * sizeScale;
     particle.baseAlpha = randomRange(rng, 0.3, 0.48);
     particle.rotationSpeed = randomRange(rng, -0.18, 0.18);
     particle.sprite.position.set(
@@ -193,9 +217,9 @@ export function createEngineExhaust(): EngineExhaust {
     particle.sprite.scale.set(scale);
     particle.sprite.visible = true;
     particle.vx =
-      frame.shipVx * 0.12 + backX * randomRange(rng, 18, 62) + randomRange(rng, -18, 18);
+      frame.shipVx * 0.55 + exhaustX * randomRange(rng, 12, 38) + randomRange(rng, -14, 14);
     particle.vy =
-      frame.shipVy * 0.12 + backY * randomRange(rng, 18, 62) + randomRange(rng, -18, 18);
+      frame.shipVy * 0.55 + exhaustY * randomRange(rng, 12, 38) + randomRange(rng, -14, 14);
   };
 
   return {
@@ -207,6 +231,9 @@ export function createEngineExhaust(): EngineExhaust {
       flames.scale.set(frame.shipScale);
 
       const thrust = Math.max(0, Math.min(1, frame.thrust));
+      const mainActive = !frame.reverse && thrust > 0.02;
+      const reverseActive = frame.reverse && thrust > 0.02;
+
       for (let index = 0; index < flameSprites.length; index += 1) {
         const sprite = flameSprites[index]!;
         const flicker =
@@ -216,7 +243,19 @@ export function createEngineExhaust(): EngineExhaust {
         const length = FLAME_BASE_HEIGHT * flicker * (0.45 + 0.55 * thrust);
         flameLengths[index] = length;
         sprite.height = length;
-        sprite.alpha = thrust > 0.02 ? 0.45 + 0.55 * thrust : 0;
+        sprite.alpha = mainActive ? 0.45 + 0.55 * thrust : 0;
+      }
+
+      for (let index = 0; index < reverseFlameSprites.length; index += 1) {
+        const sprite = reverseFlameSprites[index]!;
+        const flicker =
+          0.94 +
+          0.05 * Math.sin(frame.now * 74 + index * 1.3) +
+          0.02 * Math.sin(frame.now * 121 + index * 2.7);
+        const length = REVERSE_FLAME_LOCAL_LENGTH * flicker * (0.45 + 0.55 * thrust);
+        reverseFlameLengths[index] = length;
+        sprite.height = length;
+        sprite.alpha = reverseActive ? 0.45 + 0.55 * thrust : 0;
       }
 
       smoke.position.set(
@@ -227,12 +266,32 @@ export function createEngineExhaust(): EngineExhaust {
 
       // Smoke is only produced while the engine has power. Old puffs keep
       // living for their 10 s lifetime, so cutting power stops new emission but
-      // leaves the previous trail to fade.
-      if (thrust > 0.02 && frame.dt > 0) {
-        smokeAccumulator += frame.dt * thrust * 60;
+      // leaves the previous trail to fade. Reverse thrust emits from the two
+      // wing-mounted reverse nozzles instead of the main engines.
+      const active = mainActive || reverseActive;
+      if (active && frame.dt > 0) {
+        smokeAccumulator += frame.dt * thrust * (frame.reverse ? 45 : 60);
+        const cos = Math.cos(frame.rotation);
+        const sin = Math.sin(frame.rotation);
+        const emitterCount = frame.reverse
+          ? REVERSE_ENGINE_X_OFFSETS.length
+          : ENGINE_X_OFFSETS.length;
+
         while (smokeAccumulator >= 1) {
-          spawnSmoke(nextEngine, frame);
-          nextEngine = (nextEngine + 1) % ENGINE_X_OFFSETS.length;
+          if (frame.reverse) {
+            const index = nextEngine % REVERSE_ENGINE_X_OFFSETS.length;
+            const localX = REVERSE_ENGINE_X_OFFSETS[index]!;
+            const localTipY = REVERSE_FLAME_BASE_Y - reverseFlameLengths[index]!;
+            // The reverse flames point forward: local (0, -1).
+            spawnSmoke(localX, localTipY, sin, -cos, frame, REVERSE_ENGINE_SCALE);
+          } else {
+            const index = nextEngine % ENGINE_X_OFFSETS.length;
+            const localX = ENGINE_X_OFFSETS[index]!;
+            const localTipY = ENGINE_Y_OFFSET + flameLengths[index]!;
+            // The main flames point backward: local (0, +1).
+            spawnSmoke(localX, localTipY, -sin, cos, frame, 1);
+          }
+          nextEngine = (nextEngine + 1) % emitterCount;
           smokeAccumulator -= 1;
         }
       }

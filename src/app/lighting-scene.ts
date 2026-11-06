@@ -186,6 +186,7 @@ export async function createScene(app: Application): Promise<Scene> {
       width,
       height,
       thrust: Math.abs(flight.linearInput),
+      reverse: flight.linearInput < -0.02,
       shipVx: flight.vx * PIXELS_PER_METER,
       shipVy: flight.vy * PIXELS_PER_METER,
       dt: deltaSeconds,

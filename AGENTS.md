@@ -57,8 +57,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/world-scale.ts` — `PIXELS_PER_METER = 64`; all flight physics is in metres.
 - `src/app/ground-grid.ts` — screen-space 1 m × 1 m grid fixed to the near dust layer
   (64 world px per metre; major lines every 5 m).
-- `src/app/engine-exhaust.ts` — three cyan cone-flame sprites plus dense dust-world smoke
-  particles emitted from the cone tips only while engine power is on; old puffs fade over 10 s.
+- `src/app/engine-exhaust.ts` — three main cone flames plus two reverse-engine flames from the
+  baked wing nozzles; dense dust-world smoke leaves the active cone tips only while engine power
+  is on; old puffs fade over 10 s.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.
