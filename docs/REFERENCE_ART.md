@@ -46,3 +46,6 @@ Top-down fighter, 941 × 1672 px.
   (1330 × 1182), so they can be layered directly.
 - The runtime ship art is mirrored across the vertical centerline for symmetry; the source
   reference above stays untouched.
+
+- `turret.svg` is the supplied mounted-gun SVG, rasterized to
+  `public/assets/lighting/turret.png` for the eight turret sprites.

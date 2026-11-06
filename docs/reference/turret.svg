@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="164px" height="208px" viewBox="0 0 41 52" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g transform="matrix(1,0,0,1,-172.442181,-302.655339)">
+        <g id="MountedGun">
+            <g id="Base">
+                <g transform="matrix(0,1,-1,0,192.829608,333.488604)">
+                    <path d="M0,-19.637C10.838,-19.637 19.637,-10.838 19.637,0C19.637,10.838 10.838,19.637 0,19.637C-10.838,19.637 -19.637,10.838 -19.637,0C-19.637,-10.838 -10.838,-19.637 0,-19.637ZM0,-14.139C7.803,-14.139 14.139,-7.803 14.139,0C14.139,7.803 7.803,14.139 0,14.139C-7.803,14.139 -14.139,7.803 -14.139,0C-14.139,-7.803 -7.803,-14.139 0,-14.139Z" style="fill:rgb(129,131,128);stroke:black;stroke-width:1.5px;"/>
+                </g>
+                <g transform="matrix(0,0.704754,-0.704754,0,192.829608,333.488604)">
+                    <circle cx="0" cy="0" r="19.637" style="fill:rgb(42,42,42);stroke:black;stroke-width:2.13px;"/>
+                </g>
+            </g>
+            <g id="Turret" transform="matrix(-1,-0,0,-1,385.659217,666.977207)">
+                <path d="M180.844,340.408C179.63,338.305 178.99,335.918 178.99,333.489C178.99,325.85 185.191,319.649 192.83,319.649C200.468,319.649 206.669,325.85 206.669,333.489C206.669,335.918 206.03,338.305 204.815,340.408L180.844,340.408Z" style="fill:rgb(83,81,82);stroke:black;stroke-width:1.5px;"/>
+            </g>
+            <g id="Barrel">
+                <g transform="matrix(0.799065,0,0,1.293261,38.746239,-111.110945)">
+                    <rect x="187.997" y="320.52" width="9.665" height="25.937" style="fill:rgb(83,81,82);stroke:black;stroke-width:1.4px;"/>
+                </g>
+                <g transform="matrix(0.799065,0,0,0.23806,38.746239,227.102326)">
+                    <rect x="187.997" y="320.52" width="9.665" height="25.937" style="fill:rgb(42,42,42);stroke:black;stroke-width:2.54px;"/>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -12,6 +12,9 @@ import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
 import { FLAME_LOCAL_LENGTH, createEngineExhaust } from './engine-exhaust';
 import { PIXELS_PER_METER } from './world-scale';
+import { DEFAULT_TURRET_LAYOUT, createTurrets } from './turrets';
+import type { TurretMountConfig } from './turrets';
+import { createTurretEditor } from './turret-editor';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -48,15 +51,23 @@ const assetUrl = (path: string): string => joinBaseUrl(import.meta.env.BASE_URL,
 export async function createScene(app: Application): Promise<Scene> {
   const background = createBackground(app);
 
-  const [shipColor, shipNormal, shipEmissive, shipGlow, asteroidColor, asteroidNormal] =
-    await Promise.all([
-      Assets.load<Texture>(assetUrl('assets/lighting/ship-color.png')),
-      Assets.load<Texture>(assetUrl('assets/lighting/ship-normal.png')),
-      Assets.load<Texture>(assetUrl('assets/lighting/ship-emissive.png')),
-      Assets.load<Texture>(assetUrl('assets/lighting/ship-glow.png')),
-      Assets.load<Texture>(assetUrl('assets/lighting/asteroid-color.png')),
-      Assets.load<Texture>(assetUrl('assets/lighting/asteroid-normal.png')),
-    ]);
+  const [
+    shipColor,
+    shipNormal,
+    shipEmissive,
+    shipGlow,
+    asteroidColor,
+    asteroidNormal,
+    turretTexture,
+  ] = await Promise.all([
+    Assets.load<Texture>(assetUrl('assets/lighting/ship-color.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/ship-normal.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/ship-emissive.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/ship-glow.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/asteroid-color.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/asteroid-normal.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/turret.png')),
+  ]);
 
   const content = new Container();
   app.stage.addChild(content);
@@ -67,7 +78,18 @@ export async function createScene(app: Application): Promise<Scene> {
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
   const asteroid: LitSprite = createLitSprite(asteroidColor, asteroidNormal);
-  content.addChild(ship.mesh, exhaust.flames, asteroid.mesh);
+  const turretConfigs: TurretMountConfig[] = DEFAULT_TURRET_LAYOUT.map((config) => ({ ...config }));
+  const turrets = createTurrets(turretTexture, turretConfigs);
+  content.addChild(ship.mesh, turrets.container, exhaust.flames, asteroid.mesh);
+
+  const canvas = app.canvas as HTMLCanvasElement;
+  const pointer = { x: app.screen.width / 2, y: app.screen.height / 2, active: false };
+  const onPointerMove = (event: PointerEvent): void => {
+    const bounds = canvas.getBoundingClientRect();
+    pointer.x = ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * app.screen.width;
+    pointer.y = ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * app.screen.height;
+    pointer.active = true;
+  };
 
   const hint = new Text({
     text: 'W/S thrust · A/D turn · 1 m grid · M: mute',
@@ -172,6 +194,17 @@ export async function createScene(app: Application): Promise<Scene> {
 
     const shipScreenX = (shipWorldX - dust.x * width) * dust.zoom + width / 2;
     const shipScreenY = (shipWorldY - dust.y * height) * dust.zoom + height / 2;
+    turrets.update({
+      shipScreenX,
+      shipScreenY,
+      shipScale: shipBaseScale * dust.zoom,
+      rotation: flight.rotation,
+      mouseX: pointer.x,
+      mouseY: pointer.y,
+      mouseActive: pointer.active,
+      dt: deltaSeconds,
+    });
+
     exhaust.update({
       shipWorldX,
       shipWorldY,
@@ -254,6 +287,12 @@ export async function createScene(app: Application): Promise<Scene> {
   const telemetry = createFlightTelemetry(flight, tuning);
   document.body.append(telemetry.element);
 
+  const turretEditor = createTurretEditor(turretConfigs, (index, config) => {
+    turrets.setMount(index, config);
+  });
+  document.body.append(turretEditor.element);
+
+  canvas.addEventListener('pointermove', onPointerMove);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', onBlur);
@@ -272,11 +311,14 @@ export async function createScene(app: Application): Promise<Scene> {
     },
     destroy(): void {
       app.ticker.remove(tick);
+      canvas.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
       flightTuner.destroy();
       telemetry.destroy();
+      turretEditor.destroy();
+      turrets.destroy();
       exhaust.destroy();
       ground.destroy();
       ship.mesh.destroy({ children: true });
