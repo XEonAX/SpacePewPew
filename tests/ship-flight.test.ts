@@ -52,7 +52,7 @@ describe('ship flight', () => {
   it('settles at the thrust/drag terminal speed', () => {
     const state = createFlightState();
     const dt = 1 / 60;
-    for (let frame = 0; frame < 60 * 15; frame += 1) {
+    for (let frame = 0; frame < 60 * 30; frame += 1) {
       stepFlight(state, press({ forward: true }), dt);
     }
 

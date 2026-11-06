@@ -12,7 +12,6 @@ import {
 } from './background-textures';
 import {
   STARFIELD_SEED,
-  advanceStars,
   dustAlpha,
   generateDust,
   generateStars,
@@ -276,8 +275,8 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
 
     for (const nebula of nebulas) {
       const tileSize = maxDimension * nebula.tileScaleToViewport;
-      const panX = -camera.x * nebula.parallax * width;
-      const panY = -camera.y * nebula.parallax * height;
+      const panX = -camera.x * nebula.parallax * zoom * width;
+      const panY = -camera.y * nebula.parallax * zoom * height;
 
       nebula.sprite.tileScale.set(tileSize / NEBULA_TEXTURE_SIZE);
       nebula.sprite.tilePosition.set(
@@ -318,9 +317,8 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
       dustCamera.y += (followTarget.y - dustCamera.y) * ease;
     }
 
-    advanceStars(stars, deltaSeconds);
-    // The near dust layer is the gameplay layer: keep it rigid so the ship and
-    // asteroid never slide relative to it. Stars can keep their slow drift.
+    // All background motion comes from camera parallax. No layer gets an
+    // independent drift, so nothing can outrun the near dust/grid layer.
     project();
   };
 

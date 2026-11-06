@@ -139,6 +139,15 @@ describe('projectStar', () => {
     });
   });
 
+  it('scales camera pan with zoom instead of layer scale', () => {
+    const near = fixedStar({ parallax: 1, zoomResponse: 0.5 });
+    const center = projectStar(near, { x: 0, y: 0 }, viewport, 0.5);
+    const panned = projectStar(near, { x: 0.1, y: 0 }, viewport, 0.5);
+
+    // Screen pan = parallax × zoom × viewport width = 1 × 0.5 × 100 × 0.1.
+    expect(center.x - panned.x).toBeCloseTo(5, 6);
+  });
+
   it('keeps the far sky fixed when zooming', () => {
     const star = fixedStar({ x: 0.25, y: -0.25, zoomResponse: 0 });
     expect(projectStar(star, { x: 0, y: 0 }, viewport, 8)).toEqual(

@@ -89,8 +89,9 @@ docs/                     Architecture decisions, reference art and agent workfl
   fixed on that layer, and the layer is rigid.
 - A subtle cyan **ground grid** is fixed to that layer: minor cells are **1 m × 1 m** (64 world
   px per metre), major lines every 5 m. Ship movement and speed read against it.
-- The two distant galaxies are fixed to the sky (no parallax/zoom) so high-speed flight never
-  carries them off-screen.
+- Parallax is logical: camera pan is scaled by zoom for every layer, so the near dust/grid layer
+  always moves fastest and each farther layer moves proportionally less. The two distant
+  galaxies are fixed to the sky.
 - The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag
   and input ramp. The top-right **FLIGHT TELEMETRY** panel shows terminal W/S/A-D speeds,
   current velocity, angular velocity, and ramped inputs (all linear units in metres).

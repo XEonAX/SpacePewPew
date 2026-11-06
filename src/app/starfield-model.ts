@@ -185,8 +185,12 @@ export function projectPoint(
   zoomResponse: number,
 ): Vec2 {
   const scale = layerZoom(zoomResponse, zoom);
-  const x = wrapField(point.x - camera.x * parallax);
-  const y = wrapField(point.y - camera.y * parallax);
+  // Camera panning is a screen motion: scale it by the viewport zoom, not the
+  // layer's visual zoom. Otherwise a fixed-scale layer can pan faster than the
+  // near dust/grid layer when zoomed out.
+  const panScale = zoom / scale;
+  const x = wrapField(point.x - camera.x * parallax * panScale);
+  const y = wrapField(point.y - camera.y * parallax * panScale);
 
   return {
     x: x * viewport.width * scale + viewport.width / 2,

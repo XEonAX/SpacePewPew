@@ -111,6 +111,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   screen pixels only at render time with `PIXELS_PER_METER`. Grid/telemetry display metres.
 - **Galaxies are fixed sky.** The two galaxy sprites have zero parallax/zoom response; only
   stars, nebulas, and the near dust layer pan.
+- **Parallax is screen-consistent.** `projectPoint` scales camera movement by `zoom / layerScale`,
+  so at any zoom a layer's screen pan is `parallax × zoom`; the near dust/grid layer (parallax 1)
+  is always fastest. No independent drift.
 - **Camera lookahead is quadratic.** `followCamera()` applies a `speed²` curve (near-zero at
   slow speed, max near terminal), boosts the offset as zoom decreases, and cancels the follow
   camera's lag using `CAMERA_FOLLOW_RATE`. Tune in `lighting-scene.ts`/`background.ts`.
