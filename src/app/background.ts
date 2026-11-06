@@ -53,6 +53,9 @@ export interface Background {
 const MAX_DELTA_SECONDS = 0.05;
 const HERO_STAR_COUNT = 14;
 
+/** Camera follow easing rate (per second); exposed so lookahead can cancel its lag. */
+export const CAMERA_FOLLOW_RATE = 7;
+
 /** Hard camera limits: 50× zoom-out (0.02); 1× default is the max zoom-in. */
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 1;
@@ -308,7 +311,7 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     }
 
     if (followTarget) {
-      const ease = 1 - Math.exp(-deltaSeconds * 7);
+      const ease = 1 - Math.exp(-deltaSeconds * CAMERA_FOLLOW_RATE);
       camera.x += (followTarget.x - camera.x) * ease;
       camera.y += (followTarget.y - camera.y) * ease;
       dustCamera.x += (followTarget.x - dustCamera.x) * ease;

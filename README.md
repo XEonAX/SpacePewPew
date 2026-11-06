@@ -83,10 +83,10 @@ docs/                     Architecture decisions, reference art and agent workfl
 - **W/S** thrust forward/back; **A/D** rotate. Inputs ramp in over 0.3 s. Drag applies to both
   linear and angular motion whenever any input is active; **thrust vs drag decide terminal
   speeds** — no separate speed cap.
-- The ship flies on the **near dust layer**; the camera smoothly pans with it. It also leads the
-  ship by a velocity-scaled lookahead, so at speed the ship sits behind center in its direction
-  of travel (below center when flying up). The asteroid is fixed on that layer, and the layer is
-  rigid.
+- The ship flies on the **near dust layer**; the camera smoothly pans with it. Lookahead grows
+  **quadratically with speed** (near zero at low speed, full near terminal) and increases when
+  zoomed out, so at speed the ship sits behind centre in its travel direction. The asteroid is
+  fixed on that layer, and the layer is rigid.
 - A subtle cyan **ground grid** is fixed to that layer: minor cells are **1 m × 1 m** (64 world
   px per metre), major lines every 5 m. Ship movement and speed read against it.
 - The two distant galaxies are fixed to the sky (no parallax/zoom) so high-speed flight never

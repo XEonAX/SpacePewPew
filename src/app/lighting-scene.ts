@@ -2,7 +2,7 @@ import type { Application, Ticker } from 'pixi.js';
 import { Assets, Container, Text } from 'pixi.js';
 import type { Texture } from 'pixi.js';
 import { joinBaseUrl } from '../utils/paths';
-import { createBackground } from './background';
+import { CAMERA_FOLLOW_RATE, createBackground } from './background';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
 import { createFlightState, stepFlight, DEFAULT_FLIGHT_TUNING } from './ship-flight';
@@ -18,8 +18,13 @@ export interface Scene {
 }
 
 const MAX_DELTA_SECONDS = 0.05;
-const LOOKAHEAD_SECONDS = 0.2;
-const MAX_LOOKAHEAD_METERS = 12;
+
+// Lookahead is an offset of the ship from screen centre, as a fraction of the
+// short viewport edge. It eases in quadratically with speed and grows when the
+// camera is zoomed out.
+const LOOKAHEAD_BASE_OFFSET = 0.2;
+const LOOKAHEAD_MAX_OFFSET = 0.28;
+const LOOKAHEAD_ZOOM_BOOST = 1.5;
 
 /** World-space lighting shared by the lit meshes. */
 const lighting: LightingState = {
@@ -122,15 +127,31 @@ export async function createScene(app: Application): Promise<Scene> {
   const followCamera = (immediate = false): void => {
     const { width, height } = app.screen;
     const speed = Math.hypot(flight.vx, flight.vy);
-    const lookahead = Math.min(MAX_LOOKAHEAD_METERS, speed * LOOKAHEAD_SECONDS);
     const directionX = speed > 0 ? flight.vx / speed : 0;
     const directionY = speed > 0 ? flight.vy / speed : 0;
 
-    // Lead the ship by a velocity-scaled amount: moving up puts the camera
-    // target above the ship, so the ship sits below screen center.
+    const linearDrag = Math.max(tuning.linearDrag, 0.0001);
+    const terminalW = tuning.forwardAccel / linearDrag;
+    const speedFraction = terminalW > 0 ? Math.min(1, speed / terminalW) : 0;
+    const curve = speedFraction * speedFraction;
+
+    const dust = background.getDustTransform();
+    const shortEdge = Math.min(width, height);
+    const baseOffsetPx = shortEdge * LOOKAHEAD_BASE_OFFSET;
+    const maxOffsetPx = shortEdge * LOOKAHEAD_MAX_OFFSET;
+    const zoomBoost = 1 + (1 - dust.zoom) * LOOKAHEAD_ZOOM_BOOST;
+    const offsetPx = Math.min(maxOffsetPx, baseOffsetPx * curve * zoomBoost);
+    const offsetMeters = offsetPx / (PIXELS_PER_METER * dust.zoom);
+
+    // Cancel the follow camera's steady-state lag, then add the desired
+    // lookahead offset. Moving up puts the target above the ship, so the ship
+    // ends up below screen centre.
+    const lagMeters = speed / CAMERA_FOLLOW_RATE;
+    const lead = lagMeters + offsetMeters;
+
     background.setFollowTarget(
-      ((flight.x + directionX * lookahead) * PIXELS_PER_METER) / width,
-      ((flight.y + directionY * lookahead) * PIXELS_PER_METER) / height,
+      ((flight.x + directionX * lead) * PIXELS_PER_METER) / width,
+      ((flight.y + directionY * lead) * PIXELS_PER_METER) / height,
       immediate,
     );
   };

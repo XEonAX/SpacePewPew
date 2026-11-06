@@ -111,9 +111,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   screen pixels only at render time with `PIXELS_PER_METER`. Grid/telemetry display metres.
 - **Galaxies are fixed sky.** The two galaxy sprites have zero parallax/zoom response; only
   stars, nebulas, and the near dust layer pan.
-- **Camera lookahead is velocity-based.** `followCamera()` leads the camera target by
-  `speed * LOOKAHEAD_SECONDS` (capped in metres), so the ship sits behind center in its travel
-  direction. Tune in `lighting-scene.ts`.
+- **Camera lookahead is quadratic.** `followCamera()` applies a `speed²` curve (near-zero at
+  slow speed, max near terminal), boosts the offset as zoom decreases, and cancels the follow
+  camera's lag using `CAMERA_FOLLOW_RATE`. Tune in `lighting-scene.ts`/`background.ts`.
 - **Zoom is depth-weighted.** Far stars/nebulas stay at a fixed scale; mid/near stars respond
   partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`1` (1× is the
   default and maximum zoom-in) and exposed as
