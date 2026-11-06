@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { TURRET_MAX_ANGULAR_SPEED, stepTurretAim, wrapAngle } from '../src/app/turret-aim';
+import {
+  TURRET_MAX_ANGULAR_SPEED,
+  clampAngleToArc,
+  stepTurretAim,
+  wrapAngle,
+} from '../src/app/turret-aim';
 import type { TurretAimState } from '../src/app/turret-aim';
 
 function aimState(): TurretAimState {
@@ -21,6 +26,33 @@ describe('turret aim', () => {
       stepTurretAim(state, Math.PI, dt);
       expect(Math.abs(state.angularVelocity)).toBeLessThanOrEqual(TURRET_MAX_ANGULAR_SPEED + 1e-9);
     }
+  });
+
+  it('clamps front turrets to their forward cone', () => {
+    const half = Math.PI / 3;
+    expect(clampAngleToArc(Math.PI, 0, half)).toBeCloseTo(half, 6);
+    expect(clampAngleToArc(-Math.PI, 0, half)).toBeCloseTo(-half, 6);
+  });
+
+  it('keeps mid turrets centred on the sides', () => {
+    const center = Math.PI / 2;
+    const half = Math.PI / 4;
+
+    expect(clampAngleToArc(0, center, half)).toBeCloseTo(Math.PI / 4, 6);
+    expect(clampAngleToArc(Math.PI, center, half)).toBeCloseTo((3 * Math.PI) / 4, 6);
+    expect(clampAngleToArc(0, -center, half)).toBeCloseTo(-Math.PI / 4, 6);
+    expect(clampAngleToArc(Math.PI, -center, half)).toBeCloseTo(-(3 * Math.PI) / 4, 6);
+  });
+
+  it('lets rear turrets cover the sides and the rear', () => {
+    const center = (3 * Math.PI) / 4;
+    const half = Math.PI / 4;
+
+    // A front target clamps to sideways; a rear target is reachable.
+    expect(clampAngleToArc(0, center, half)).toBeCloseTo(Math.PI / 2, 6);
+    expect(clampAngleToArc(0, -center, half)).toBeCloseTo(-Math.PI / 2, 6);
+    expect(Math.abs(clampAngleToArc(Math.PI, center, half))).toBeCloseTo(Math.PI, 6);
+    expect(Math.abs(clampAngleToArc(Math.PI, -center, half))).toBeCloseTo(Math.PI, 6);
   });
 
   it('converges on a stationary target', () => {

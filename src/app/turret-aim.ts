@@ -12,6 +12,17 @@ export function wrapAngle(angle: number): number {
   return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
+export function clampAngleToArc(
+  targetAngle: number,
+  centerAngle: number,
+  halfAngle: number,
+): number {
+  const limit = Math.max(0, Math.min(Math.PI, halfAngle));
+  const offset = wrapAngle(targetAngle - centerAngle);
+  const clamped = Math.max(-limit, Math.min(limit, offset));
+  return wrapAngle(centerAngle + clamped);
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }

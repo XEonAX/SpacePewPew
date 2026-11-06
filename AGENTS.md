@@ -63,7 +63,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/engine-layout.ts` — shared main/reverse nozzle geometry (must match the baked texture).
 - `src/app/engine-mix.ts` — pure ramped engine-output mixer, unit-tested in
   `tests/engine-mix.test.ts`.
-- `src/app/turrets.ts` — eight turret mounts with finite-speed mouse tracking.
+- `src/app/turrets.ts` — eight turret mounts with finite-speed mouse tracking and per-mount aiming cones (front forward, middle sideways, rear side-to-rear).
 - `src/app/turret-aim.ts` — pure angular spring-damper aim, unit-tested.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)

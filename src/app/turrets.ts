@@ -1,5 +1,5 @@
 import { Container, Sprite, Texture } from 'pixi.js';
-import { stepTurretAim, wrapAngle } from './turret-aim';
+import { clampAngleToArc, stepTurretAim, wrapAngle } from './turret-aim';
 import type { TurretAimState } from './turret-aim';
 
 const NATIVE_WIDTH = 41;
@@ -15,6 +15,10 @@ export interface TurretMountConfig {
   scale: number;
   /** Rest angle in radians; 0 points up, ±π/2 point sideways. */
   restAngle: number;
+  /** Centre of the allowed aiming arc. 0 = forward, ±π = rearward. */
+  aimCenter: number;
+  /** Half-width of the allowed aiming arc. */
+  aimHalfAngle: number;
 }
 
 export const TURRET_MOUNT_LABELS = [
@@ -28,15 +32,79 @@ export const TURRET_MOUNT_LABELS = [
   'Rear R3',
 ] as const;
 
+const FRONT_CONE = Math.PI / 3; // ±60° around forward
+const MID_CENTER = Math.PI / 2; // exactly sideways
+const MID_CONE = Math.PI / 4; // covers ±45° around sideways
+const REAR_CENTER = (3 * Math.PI) / 4; // between side and rear
+const REAR_CONE = Math.PI / 4; // covers 90°..180° on each side
+
 export const DEFAULT_TURRET_LAYOUT: readonly TurretMountConfig[] = [
-  { x: -65, y: -88, scale: 1.5, restAngle: 0 }, // front left, up
-  { x: 64, y: -88, scale: 1.5, restAngle: 0 }, // front right, up
-  { x: -91, y: 46, scale: 1.5, restAngle: -Math.PI / 2 }, // rear left 1, side
-  { x: 90, y: 46, scale: 1.5, restAngle: Math.PI / 2 }, // rear right 1, side
-  { x: -97, y: 126, scale: 1.5, restAngle: -Math.PI / 2 }, // rear left 2
-  { x: 96, y: 126, scale: 1.5, restAngle: Math.PI / 2 }, // rear right 2
-  { x: -98, y: 201, scale: 1.5, restAngle: -Math.PI / 2 }, // rear left 3
-  { x: 97, y: 201, scale: 1.5, restAngle: Math.PI / 2 }, // rear right 3
+  // Front pair: forward only.
+  {
+    x: -65,
+    y: -88,
+    scale: 1.5,
+    restAngle: 0,
+    aimCenter: 0,
+    aimHalfAngle: FRONT_CONE,
+  },
+  {
+    x: 64,
+    y: -88,
+    scale: 1.5,
+    restAngle: 0,
+    aimCenter: 0,
+    aimHalfAngle: FRONT_CONE,
+  },
+  // Rear six: side-facing, arc runs from side through the rear.
+  {
+    x: -91,
+    y: 46,
+    scale: 1.5,
+    restAngle: -Math.PI / 2,
+    aimCenter: -MID_CENTER,
+    aimHalfAngle: MID_CONE,
+  },
+  {
+    x: 90,
+    y: 46,
+    scale: 1.5,
+    restAngle: Math.PI / 2,
+    aimCenter: MID_CENTER,
+    aimHalfAngle: MID_CONE,
+  },
+  {
+    x: -97,
+    y: 126,
+    scale: 1.5,
+    restAngle: -Math.PI / 2,
+    aimCenter: -MID_CENTER,
+    aimHalfAngle: MID_CONE,
+  },
+  {
+    x: 96,
+    y: 126,
+    scale: 1.5,
+    restAngle: Math.PI / 2,
+    aimCenter: MID_CENTER,
+    aimHalfAngle: MID_CONE,
+  },
+  {
+    x: -98,
+    y: 201,
+    scale: 1.5,
+    restAngle: -Math.PI / 2,
+    aimCenter: -REAR_CENTER,
+    aimHalfAngle: REAR_CONE,
+  },
+  {
+    x: 97,
+    y: 201,
+    scale: 1.5,
+    restAngle: Math.PI / 2,
+    aimCenter: REAR_CENTER,
+    aimHalfAngle: REAR_CONE,
+  },
 ] as const;
 
 export interface TurretFrame {
@@ -107,9 +175,10 @@ export function createTurrets(
         const localY = config.y * frame.shipScale;
         const mountScreenX = frame.shipScreenX + localX * shipCos - localY * shipSin;
         const mountScreenY = frame.shipScreenY + localX * shipSin + localY * shipCos;
-        const target = wrapAngle(
+        const rawTarget = wrapAngle(
           Math.atan2(frame.mouseX - mountScreenX, -(frame.mouseY - mountScreenY)) - frame.rotation,
         );
+        const target = clampAngleToArc(rawTarget, config.aimCenter, config.aimHalfAngle);
 
         stepTurretAim(aim, target, frame.dt);
         sprite.rotation = aim.angle;
