@@ -90,9 +90,8 @@ with `LightSprite` + normal maps:
 - **Omni light** — a point light follows the pointer.
 - **Ambient fill** for readability.
 - The shadow map is baked once while there are no shadow casters.
-- The art already has baked cel shading, so the normal maps are baked at ~0.30 strength; at full
-  strength the diffuse lighting reads as embossed metal. See
-  [docs/lighting-grid.png](docs/lighting-grid.png) for the strength sweep.
+- The art already has baked cel shading, so the normal maps are baked at **0.30 strength**; at
+  full strength the diffuse lighting reads as embossed metal.
 
 ## Reference art
 
