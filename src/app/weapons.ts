@@ -14,10 +14,10 @@ export interface WeaponPairSpec {
  * front, middle 1, middle 2, rear.
  */
 export const WEAPON_PAIRS: readonly WeaponPairSpec[] = [
-  { sounds: ['beam-front'], cooldown: 0.85, volume: 0.65 },
-  { sounds: ['blast-3'], cooldown: 1.0, volume: 0.62 },
-  { sounds: ['blast-4'], cooldown: 1.25, volume: 0.58 },
-  { sounds: ['blast-5'], cooldown: 1.4, volume: 0.55 },
+  { sounds: ['beam-front'], cooldown: 0.55, volume: 0.65 },
+  { sounds: ['blast-3'], cooldown: 0.8, volume: 0.62 },
+  { sounds: ['blast-4'], cooldown: 0.9, volume: 0.58 },
+  { sounds: ['blast-5'], cooldown: 1.0, volume: 0.55 },
 ];
 
 /** Time from clip start to its first audible shot transient. */
