@@ -34,10 +34,10 @@ interface ExhaustFrame {
   zoom: number;
   width: number;
   height: number;
-  /** Ramped linear input magnitude, 0..1. */
-  thrust: number;
-  /** S/reverse thrust is active. */
-  reverse: boolean;
+  /** Ramped linear input, -1..1 (W positive, S negative). */
+  linearInput: number;
+  /** Ramped angular input, -1..1 (A negative, D positive). */
+  angularInput: number;
   shipVx: number;
   shipVy: number;
   dt: number;
@@ -230,32 +230,44 @@ export function createEngineExhaust(): EngineExhaust {
       flames.rotation = frame.rotation;
       flames.scale.set(frame.shipScale);
 
-      const thrust = Math.max(0, Math.min(1, frame.thrust));
-      const mainActive = !frame.reverse && thrust > 0.02;
-      const reverseActive = frame.reverse && thrust > 0.02;
+      const forward = Math.max(0, frame.linearInput);
+      const reverse = Math.max(0, -frame.linearInput);
+      const turnLeft = Math.max(0, -frame.angularInput);
+      const turnRight = Math.max(0, frame.angularInput);
+
+      // Differential engine mix. Turning left lights the left reverse engine
+      // and the right main engine; with W held the left main engine is cut.
+      const mainOutputs = [
+        forward * (1 - turnLeft),
+        forward,
+        Math.max(forward * (1 - turnRight), turnLeft),
+      ];
+      const reverseOutputs = [Math.max(reverse, turnLeft), Math.max(reverse, turnRight)];
 
       for (let index = 0; index < flameSprites.length; index += 1) {
         const sprite = flameSprites[index]!;
+        const output = Math.max(0, Math.min(1, mainOutputs[index] ?? 0));
         const flicker =
           0.94 +
           0.05 * Math.sin(frame.now * 70 + index * 1.7) +
           0.02 * Math.sin(frame.now * 113 + index * 2.1);
-        const length = FLAME_BASE_HEIGHT * flicker * (0.45 + 0.55 * thrust);
+        const length = FLAME_BASE_HEIGHT * flicker * (0.45 + 0.55 * output);
         flameLengths[index] = length;
         sprite.height = length;
-        sprite.alpha = mainActive ? 0.45 + 0.55 * thrust : 0;
+        sprite.alpha = output > 0.02 ? 0.45 + 0.55 * output : 0;
       }
 
       for (let index = 0; index < reverseFlameSprites.length; index += 1) {
         const sprite = reverseFlameSprites[index]!;
+        const output = Math.max(0, Math.min(1, reverseOutputs[index] ?? 0));
         const flicker =
           0.94 +
           0.05 * Math.sin(frame.now * 74 + index * 1.3) +
           0.02 * Math.sin(frame.now * 121 + index * 2.7);
-        const length = REVERSE_FLAME_LOCAL_LENGTH * flicker * (0.45 + 0.55 * thrust);
+        const length = REVERSE_FLAME_LOCAL_LENGTH * flicker * (0.45 + 0.55 * output);
         reverseFlameLengths[index] = length;
         sprite.height = length;
-        sprite.alpha = reverseActive ? 0.45 + 0.55 * thrust : 0;
+        sprite.alpha = output > 0.02 ? 0.45 + 0.55 * output : 0;
       }
 
       smoke.position.set(
@@ -264,34 +276,59 @@ export function createEngineExhaust(): EngineExhaust {
       );
       smoke.scale.set(frame.zoom);
 
-      // Smoke is only produced while the engine has power. Old puffs keep
-      // living for their 10 s lifetime, so cutting power stops new emission but
-      // leaves the previous trail to fade. Reverse thrust emits from the two
-      // wing-mounted reverse nozzles instead of the main engines.
-      const active = mainActive || reverseActive;
-      if (active && frame.dt > 0) {
-        smokeAccumulator += frame.dt * thrust * (frame.reverse ? 45 : 60);
-        const cos = Math.cos(frame.rotation);
-        const sin = Math.sin(frame.rotation);
-        const emitterCount = frame.reverse
-          ? REVERSE_ENGINE_X_OFFSETS.length
-          : ENGINE_X_OFFSETS.length;
+      const cos = Math.cos(frame.rotation);
+      const sin = Math.sin(frame.rotation);
+      const emitters: Array<{
+        localX: number;
+        localTipY: number;
+        exhaustX: number;
+        exhaustY: number;
+        sizeScale: number;
+        output: number;
+      }> = [];
 
+      for (let index = 0; index < mainOutputs.length; index += 1) {
+        const output = mainOutputs[index] ?? 0;
+        if (output <= 0.02) continue;
+        emitters.push({
+          localX: ENGINE_X_OFFSETS[index]!,
+          localTipY: ENGINE_Y_OFFSET + flameLengths[index]!,
+          exhaustX: -sin,
+          exhaustY: cos,
+          sizeScale: 1,
+          output,
+        });
+      }
+      for (let index = 0; index < reverseOutputs.length; index += 1) {
+        const output = reverseOutputs[index] ?? 0;
+        if (output <= 0.02) continue;
+        emitters.push({
+          localX: REVERSE_ENGINE_X_OFFSETS[index]!,
+          localTipY: REVERSE_FLAME_BASE_Y - reverseFlameLengths[index]!,
+          exhaustX: sin,
+          exhaustY: -cos,
+          sizeScale: REVERSE_ENGINE_SCALE,
+          output,
+        });
+      }
+
+      // Smoke is only produced while at least one engine has power. Old puffs
+      // keep living for their 10 s lifetime, so cutting power stops new
+      // emission but leaves the previous trail to fade.
+      const totalOutput = emitters.reduce((total, emitter) => total + emitter.output, 0);
+      if (totalOutput > 0.02 && frame.dt > 0 && emitters.length > 0) {
+        smokeAccumulator += frame.dt * totalOutput * 20;
         while (smokeAccumulator >= 1) {
-          if (frame.reverse) {
-            const index = nextEngine % REVERSE_ENGINE_X_OFFSETS.length;
-            const localX = REVERSE_ENGINE_X_OFFSETS[index]!;
-            const localTipY = REVERSE_FLAME_BASE_Y - reverseFlameLengths[index]!;
-            // The reverse flames point forward: local (0, -1).
-            spawnSmoke(localX, localTipY, sin, -cos, frame, REVERSE_ENGINE_SCALE);
-          } else {
-            const index = nextEngine % ENGINE_X_OFFSETS.length;
-            const localX = ENGINE_X_OFFSETS[index]!;
-            const localTipY = ENGINE_Y_OFFSET + flameLengths[index]!;
-            // The main flames point backward: local (0, +1).
-            spawnSmoke(localX, localTipY, -sin, cos, frame, 1);
-          }
-          nextEngine = (nextEngine + 1) % emitterCount;
+          const emitter = emitters[nextEngine % emitters.length]!;
+          spawnSmoke(
+            emitter.localX,
+            emitter.localTipY,
+            emitter.exhaustX,
+            emitter.exhaustY,
+            frame,
+            emitter.sizeScale,
+          );
+          nextEngine = (nextEngine + 1) % emitters.length;
           smokeAccumulator -= 1;
         }
       }

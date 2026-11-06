@@ -58,8 +58,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/ground-grid.ts` — screen-space 1 m × 1 m grid fixed to the near dust layer
   (64 world px per metre; major lines every 5 m).
 - `src/app/engine-exhaust.ts` — three main cone flames plus two reverse-engine flames from the
-  baked wing nozzles; dense dust-world smoke leaves the active cone tips only while engine power
-  is on; old puffs fade over 10 s.
+  baked wing nozzles, individually mixed from ramped linear/angular input (turn-left = left
+  reverse + right main; W+left cuts left main). Dense dust-world smoke leaves active cone tips;
+  old puffs fade over 10 s.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.
