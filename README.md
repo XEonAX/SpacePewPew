@@ -75,7 +75,7 @@ src/
   main.ts                 Entry point, HMR cleanup, inspection hook
 public/
   favicon.svg
-  audio/weapons/          Processed weapon SFX (1 beam + 3 blasts)
+  audio/weapons/          Processed weapon SFX (1 beam + 2 blasts)
   assets/lighting/        Processed color/normal maps + ship emissive/glow maps
 scripts/
   browser.mjs             Shared-browser CLI (open / inspect / act / stop)
@@ -134,16 +134,16 @@ runtime copies live in [public/assets/lighting/](public/assets/lighting/).
 
 ## Audio
 
-Howler is wired through `src/audio/audio.ts`. The four committed weapon clips in
+Howler is wired through `src/audio/audio.ts`. The three committed weapon clips in
 `public/audio/weapons/` were split, faded, and normalized from the supplied sources, with their
 full attacks preserved:
 
 - `beam-front.wav` — front pair,
-- `blast-1.wav` … `blast-3.wav` — rear pair variant pools.
+- `blast-1.wav`, `blast-2.wav` — rear pair variant pools.
 
-The original `blast-4`/`blast-5` sections contained long charge wind-ups and were dropped. The
-remaining sounds are scheduled by `WEAPON_SHOT_DELAYS`; the tracer appears at the clip's
-measured attack, not at playback start.
+The original `blast-3`, `blast-4` and `blast-5` sections contain long charge wind-ups, so they
+are not used as one-shot weapons. The remaining sounds are scheduled by `WEAPON_SHOT_DELAYS`;
+the tracer appears at the clip's measured attack, not at playback start.
 
 Each pair cycles its pool without repeating the previous shot, and every shot gets small
 playback-rate, volume, and stereo-pan variation. Keep clips small and avoid build-time asset

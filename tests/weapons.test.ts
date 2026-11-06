@@ -8,9 +8,9 @@ describe('weapon pairs', () => {
     expect(WEAPON_PAIRS.slice(1).every((pair) => pair.sounds.length === 2)).toBe(true);
   });
 
-  it('uses the three clean rear blast variants', () => {
+  it('uses the two clean rear blast variants', () => {
     expect(new Set(WEAPON_PAIRS.slice(1).flatMap((pair) => pair.sounds))).toEqual(
-      new Set(['blast-1', 'blast-2', 'blast-3']),
+      new Set(['blast-1', 'blast-2']),
     );
   });
 

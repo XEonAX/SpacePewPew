@@ -1,7 +1,7 @@
 import { Howl, Howler } from 'howler';
 import { joinBaseUrl } from '../utils/paths';
 
-export type SoundName = 'beam-front' | 'blast-1' | 'blast-2' | 'blast-3';
+export type SoundName = 'beam-front' | 'blast-1' | 'blast-2';
 
 export interface PlayOptions {
   /** Playback rate, default 1. */
@@ -16,7 +16,6 @@ const SOUND_SOURCES: Record<SoundName, string> = {
   'beam-front': 'audio/weapons/beam-front.wav',
   'blast-1': 'audio/weapons/blast-1.wav',
   'blast-2': 'audio/weapons/blast-2.wav',
-  'blast-3': 'audio/weapons/blast-3.wav',
 };
 
 export interface AudioManagerOptions {
