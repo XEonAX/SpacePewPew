@@ -214,3 +214,26 @@ speed.
 **Consequences:** terminal-speed tuning changes both camera lookahead and engine audio; new
 engine effects should take a pure function of flight state so they stay unit-testable. All
 loops remain seamless, so rate ramps are safe.
+
+## ADR-013 — Sleek electric-turbine engine timbre
+
+**Status:** accepted (2026-11-07); refines ADR-011/012.
+
+The earlier hums read as buzzing. The causes were structural: zero-phase harmonic stacks (a
+pulse train with a dense comb spectrum), `tanh` saturation adding intermodulation, and noise
+beds loud enough to hiss. The mix now leans on clean additive synthesis:
+
+- sparse harmonic spines with **random per-harmonic phase** and smooth decay,
+- exact-harmonic slot whines around 1.2–4.3 kHz with very slow, shallow vibrato (the "electric
+  motor" character), no inharmonic partials,
+- every group has a different whine centre (main ≈1.2–2.2 kHz, sides ≈2–3.5 kHz, reverse
+  ≈2.7–4.3 kHz) so they read as one turbine family but stay distinguishable,
+- only a low-passed noise bed at ≤0.07 for body; no saturation stage.
+
+The speed ramp was made more urgent to sell velocity: hum pitch rises with `speedFraction`
+(+8% at forward terminal), hum gain gets a +12% speed-coupled lift (bases reduced to keep
+headroom), the rush bed's gain is `speedFraction^1.35` up to 0.85 and its rate sweeps 0.90 →
+1.10. `engine-rush.wav` is itself tonal air + sheen rather than broad hiss.
+
+**Consequences:** keep new engine layers sparse, phase-randomised and free of clipping; if a
+loop sounds buzzy, suspect dense harmonics or saturation before adding EQ.

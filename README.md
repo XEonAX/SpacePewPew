@@ -160,17 +160,22 @@ pipelines.
 ### Engine hums
 
 Every nozzle owns a continuous hum voice (`src/app/engine-audio.ts`) whose gain follows that
-engine's ramped power from `computeEngineOutputs`: the centre main engine gets the heavy,
-sub-heavy rumble, the two side main engines a normal mid-range layer, and the two reverse
-engines a lighter, brighter layer. Each voice also gets a small detune (left/right beat), a
-subtle pitch rise with power, and stereo pan from the nozzle's screen position, so turning
-reads through the audio as well as the exhaust. At zero thrust the loops run silently; the
-first pointer/key gesture unlocks them along with the weapon SFX.
+engine's ramped power from `computeEngineOutputs`: the centre main engine gets the heavy
+body, the two side main engines a normal mid layer, and the two reverse engines a lighter,
+higher layer. The loops are voiced like **electric turbines**, not combustion rumbles: a
+smooth low body, a sparse harmonic spine with random phases, and a clean slot-whine cluster
+(roughly 1.2–4.3 kHz) with a very slow shimmer. There is no saturation and only a low, smooth
+noise bed, so nothing intermodulates into buzz. Each voice gets a small left/right detune, a
+pitch rise with power **and speed** (+3% / +8% at forward terminal), a speed-coupled gain lift,
+and stereo pan from the nozzle's screen position, so turning reads through the audio as well
+as the exhaust. At zero thrust the loops run silently; the first pointer/key gesture unlocks
+them along with the weapon SFX.
 
 On top of the per-nozzle hums sit two shared layers:
 
-- a **speed rush** that swells with speed (roughly `speedFraction^1.6`, full at forward terminal
-  speed) and rises slightly in pitch with it, so acceleration ramps audibly up to terminal,
+- a **speed rush** that swells with speed (roughly `speedFraction^1.35`, up to 0.85 gain at
+  forward terminal speed) and rises from `0.9×` to `1.1×` rate with it, so acceleration ramps
+  audibly — and urgently — up to terminal,
 - a **retro strain** bed that fades in when an engine's thrust opposes the ship's velocity — the
   dot product of thrust and velocity is negative. The normal hum ducks as the strain comes in,
   so firing the main engines while flying backwards sounds laboured rather than clean. Reverse

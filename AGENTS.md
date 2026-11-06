@@ -60,11 +60,11 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/engine-exhaust.ts` — flames and dust-world smoke driven by the engine mix; flame
   length/alpha are proportional to each engine's ramped output and smoke emission is weighted
   per engine.
-- `src/app/engine-audio.ts` — per-engine hum loops whose gain follows each nozzle's power
-  (heavy centre, normal sides, lighter/higher reverse), stereo-panned from the nozzle's screen
-  position. Adds a speed rush that ramps to forward terminal speed and a retro-strain bed driven
-  by `dot(thrust, velocity) < 0` (main hums duck while braking). Pure helpers unit-tested in
-  `tests/engine-audio.test.ts`.
+- `src/app/engine-audio.ts` — per-engine electric-turbine hum loops whose gain follows each
+  nozzle's power (heavy centre, normal sides, lighter/higher reverse), stereo-panned from the
+  nozzle's screen position. Adds a speed rush that ramps to forward terminal speed and a
+  retro-strain bed driven by `dot(thrust, velocity) < 0` (main hums duck while braking). Pure
+  helpers unit-tested in `tests/engine-audio.test.ts`.
 - `src/app/engine-layout.ts` — shared main/reverse nozzle geometry (must match the baked texture).
 - `src/app/engine-mix.ts` — pure ramped engine-output mixer, unit-tested in
   `tests/engine-mix.test.ts`.
@@ -100,8 +100,11 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - **Audio goes through `AudioManager`.** Browsers require a user gesture, so call `enable()`
   from a pointer/keyboard handler. Never construct `Howl` elsewhere.
 - **Audio assets are small and committed.** Weapon WAVs live in `public/audio/weapons/`,
-  seamless engine-hum loops in `public/audio/engines/`; both are registered in
+  seamless engine loops in `public/audio/engines/`; both are registered in
   `src/audio/audio.ts`. Trim/fade/normalize offline; do not add a build-time audio pipeline.
+- **Engine loops are tonal, not saturated.** Harmonic banks use random phases and stay sparse;
+  no tanh/noise beds beyond a low smooth body. Zero-phase stacks and hard saturation read as
+  buzz, which is the one thing these loops must avoid.
 - **Continuous sounds are loops, not repeated shots.** Engine hums use
   `AudioManager.createLoop()` and per-engine gain from `computeEngineOutputs`; loop assets must
   stay seamless at any playback rate (constant loop length, no fades baked in). Velocity-coupled

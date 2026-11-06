@@ -55,14 +55,15 @@ interface HumChannel {
   pan: number;
 }
 
-const HEAVY_BASE_GAIN = 1;
-const SIDE_BASE_GAIN = 0.58;
-const REVERSE_BASE_GAIN = 0.44;
+// Bases leave a little headroom for the speed-coupled gain lift.
+const HEAVY_BASE_GAIN = 0.9;
+const SIDE_BASE_GAIN = 0.52;
+const REVERSE_BASE_GAIN = 0.4;
 
 /** Extra layer that swells with speed (0 at rest, max at terminal). */
-const RUSH_BASE_GAIN = 0.62;
-const RUSH_CURVE = 1.6;
-const RUSH_COAST_FLOOR = 0.35;
+const RUSH_BASE_GAIN = 0.85;
+const RUSH_CURVE = 1.35;
+const RUSH_COAST_FLOOR = 0.4;
 
 /** Braking bed; the normal hum ducks as it comes in. */
 const STRAIN_GAIN = 0.85;
@@ -77,8 +78,10 @@ const HUM_SMOOTHING = 18;
 const PAN_WIDTH = 2.1;
 const PAN_LIMIT = 0.85;
 /** Subtle pitch rise with thrust and speed (audible spool-up ramp). */
-const POWER_PITCH = 0.025;
-export const SPEED_PITCH = 0.035;
+const POWER_PITCH = 0.03;
+/** Speed-coupled gain lift so the approach to terminal feels faster. */
+const SPEED_GAIN = 0.12;
+export const SPEED_PITCH = 0.08;
 /** Below this speed a velocity direction is meaningless, so alignment fades in. */
 const ALIGN_MIN_SPEED = 0.75;
 const ALIGN_FULL_SPEED = 3;
@@ -224,7 +227,10 @@ export function createEngineAudio(audio: AudioManager): EngineAudio {
         const alignment = channel.reverse ? -forwardAlignment : forwardAlignment;
         const braking = Math.max(0, -alignment);
 
-        const humTarget = engineHumGain(power, channel.baseGain) * (1 - BRAKE_DUCK * braking);
+        const humTarget =
+          engineHumGain(power, channel.baseGain) *
+          (1 - BRAKE_DUCK * braking) *
+          (1 + SPEED_GAIN * speedFraction);
         channel.level += (humTarget - channel.level) * smoothing;
         channel.handle.setVolume(channel.level);
 
@@ -253,7 +259,7 @@ export function createEngineAudio(audio: AudioManager): EngineAudio {
       const rushTarget = RUSH_BASE_GAIN * Math.pow(speedFraction, RUSH_CURVE) * thrustFactor;
       rushLevel += (rushTarget - rushLevel) * smoothing;
       rush.setVolume(rushLevel);
-      rush.setRate(0.92 + 0.16 * speedFraction);
+      rush.setRate(0.9 + 0.2 * speedFraction);
       rush.setPan(0);
     },
     destroy(): void {
