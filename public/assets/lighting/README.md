@@ -20,7 +20,11 @@ Processing steps (one-off, not a runtime pipeline):
 - normal strength softened to **~0.30** (blended toward a flat `(0, 0, 1)` normal) because the
   reference art already contains baked shading; full-strength normals read as polished metal,
 - cyan panels extracted from the color art into `ship-emissive.png`, with a Gaussian-blurred
-  `ship-glow.png` halo used additively by the shader.
+  `ship-glow.png` halo used additively by the shader,
+- runtime ship art mirrored across the vertical centerline (source AI art was asymmetrical);
+  the normal map is mirrored with its X channel flipped,
+- the three rear cyan engine ovals are excluded from the emissive/glow maps for special
+  treatment later.
 
 Normal maps use tangent-space RGB (red = X, green = Y, blue = Z). Both pairs come from the
 supplied reference art; re-export lossless versions if the source normal maps are ever replaced.

@@ -90,6 +90,9 @@ no external lighting package:
 - one **directional key light from the top-right** plus ambient fill,
 - tangent-space **normals rotated by each mesh's rotation**, so spinning ships shade correctly,
 - the ship's cyan panels use baked **emissive + blurred glow** maps with a subtle pulse,
+- the ship runtime texture is **mirrored across the vertical axis** (the source AI art was not
+  symmetrical); rear cyan engine ovals are excluded from the emissive layer for later special
+  treatment,
 - the pointer omni light was removed after testing.
 
 It is WebGL-only, so `create-app.ts` pins `preference: 'webgl'`. The reference art already has

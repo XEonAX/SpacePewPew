@@ -44,3 +44,5 @@ Top-down fighter, 941 × 1672 px.
   matte/despill/resample steps).
 - Ship color and normal maps share the same framing (941 × 1672), as do the asteroid pair
   (1330 × 1182), so they can be layered directly.
+- The runtime ship art is mirrored across the vertical centerline for symmetry; the source
+  reference above stays untouched.
