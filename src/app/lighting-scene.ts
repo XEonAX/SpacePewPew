@@ -10,7 +10,7 @@ import type { FlightControls } from './ship-flight';
 import { createFlightTuner } from './flight-tuner';
 import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
-import { createShipTrail } from './ship-trail';
+import { createEngineExhaust } from './engine-exhaust';
 import { PIXELS_PER_METER } from './world-scale';
 
 export interface Scene {
@@ -62,12 +62,12 @@ export async function createScene(app: Application): Promise<Scene> {
   app.stage.addChild(content);
 
   const ground = createGroundGrid();
-  const trail = createShipTrail();
-  content.addChild(ground.mesh, trail.graphics);
+  const exhaust = createEngineExhaust();
+  content.addChild(ground.mesh, exhaust.smoke);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
   const asteroid: LitSprite = createLitSprite(asteroidColor, asteroidNormal);
-  content.addChild(ship.mesh, asteroid.mesh);
+  content.addChild(ship.mesh, exhaust.flames, asteroid.mesh);
 
   const hint = new Text({
     text: 'W/S thrust · A/D turn · 1 m grid · M: mute',
@@ -158,7 +158,7 @@ export async function createScene(app: Application): Promise<Scene> {
     );
   };
 
-  const updateTransforms = (): void => {
+  const updateTransforms = (deltaSeconds: number): void => {
     const { width, height } = app.screen;
     const dust = background.getDustTransform();
 
@@ -167,26 +167,30 @@ export async function createScene(app: Application): Promise<Scene> {
     const shipWorldX = flight.x * PIXELS_PER_METER;
     const shipWorldY = flight.y * PIXELS_PER_METER;
 
-    const engineOffset = shipColor.height * 0.42 * shipBaseScale;
-    const engineX = shipWorldX - Math.sin(flight.rotation) * engineOffset;
-    const engineY = shipWorldY + Math.cos(flight.rotation) * engineOffset;
-    trail.update({
-      x: engineX,
-      y: engineY,
-      active: Math.abs(flight.linearInput) > 0.02,
-      now: lighting.time,
-      cameraX: dust.x,
-      cameraY: dust.y,
+    const shipScreenX = (shipWorldX - dust.x * width) * dust.zoom + width / 2;
+    const shipScreenY = (shipWorldY - dust.y * height) * dust.zoom + height / 2;
+    exhaust.update({
+      shipWorldX,
+      shipWorldY,
+      shipScreenX,
+      shipScreenY,
+      shipBaseScale,
+      shipScale: shipBaseScale * dust.zoom,
+      rotation: flight.rotation,
+      dustX: dust.x,
+      dustY: dust.y,
       zoom: dust.zoom,
       width,
       height,
+      thrust: Math.abs(flight.linearInput),
+      shipVx: flight.vx * PIXELS_PER_METER,
+      shipVy: flight.vy * PIXELS_PER_METER,
+      dt: deltaSeconds,
+      now: lighting.time,
     });
 
     ship.mesh.scale.set(shipBaseScale * dust.zoom);
-    ship.mesh.position.set(
-      (shipWorldX - dust.x * width) * dust.zoom + width / 2,
-      (shipWorldY - dust.y * height) * dust.zoom + height / 2,
-    );
+    ship.mesh.position.set(shipScreenX, shipScreenY);
     ship.mesh.rotation = flight.rotation;
 
     asteroid.mesh.scale.set(asteroidBaseScale * dust.zoom);
@@ -211,7 +215,7 @@ export async function createScene(app: Application): Promise<Scene> {
     layout();
     telemetry.update();
     followCamera();
-    updateTransforms();
+    updateTransforms(deltaSeconds);
     updateLighting();
   };
 
@@ -253,7 +257,7 @@ export async function createScene(app: Application): Promise<Scene> {
   layout();
   telemetry.update();
   followCamera(true);
-  updateTransforms();
+  updateTransforms(0);
   updateLighting();
 
   return {
@@ -269,7 +273,7 @@ export async function createScene(app: Application): Promise<Scene> {
       window.removeEventListener('blur', onBlur);
       flightTuner.destroy();
       telemetry.destroy();
-      trail.destroy();
+      exhaust.destroy();
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroid.mesh.destroy({ children: true });
