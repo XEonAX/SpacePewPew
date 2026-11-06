@@ -1,61 +1,56 @@
 import type { Application, Ticker } from 'pixi.js';
-import { Assets, Container, Text, UPDATE_PRIORITY, extensions } from 'pixi.js';
+import { Assets, Container, Text } from 'pixi.js';
 import type { Texture } from 'pixi.js';
-import {
-  AmbientLight,
-  LightSprite,
-  LightSpritePipe,
-  PointLight,
-  light2DSystem,
-  shadowSystem,
-} from 'pixijs-light2d';
 import { joinBaseUrl } from '../utils/paths';
 import { createBackground } from './background';
-
-// Must be registered before the Application is created (module import order).
-extensions.add(LightSpritePipe);
+import { createLitSprite } from './lit-sprite';
+import type { LightingState, LitSprite } from './lit-sprite';
 
 export interface Scene {
   setMuted(muted: boolean): void;
   destroy(): void;
 }
 
+const MAX_DELTA_SECONDS = 0.05;
+
+/** World-space lighting shared by the lit meshes. */
+const lighting: LightingState = {
+  ambient: [0.302, 0.329, 0.408],
+  keyDirection: [0.7, -0.714],
+  keyColor: [1, 0.949, 0.847],
+  keyIntensity: 0.95,
+  time: 0,
+};
+
 const assetUrl = (path: string): string => joinBaseUrl(import.meta.env.BASE_URL, path);
 
 /**
- * Lighting demo: the reference ship and asteroid lit by a strong key light from
- * the top-right (approximated by a distant point light) and an omni light that
- * follows the pointer. The procedural background sits behind them.
+ * Ship + asteroid lit by a small custom normal-map shader: one directional key
+ * light from the top-right. The cyan ship panels use a baked emissive map plus
+ * a blurred glow map.
  */
 export async function createScene(app: Application): Promise<Scene> {
   const background = createBackground(app);
 
-  const [shipColor, shipNormal, asteroidColor, asteroidNormal] = await Promise.all([
-    Assets.load<Texture>(assetUrl('assets/lighting/ship-color.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/ship-normal.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/asteroid-color.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/asteroid-normal.png')),
-  ]);
+  const [shipColor, shipNormal, shipEmissive, shipGlow, asteroidColor, asteroidNormal] =
+    await Promise.all([
+      Assets.load<Texture>(assetUrl('assets/lighting/ship-color.png')),
+      Assets.load<Texture>(assetUrl('assets/lighting/ship-normal.png')),
+      Assets.load<Texture>(assetUrl('assets/lighting/ship-emissive.png')),
+      Assets.load<Texture>(assetUrl('assets/lighting/ship-glow.png')),
+      Assets.load<Texture>(assetUrl('assets/lighting/asteroid-color.png')),
+      Assets.load<Texture>(assetUrl('assets/lighting/asteroid-normal.png')),
+    ]);
 
   const content = new Container();
-
-  const ship = new LightSprite({
-    texture: shipColor,
-    normalMap: shipNormal,
-    anchor: 0.5,
-  });
-
-  const asteroid = new LightSprite({
-    texture: asteroidColor,
-    normalMap: asteroidNormal,
-    anchor: 0.5,
-  });
-
-  content.addChild(ship, asteroid);
   app.stage.addChild(content);
 
+  const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
+  const asteroid: LitSprite = createLitSprite(asteroidColor, asteroidNormal);
+  content.addChild(ship.mesh, asteroid.mesh);
+
   const hint = new Text({
-    text: 'directional light: top-right · omni light: move mouse · M: mute',
+    text: 'directional light: top-right · M: mute',
     style: {
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       fontSize: 12,
@@ -65,30 +60,6 @@ export async function createScene(app: Application): Promise<Scene> {
   hint.anchor.set(0.5);
   app.stage.addChild(hint);
 
-  const ambient = new AmbientLight({ color: 0x9aa8d0, intensity: 0.5 });
-  light2DSystem.addAmbientLight(ambient);
-
-  // A distant, very wide point light approximates a directional key light.
-  // One key light per object lets us counter-rotate its direction so shading
-  // stays correct while the sprites rotate (the library samples normals in
-  // texture space and does not rotate them with the sprite).
-  const makeKeyLight = (): PointLight =>
-    new PointLight({ color: 0xfff2d8, intensity: 1.7, radius: 5000 });
-
-  const keyLights = [makeKeyLight(), makeKeyLight()];
-  // The omni light is one real world-space light at the pointer, shared by both
-  // objects, so it always reads as attached to the cursor.
-  const pointerLight = new PointLight({ color: 0x9fe0ff, intensity: 1.3, radius: 500 });
-
-  for (const light of [...keyLights, pointerLight]) {
-    app.stage.addChild(light);
-    light2DSystem.addLight(light);
-  }
-
-  const canvas = app.canvas as HTMLCanvasElement;
-  const pointerSource = { x: app.screen.width * 0.5, y: app.screen.height * 0.45 };
-  let pointerPlaced = false;
-
   const layout = (): void => {
     const { width, height } = app.screen;
     const gap = Math.max(24, width * 0.045);
@@ -96,126 +67,56 @@ export async function createScene(app: Application): Promise<Scene> {
     let shipScale = Math.min(height * 0.7, width * 0.62) / shipColor.height;
     let asteroidScale = Math.min(height * 0.54, width * 0.34) / asteroidColor.width;
 
-    let shipWidth = shipColor.width * shipScale;
-    let asteroidWidth = asteroidColor.width * asteroidScale;
+    const shipWidth = shipColor.width * shipScale;
+    const asteroidWidth = asteroidColor.width * asteroidScale;
     const fit = Math.min(1, (width * 0.86) / (shipWidth + asteroidWidth + gap));
     shipScale *= fit;
     asteroidScale *= fit;
-    shipWidth *= fit;
-    asteroidWidth *= fit;
 
     const centerX = width / 2;
     const centerY = height * 0.5;
 
-    ship.scale.set(shipScale);
-    asteroid.scale.set(asteroidScale);
-    ship.position.set(centerX - gap / 2 - shipWidth / 2, centerY);
-    asteroid.position.set(centerX + gap / 2 + asteroidWidth / 2, centerY);
-
-    for (const light of keyLights) light.radius = Math.max(width, height) * 6;
-    pointerLight.radius = Math.min(width, height) * 0.5;
-
-    if (!pointerPlaced) {
-      pointerSource.x = width * 0.5;
-      pointerSource.y = height * 0.45;
-    }
-
-    hint.position.set(width / 2, height - 28);
-  };
-
-  const placeRotatedLight = (
-    light: PointLight,
-    target: { x: number; y: number; rotation: number },
-    source: { x: number; y: number },
-  ): void => {
-    const dx = source.x - target.x;
-    const dy = source.y - target.y;
-    const angle = -target.rotation;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    light.position.set(target.x + dx * cos - dy * sin, target.y + dx * sin + dy * cos);
-  };
-
-  const updateLights = (): void => {
-    const { width, height } = app.screen;
-    const keySource = { x: width * 0.95, y: -height * 0.05 };
-    const targets = [ship, asteroid] as const;
-
-    targets.forEach((target, index) => {
-      placeRotatedLight(keyLights[index]!, target, keySource);
-    });
-
-    pointerLight.position.set(pointerSource.x, pointerSource.y);
-  };
-
-  const onPointerMove = (event: PointerEvent): void => {
-    const bounds = canvas.getBoundingClientRect();
-    pointerSource.x =
-      ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * app.screen.width;
-    pointerSource.y =
-      ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * app.screen.height;
-    pointerPlaced = true;
-  };
-
-  const updateShadowMap = (): void => {
-    shadowSystem.update(
-      app.renderer,
-      light2DSystem.lights.map((light) => ({ position: light.position, radius: light.radius })),
+    ship.mesh.scale.set(shipScale);
+    asteroid.mesh.scale.set(asteroidScale);
+    ship.mesh.position.set(centerX - gap / 2 - (shipColor.width * shipScale) / 2, centerY);
+    asteroid.mesh.position.set(
+      centerX + gap / 2 + (asteroidColor.width * asteroidScale) / 2,
+      centerY,
     );
+
+    hint.position.set(centerX, height - 28);
+  };
+
+  const updateLighting = (): void => {
+    ship.setLighting(lighting);
+    asteroid.setLighting(lighting);
   };
 
   const tick = (ticker: Ticker): void => {
-    const deltaSeconds = Math.min(ticker.deltaMS / 1000, 0.05);
-    void ticker;
+    const deltaSeconds = Math.min(ticker.deltaMS / 1000, MAX_DELTA_SECONDS);
+    lighting.time += deltaSeconds;
 
-    // Slow counter-rotation so the corner key light can be judged across faces.
-    ship.rotation += deltaSeconds * 0.28;
-    asteroid.rotation -= deltaSeconds * 0.22;
+    ship.mesh.rotation += deltaSeconds * 0.28;
+    asteroid.mesh.rotation -= deltaSeconds * 0.22;
 
     layout();
-    updateLights();
-    // With no casters the shadow map is a constant "unoccluded" map, so bake it
-    // once. Once casters exist it must be refreshed each frame.
-    if (shadowSystem.casters.length > 0) updateShadowMap();
+    updateLighting();
   };
 
-  const onResize = (): void => {
-    layout();
-  };
-
-  window.addEventListener('resize', onResize);
-  canvas.addEventListener('pointermove', onPointerMove);
-  // HIGH priority so the light positions are current before Light2DSystem
-  // uploads its uniforms for the frame.
-  app.ticker.add(tick, undefined, UPDATE_PRIORITY.HIGH);
+  app.ticker.add(tick);
   layout();
-  updateLights();
-  updateShadowMap();
+  updateLighting();
 
   return {
     setMuted(muted: boolean): void {
       hint.text = muted
-        ? 'directional light: top-right · omni light: move mouse · sound muted'
-        : 'directional light: top-right · omni light: move mouse · M: mute';
+        ? 'directional light: top-right · sound muted'
+        : 'directional light: top-right · M: mute';
     },
     destroy(): void {
       app.ticker.remove(tick);
-      window.removeEventListener('resize', onResize);
-      canvas.removeEventListener('pointermove', onPointerMove);
-
-      const sceneLights = [...keyLights, pointerLight];
-      light2DSystem.lights = light2DSystem.lights.filter((light) => !sceneLights.includes(light));
-      light2DSystem.ambientLights = light2DSystem.ambientLights.filter(
-        (light) => light !== ambient,
-      );
-
-      for (const light of sceneLights) {
-        app.stage.removeChild(light);
-        light.destroy();
-      }
-      ambient.destroy();
-
-      content.destroy({ children: true });
+      ship.mesh.destroy({ children: true });
+      asteroid.mesh.destroy({ children: true });
       hint.destroy();
       background.destroy();
     },

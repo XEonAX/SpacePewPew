@@ -17,17 +17,17 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 
 ## Stack
 
-| Area      | Choice                                                                                              |
-| --------- | --------------------------------------------------------------------------------------------------- |
-| Rendering | [PixiJS v8](https://pixijs.com/)                                                                    |
-| Bundler   | [Vite 8](https://vite.dev/)                                                                         |
-| Language  | TypeScript 6 (strict)                                                                               |
-| Audio     | [Howler 2](https://howlerjs.com/) via a typed wrapper                                               |
-| Lighting  | [pixijs-light2d](https://www.npmjs.com/package/pixijs-light2d) (normal maps + point/ambient lights) |
-| Tests     | Vitest                                                                                              |
-| Quality   | ESLint (flat config), Prettier, EditorConfig                                                        |
-| Browser   | Playwright + Playwright MCP, shared via Chrome DevTools Protocol                                    |
-| Package   | pnpm                                                                                                |
+| Area      | Choice                                                                      |
+| --------- | --------------------------------------------------------------------------- |
+| Rendering | [PixiJS v8](https://pixijs.com/)                                            |
+| Bundler   | [Vite 8](https://vite.dev/)                                                 |
+| Language  | TypeScript 6 (strict)                                                       |
+| Audio     | [Howler 2](https://howlerjs.com/) via a typed wrapper                       |
+| Lighting  | Small custom GLSL Mesh shader (normal maps, directional key, emissive glow) |
+| Tests     | Vitest                                                                      |
+| Quality   | ESLint (flat config), Prettier, EditorConfig                                |
+| Browser   | Playwright + Playwright MCP, shared via Chrome DevTools Protocol            |
+| Package   | pnpm                                                                        |
 
 ## Scripts
 
@@ -53,6 +53,7 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 src/
   app/create-app.ts       PixiJS Application bootstrap
   app/lighting-scene.ts   Ship + asteroid lighting demo (keep small)
+  app/lit-sprite.ts       Custom normal-map Mesh shader (directional + emissive)
   app/background.ts       Layered procedural background (nebulas, galaxies, stars)
   app/background-textures.ts  One-time procedural canvas textures (nebula/galaxy/star/flare)
   app/starfield-model.ts  Deterministic star generation + projection (tested)
@@ -62,7 +63,7 @@ src/
 public/
   favicon.svg
   audio/blip.wav          Small committed placeholder UI sound
-  assets/lighting/        Processed ship/asteroid color + normal maps
+  assets/lighting/        Processed color/normal maps + ship emissive/glow maps
 scripts/
   browser.mjs             Shared-browser CLI (open / inspect / act / stop)
   mcp-browser.mjs         Playwright MCP launcher (attaches to shared browser)
@@ -74,7 +75,8 @@ docs/                     Architecture decisions, reference art and agent workfl
 
 ## Controls
 
-- **Move the mouse** to move the omni light. The ship and asteroid respond through their normal maps.
+- The ship and asteroid slowly counter-rotate so you can judge the top-right directional key
+  light across their normal-mapped faces.
 - **Drag the canvas** to pan the background; **scroll / pinch** to zoom it (`0.02×–6×`,
   50× max zoom-out). **Double-click** resets the background view.
 - **Click** for the placeholder sound; **M** mutes/unmutes.
@@ -82,20 +84,16 @@ docs/                     Architecture decisions, reference art and agent workfl
 
 ## Lighting
 
-The scene uses [`pixijs-light2d`](https://www.npmjs.com/package/pixijs-light2d) (PixiJS v8)
-with `LightSprite` + normal maps:
+Lighting is a small custom GLSL Mesh shader ([src/app/lit-sprite.ts](src/app/lit-sprite.ts)) —
+no external lighting package:
 
-- **Directional key light from the top-right** — the library only exposes point/ambient lights,
-  so this is a distant, very wide point light positioned off the top-right corner.
-- **Omni light** — a point light follows the pointer.
-- **Ambient fill** for readability.
-- The shadow map is baked once while there are no shadow casters.
-- The ship and asteroid slowly counter-rotate so you can watch the corner key light move across
-  their normal-mapped faces. Because the library does not rotate the normal basis itself, each
-  object gets a **key** light whose direction is counter-rotated into its local frame; the omni
-  light stays a single world-space light at the pointer.
-- The art already has baked cel shading, so the normal maps are baked at **0.30 strength**; at
-  full strength the diffuse lighting reads as embossed metal.
+- one **directional key light from the top-right** plus ambient fill,
+- tangent-space **normals rotated by each mesh's rotation**, so spinning ships shade correctly,
+- the ship's cyan panels use baked **emissive + blurred glow** maps with a subtle pulse,
+- the pointer omni light was removed after testing.
+
+It is WebGL-only, so `create-app.ts` pins `preference: 'webgl'`. The reference art already has
+baked cel shading, so normals are kept at 0.30 strength to avoid a metallic/embossed look.
 
 ## Reference art
 

@@ -8,7 +8,7 @@ should start with [README.md](README.md).
 SpacePewPew is a **starter/demo**, not a game loop yet. It contains:
 
 - PixiJS v8 rendering a procedural space background and a normal-mapped ship/asteroid demo,
-- `pixijs-light2d` lighting (directional-style key light + pointer omni light),
+- a small custom GLSL normal-map lighting shader (directional key + emissive panels),
 - a typed Howler audio wrapper playing a small committed placeholder sound,
 - Vite + TypeScript + Vitest + ESLint + Prettier wiring,
 - a shared, visible Chrome instance that both the human and agents can drive,
@@ -47,7 +47,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 ## Architecture map
 
 - `src/app/create-app.ts` — creates and initialises the PixiJS `Application`.
-- `src/app/lighting-scene.ts` — the only scene: ship + asteroid layout, lights, pointer input.
+- `src/app/lighting-scene.ts` — the only scene: ship + asteroid layout, lighting state, spin.
+- `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares).
 - `src/app/background-textures.ts` — one-time deterministic canvas textures for the background.
 - `src/app/starfield-model.ts` — deterministic star generation, projection, twinkle (pure).
@@ -88,9 +89,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - **Reference art is source, not runtime.** Treat `docs/reference/` as supplied source art and
   `public/assets/lighting/` as the processed runtime copies. Processing runs were a one-off
   matte/despill/premultiplied-resample pass; don't add a build-time asset pipeline.
-- **Lighting goes through `pixijs-light2d`.** Register `LightSpritePipe` before app init, use
-  `LightSprite` with paired normal maps, keep lights in `light2DSystem`, and refresh the shadow
-  map only when casters exist. The renderer is pinned to WebGL for this library.
+- **Lighting is a custom Mesh shader.** Lit meshes come from `src/app/lit-sprite.ts`; normals
+  are rotated by each mesh's rotation and combined with one directional key light + ambient.
+  The renderer is pinned to WebGL because the shader is GLSL. Do not add a lighting library back
+  without solving directional lighting and normal rotation.
 - **Background textures are baked once.** Nebula/galaxy/glow textures are generated at startup
   into `CanvasSource`s and composed with batched sprites/TilingSprites. Avoid per-frame
   full-screen shaders or filters unless profiling justifies them.

@@ -103,29 +103,22 @@ which suits high-speed gameplay: the background does not fly apart while ships/e
 later) scale with the camera. The star field spans 2×2 world units to stay covered at the
 zoom-out limit.
 
-## ADR-008 — pixijs-light2d for normal-mapped lighting
+## ADR-008 — Custom normal-map shader instead of a lighting library
 
-**Status:** accepted (2026-11-06)
+**Status:** accepted (2026-11-06); supersedes the earlier `pixijs-light2d` choice.
 
-`@pixi/lights` (the well-known deferred-lighting plugin) targets PixiJS 6/7 and cannot run on
-PixiJS 8. The v8 option we adopted is
-[`pixijs-light2d`](https://www.npmjs.com/package/pixijs-light2d) (MIT), used through
-`LightSprite` with the ship/asteroid normal maps. It ships a custom batched render pipe and
-handles ambient + point lights.
+`@pixi/lights` targets PixiJS 6/7. `pixijs-light2d` runs on v8 but has no true directional
+light, does not rotate normal vectors with sprite rotation, needs a Spine peer it never uses,
+and required shadow-map/pre-object-light workarounds for our spinning demo. We replaced it
+with a small custom GLSL Mesh shader in `src/app/lit-sprite.ts`:
 
-The library has no directional light type, so the requested top-right directional key light is
-approximated by a distant, very wide point light. Its shader samples a shadow map for the first
-four lights, so the map is baked once (with no casters) and refreshed per frame only when
-`shadowSystem.casters` is non-empty. The package imports a Spine peer (`@esotericsoftware/spine-pixi-v8`)
-even when Spine isn't used, so that peer is installed as a runtime dependency.
+- diffuse + normal + emissive + glow textures,
+- one directional key light + ambient,
+- normals rotated by the mesh rotation, so rotating ships shade correctly,
+- emissive maps for the ship's cyan panels.
 
-The library is diffuse-only, so there is no roughness/metalness response. Because the
-reference art already includes baked shading, full-strength tangent-space normals read as
-embossed/polished metal. The processed normal maps are therefore softened to ~0.30 strength
-(blended toward flat) and the key light is kept soft.
+The pointer omni light was a test aid and has been removed. Lighting is WebGL-only (GLSL), so
+the Application pins `preference: 'webgl'`.
 
-**Consequences:** lighting is WebGL-only; keep `preference: 'webgl'` in the app. Processed
-runtime art lives in `public/assets/lighting/`. Replacing the lighting library later means
-replacing `LightSprite` usage in `lighting-scene.ts` only. If real PBR materials are needed,
-this approach and art are not enough — that requires albedo/roughness/metalness maps and a
-different shading model.
+**Consequences:** no lighting dependency; extend `lit-sprite.ts` for new light types or effects.
+No PBR/roughness/metalness support — this is a stylized diffuse shader.
