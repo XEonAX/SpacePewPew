@@ -5,6 +5,7 @@ import {
   dampVelocity,
   distance,
   pointInRotatedRect,
+  pulsePhase,
   rayCircleHit,
   reflectDirection,
   relativeAngularRate,
@@ -191,5 +192,36 @@ describe('grill intake rectangle', () => {
     const centre = { x: 0, y: 0 };
     expect(pointInRotatedRect({ x: -0.5, y: 1 }, centre, Math.PI / 2, 2, 1)).toBe(true);
     expect(pointInRotatedRect({ x: 1.5, y: 0 }, centre, Math.PI / 2, 2, 1)).toBe(false);
+  });
+});
+
+describe('intake pulses', () => {
+  it('sweeps one full ring cycle per period', () => {
+    expect(pulsePhase(0, 1, 0, 1)).toBeCloseTo(0);
+    expect(pulsePhase(0.25, 1, 0, 1)).toBeCloseTo(0.25);
+    expect(pulsePhase(0.5, 1, 0, 1)).toBeCloseTo(0.5);
+    expect(pulsePhase(0.999, 1, 0, 1)).toBeCloseTo(0.999);
+  });
+
+  it('wraps back to the start after a period', () => {
+    expect(pulsePhase(1, 1, 0, 1)).toBeCloseTo(0);
+    expect(pulsePhase(2.5, 1, 0, 2)).toBeCloseTo(0.25);
+  });
+
+  it('staggers rings by their offset and stays in range', () => {
+    expect(pulsePhase(0, 1, 1 / 3, 1)).toBeCloseTo(1 / 3);
+    expect(pulsePhase(0, 1, 2 / 3, 1)).toBeCloseTo(2 / 3);
+    expect(pulsePhase(0.9, 1, 0.9, 1)).toBeCloseTo(0.8);
+  });
+
+  it('travels faster while cargo is inbound', () => {
+    const idle = pulsePhase(0.4, 1, 0, 1);
+    const pull = pulsePhase(0.4, 1.7, 0, 1);
+    expect(pull).toBeGreaterThan(idle);
+  });
+
+  it('never returns a negative or NaN phase for a zero period', () => {
+    expect(pulsePhase(-0.5, 1, 0, 0)).toBeGreaterThanOrEqual(0);
+    expect(Number.isNaN(pulsePhase(1, 1, 0, 0))).toBe(false);
   });
 });

@@ -264,3 +264,14 @@ export function relativeAngularRate(point: Vec2, origin: Vec2, velocity: Vec2): 
   const cross = rx * velocity.y - ry * velocity.x;
   return Math.abs(cross) / distanceSquared;
 }
+
+/**
+ * Position of one repeating intake wave in `[0, 1)`: 0 is the ring's widest
+ * point away from the hatch, 1 is it landing on the hatch. `offset` staggers
+ * several rings, `speed` scales how fast they travel.
+ */
+export function pulsePhase(now: number, speed: number, offset: number, period: number): number {
+  const safePeriod = Math.max(period, 1e-3);
+  const phase = ((now * speed) / safePeriod + offset) % 1;
+  return phase < 0 ? phase + 1 : phase;
+}

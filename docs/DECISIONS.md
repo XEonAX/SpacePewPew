@@ -330,11 +330,10 @@ Mining rules:
   chunk furthest from the hull within reach — the freshest metal, likeliest to drift off. Spare
   beams idle instead of stacking onto one object.
 - Two carry models live side by side, switched in game with **P** and shown in the hint:
-  - `physics` (default): `steerToward` treats the chunk as a mass — bounded acceleration, real
-    momentum, arrival steering — so it eases in naturally and can genuinely miss if the ship
-    flies off.
-  - `fake`: `carryToward` slides it straight at the hatch at full speed, with a short final
-    ease (0.2 m window, 0.7 speed floor) so delivery stays snappy instead of crawling in.
+  - `curved` (default): `arcToward` arcs the chunk to the hatch at a bounded turn rate and
+    reduced orbital speed, so a tractor barrel can always keep its beam on it.
+  - `physics`: `steerToward` treats the chunk as a mass — bounded acceleration, real momentum,
+    arrival steering — so it eases in naturally and can genuinely miss if the ship flies off.
     Both apply the step **in the ship's frame** (ship velocity is added first), so cargo keeps up
     with a flying ship instead of falling behind. Neither can overshoot: the final step is clamped
     to the remaining distance.
@@ -342,7 +341,17 @@ Mining rules:
   mode drops all grips. Uncaptered metal cools and fades after ~8 s so it cannot starve the pool.
 - The intake is the **hull's own slatted hatch** between the two rearmost pairs (ship-texture
   pixels: centre `(-1, 123)`, half-extents `23 × 45`), so no grill graphic is drawn. Chunks whose
-  centre enters that rotated rectangle are consumed and increment the cargo counter in the hint.
+  centre enters that rotated rectangle are handed to a short **swallow** animation (~0.3 s) in
+  which the chunk sinks the rest of the way into the hatch and scales to zero; only then does the
+  cargo counter tick up, so metal visibly disappears into the ship instead of snapping away.
+- While the rig is equipped the hatch also pulses **three concentric rounded-rectangle rings**
+  drawn in the hatch's own shape. Each ring spawns at **1.2×** the hatch outline and scales down
+  past **0.7×**, so it visibly crosses the hatch boundary on the way in — the pulling-in look of
+  movie space-elevator beams. Rings are staggered a third of a period apart, fade in as they
+  spawn and fade out as they land, quicken (~1.7×) and brighten while cargo is inbound, and the
+  intake flashes on each delivery. A landed ring never exceeds 1.2× the hatch height; the rings
+  are pure `Graphics` strokes (`add` blend, 6 px halo + 1.8 px core) redrawn each frame — six
+  small rounded-rect strokes, no filters or textures.
 - Chunks are drawn as **small flat-solid shapes**, not glows: one square and one triangle texture
   (32×32, flat fill, thin rim, light glow, normal blending). The old additive radial blob read as
   pure light with no metal in it; gradients, an inset molten core and irregular polygons were all

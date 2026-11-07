@@ -6,6 +6,7 @@ import {
   dampVelocity,
   distance,
   pointInRotatedRect,
+  pulsePhase,
   rayCircleHit,
   reflectDirection,
   relativeAngularRate,
@@ -67,6 +68,36 @@ const GRILL_HALF_H_PX = 45;
 /** Grow the intake by half a chunk so metal does not need pixel-perfect aim. */
 const GRILL_PAD_M = 0.3;
 
+// The visible cargo hatch — the blue bezel around the slats — in ship-texture
+// px relative to the ship centre. The intake rings hug this outline.
+const HATCH_LOCAL_X_PX = 0;
+const HATCH_LOCAL_Y_PX = 112;
+const HATCH_HALF_W_PX = 28;
+const HATCH_HALF_H_PX = 40;
+
+// Three rings ride inward onto the hatch whenever the mining rig is equipped:
+// each starts just outside the hatch outline and scales down through it, like
+// a movie space-elevator beam reeling something up. They brighten and speed up
+// while cargo is actually inbound, and flash when a chunk lands.
+const INTAKE_RING_COUNT = 3;
+const INTAKE_RING_PERIOD_S = 1.15;
+/** Largest ring, as a multiple of the hatch outline (never more than 1.2). */
+const INTAKE_RING_START_SCALE = 1.2;
+/** Rings keep shrinking through the hatch before fading out inside it. */
+const INTAKE_RING_END_SCALE = 0.7;
+/** Corner radius of the rings, as a fraction of the hatch half-width. */
+const INTAKE_RING_RADIUS_RATIO = 0.4;
+const INTAKE_RING_IDLE_ALPHA = 0.4;
+const INTAKE_RING_PULL_ALPHA = 0.95;
+/** Sweep-speed multiplier while cargo is inbound. */
+const INTAKE_RING_PULL_SPEED = 1.7;
+const INTAKE_DELIVERY_FLASH_S = 0.35;
+// Same green as the tractors, so the glow ties to the beams feeding the hatch.
+const INTAKE_RING_COLOR = 0x52ff9b;
+const INTAKE_RING_CORE_COLOR = 0xd4ffe8;
+/** Time a chunk spends shrinking into the intake before it becomes cargo. */
+const INTAKE_SWALLOW_S = 0.28;
+
 const LASER_COLOR = 0xff5340;
 const LASER_CORE_COLOR = 0xffd9c2;
 const TRACTOR_COLOR = 0x52ff9b;
@@ -83,6 +114,13 @@ interface Chunk {
   tracted: boolean;
   /** Every tractor barrel currently locked onto this chunk (more = faster). */
   barrels: number[];
+  /** Seconds left shrinking into the hatch; >0 while it is being swallowed. */
+  takingIn: number;
+  /** Sprite edge length at spawn, so the swallow can shrink it to nothing. */
+  baseSize: number;
+  /** Where it crossed into the hatch: the start of the swallow. */
+  enterX: number;
+  enterY: number;
   /** Barrel that dropped this chunk for being untrackable, and until when. */
   releaseBy: number;
   releaseUntil: number;
@@ -210,6 +248,10 @@ export function createMining(): Mining {
       active: false,
       tracted: false,
       barrels: [],
+      takingIn: 0,
+      baseSize: 0,
+      enterX: 0,
+      enterY: 0,
       releaseBy: -1,
       releaseUntil: 0,
     });
@@ -218,6 +260,14 @@ export function createMining(): Mining {
   const beams = new Graphics();
   beams.blendMode = 'add';
   container.addChild(beams);
+
+  // Intake waves sit under the beams and chunks, centred on the hull's hatch.
+  const intakePulse = new Container();
+  intakePulse.visible = false;
+  const intakeRings = new Graphics();
+  intakeRings.blendMode = 'add';
+  intakePulse.addChild(intakeRings);
+  container.addChildAt(intakePulse, 0);
 
   const rng = createRng(0x0d1f_7a3b);
   const laserTimers = new Array<number>(LASER_BARRELS).fill(0);
@@ -228,6 +278,8 @@ export function createMining(): Mining {
   const barrelTargets = new Array<Chunk | null>(8).fill(null);
   let carryMode: CarryMode = 'curved';
   let cargo = 0;
+  /** Decays after a chunk lands, briefly flaring the intake. */
+  let deliveryFlash = 0;
 
   const spawnChunk = (hit: Vec2, direction: Vec2, asteroid: MiningAsteroid): void => {
     const chunk = chunks.find((candidate) => !candidate.active);
@@ -244,6 +296,7 @@ export function createMining(): Mining {
     chunk.active = true;
     chunk.tracted = false;
     chunk.barrels = [];
+    chunk.takingIn = 0;
     chunk.releaseBy = -1;
     chunk.releaseUntil = 0;
     chunk.x = hit.x + normal.x * CHUNK_SIZE_M * 0.6;
@@ -255,6 +308,7 @@ export function createMining(): Mining {
 
     // The shape fills most of its texture; a small sprite is all a chunk needs.
     const size = CHUNK_SIZE_M * randomRange(rng, 0.8, 1.15) * PIXELS_PER_METER * 1.45;
+    chunk.baseSize = size;
     chunk.sprite.width = size;
     chunk.sprite.height = size;
     chunk.sprite.rotation = randomRange(rng, 0, Math.PI * 2);
@@ -288,6 +342,12 @@ export function createMining(): Mining {
       const grillY = ship.y + grillLocalX * sin + grillLocalY * cos;
       const grillHalfW = GRILL_HALF_W_PX * metres + GRILL_PAD_M;
       const grillHalfH = GRILL_HALF_H_PX * metres + GRILL_PAD_M;
+
+      // The rings centre on the visible hatch art, not the padded intake box.
+      const hatchLocalX = HATCH_LOCAL_X_PX * metres;
+      const hatchLocalY = HATCH_LOCAL_Y_PX * metres;
+      const hatchX = ship.x + hatchLocalX * cos - hatchLocalY * sin;
+      const hatchY = ship.y + hatchLocalX * sin + hatchLocalY * cos;
 
       beams.clear();
       beamActivity.fill(false);
@@ -353,6 +413,7 @@ export function createMining(): Mining {
             !pose ||
             !held ||
             !held.active ||
+            held.takingIn > 0 ||
             claimed.has(held) ||
             Math.hypot(pose.x - held.x, pose.y - held.y) > TRACTOR_RANGE_M
           ) {
@@ -382,7 +443,7 @@ export function createMining(): Mining {
           let bestChunk: Chunk | null = null;
           let bestExternality = -1;
           for (const chunk of chunks) {
-            if (!chunk.active || claimed.has(chunk)) continue;
+            if (!chunk.active || chunk.takingIn > 0 || claimed.has(chunk)) continue;
             if (chunk.releaseBy === barrel && frame.now < chunk.releaseUntil) continue;
             if (Math.hypot(pose.x - chunk.x, pose.y - chunk.y) > TRACTOR_RANGE_M) continue;
             const externality = Math.hypot(chunk.x - ship.x, chunk.y - ship.y);
@@ -407,8 +468,32 @@ export function createMining(): Mining {
         barrelTargets.fill(null);
       }
 
+      let inboundBeams = 0;
       for (const chunk of chunks) {
         if (!chunk.active) continue;
+
+        // A chunk that crossed into the hatch is swallowed: it sinks the rest
+        // of the way in and shrinks to nothing, then counts as cargo. This is
+        // the only place the shrink is driven, so it always finishes.
+        if (chunk.takingIn > 0) {
+          chunk.takingIn = Math.max(0, chunk.takingIn - frame.dt);
+          const progress = 1 - chunk.takingIn / INTAKE_SWALLOW_S;
+          const sink = progress * progress;
+          chunk.x = chunk.enterX + (grillX - chunk.enterX) * sink;
+          chunk.y = chunk.enterY + (grillY - chunk.enterY) * sink;
+          const size = chunk.baseSize * (1 - progress);
+          chunk.sprite.width = size;
+          chunk.sprite.height = size;
+          chunk.sprite.position.set(chunk.x * PIXELS_PER_METER, chunk.y * PIXELS_PER_METER);
+          chunk.sprite.rotation += chunk.spin * frame.dt;
+          if (chunk.takingIn <= 0) {
+            chunk.active = false;
+            chunk.sprite.visible = false;
+            cargo += 1;
+            deliveryFlash = 1;
+          }
+          continue;
+        }
 
         // A tractor only reels its cargo in once the beam is visually
         // connected: barrels still swinging onto a fresh chunk do not move it.
@@ -423,6 +508,7 @@ export function createMining(): Mining {
         }
 
         if (engaged.length > 0) {
+          inboundBeams += engaged.length;
           if (carryMode === 'physics') {
             // Real-ish tractor: steer the chunk's velocity in the ship's frame
             // with a bounded acceleration, then integrate its momentum.
@@ -495,9 +581,11 @@ export function createMining(): Mining {
           chunk.tracted &&
           pointInRotatedRect(chunk, { x: grillX, y: grillY }, ship.rotation, grillHalfW, grillHalfH)
         ) {
-          chunk.active = false;
-          chunk.sprite.visible = false;
-          cargo += 1;
+          // It reached the intake: hand it to the swallow animation instead of
+          // snapping it away, so the metal visibly disappears into the hatch.
+          chunk.takingIn = INTAKE_SWALLOW_S;
+          chunk.enterX = chunk.x;
+          chunk.enterY = chunk.y;
           continue;
         }
 
@@ -515,6 +603,51 @@ export function createMining(): Mining {
         chunk.sprite.alpha = chunk.tracted
           ? 1
           : Math.min(1, Math.max(0, chunk.life / CHUNK_FADE_SECONDS));
+      }
+
+      // Intake waves: three round-cornered rings start wide and scale down
+      // onto the cargo hatch, brightening as they close and fading as they
+      // land — the pulled-in look of a movie space-elevator beam. They quicken
+      // and flare harder while cargo is inbound, and flash when a chunk lands.
+      intakePulse.visible = frame.tractorsActive;
+      if (frame.tractorsActive) {
+        deliveryFlash = Math.max(0, deliveryFlash - frame.dt / INTAKE_DELIVERY_FLASH_S);
+        const pull = Math.min(1, inboundBeams * 0.3 + deliveryFlash);
+        const speed = 1 + pull * (INTAKE_RING_PULL_SPEED - 1);
+        intakePulse.position.set(hatchX * PIXELS_PER_METER, hatchY * PIXELS_PER_METER);
+        intakePulse.rotation = ship.rotation;
+        intakeRings.clear();
+        // Rings are the hatch outline itself, scaled: 1.2x at spawn, shrinking
+        // to 0.7x so they visibly cross the hatch boundary on the way in.
+        const baseHalfW = HATCH_HALF_W_PX * metres * PIXELS_PER_METER;
+        const baseHalfH = HATCH_HALF_H_PX * metres * PIXELS_PER_METER;
+        const radius = Math.min(baseHalfW, baseHalfH) * INTAKE_RING_RADIUS_RATIO;
+        const alpha =
+          INTAKE_RING_IDLE_ALPHA + (INTAKE_RING_PULL_ALPHA - INTAKE_RING_IDLE_ALPHA) * pull;
+        for (let ring = 0; ring < INTAKE_RING_COUNT; ring += 1) {
+          const phase = pulsePhase(
+            frame.now,
+            speed,
+            ring / INTAKE_RING_COUNT,
+            INTAKE_RING_PERIOD_S,
+          );
+          const scale =
+            INTAKE_RING_START_SCALE + (INTAKE_RING_END_SCALE - INTAKE_RING_START_SCALE) * phase;
+          // Stay bright on the way in, fade in as it spawns and vanish quickly
+          // as it lands, so each ring reads as closing on the hatch.
+          const fade = Math.min(1, phase * 8) * Math.min(1, (1 - phase) * 6);
+          const ringAlpha = alpha * fade;
+          if (ringAlpha <= 0.002) continue;
+          const halfW = baseHalfW * scale;
+          const halfH = baseHalfH * scale;
+          const corner = radius * scale;
+          intakeRings
+            .roundRect(-halfW, -halfH, halfW * 2, halfH * 2, corner)
+            .stroke({ color: INTAKE_RING_COLOR, width: 6, alpha: ringAlpha * 0.3 });
+          intakeRings
+            .roundRect(-halfW, -halfH, halfW * 2, halfH * 2, corner)
+            .stroke({ color: INTAKE_RING_CORE_COLOR, width: 1.8, alpha: ringAlpha });
+        }
       }
     },
     getCargo(): number {
