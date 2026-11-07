@@ -899,3 +899,35 @@ Rules:
 Grazes and scrapes that resolve without inward speed do not trigger the afterglow; only a real
 contact does. If continuous scraping should also keep it lit, feed the slide speed into
 `afterglow` in `ship-shield.ts` rather than changing the curve.
+
+## ADR-033 — Stabiliser (hold X): retro burn with attitude alignment
+
+**Status:** accepted (2026-11-07).
+
+A single "stop" action should null both translation and spin, but the thrusters can only push
+along the hull axis: mains forward, reversers aft. A naive reverse burn therefore cannot stop a
+sideways drift.
+
+Rules:
+
+- **Point at the burn, then burn.** While X is held the stabiliser picks the thruster group that
+  opposes travel (reversers for positive axial speed, mains for negative), steers the nose at the
+  matching burn angle with a PD attitude law, and only starts the axial burn once the hull is
+  within ~18° of that angle — otherwise the thrust would inject a sideways component and the
+  ship spirals.
+- **Spin is a balanced couple.** The attitude command becomes a side main plus the opposite
+  reverse nozzle with equal force, so it adds torque without adding translation. It is clamped to
+  the weaker engine pair and the nozzle headroom.
+- **Ramped like any other input.** The whole command scales with the input ramp, so the nozzles
+  spool instead of snapping; while the stabiliser is active the normal drag rule applies and
+  helps settle the last centimetres per second.
+- **The mix is the source of truth for visuals.** `stepFlight` returns the per-nozzle mix it used,
+  and the exhaust and engine-audio frames consume that mix instead of recomputing it from inputs,
+  so a stabiliser burn shows reverse flames and the matching hum.
+
+**Consequences:** holding X from 30 m/s forward stops the ship in ~2 s with a retro burn; a
+sideways 20 m/s drift makes the hull rotate to face the drift and then brakes it (~5 s,
+converging to under 0.25 m/s while drag finishes the rest). The heading can change during the
+manoeuvre when it had to turn to face the burn — that is the cost of having no lateral
+thrusters. If the hull should hold its heading instead, the alternative is invisible RCS
+translation, which would break the force-from-nozzles rule.

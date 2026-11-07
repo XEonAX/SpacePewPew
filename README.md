@@ -72,6 +72,7 @@ src/
   app/lighting-scene.ts   Ship + asteroid lighting demo (keep small)
   app/ship-flight.ts      Pure mass-based force flight model (tested)
   app/ship-engines.ts     Engine mounts as force sources: nozzle positions relative to COM (tested)
+  app/stabilizer.ts       Hold-X thruster assist: retro burn + spin damping (tested)
   app/flight-tuner.ts     Live overlay sliders for flight tuning
   app/flight-telemetry.ts Read-only terminal/velocity/input telemetry overlay
   app/ground-grid.ts      Screen-space 1 m grid fixed to the near dust layer
@@ -119,6 +120,9 @@ docs/                     Architecture decisions, reference art and agent workfl
 
 ## Controls
 
+- **X (hold)** fires the stabiliser: it points the hull at the burn that opposes travel, retro-burns
+  the translation away and damps spin with a balanced yaw couple, re-evaluating every frame. If
+  the drift is sideways it first turns to face the drift so the reversers can act on it.
 - **W/S** thrust forward/back; **A/D** rotate. The ship is a rigid body: each nozzle pushes a
   force at its real position, and the engine mix (W/S plus A/D) decides each nozzle's output.
   Turning is therefore real **differential thrust** torque, not a scripted spin. Inputs ramp in

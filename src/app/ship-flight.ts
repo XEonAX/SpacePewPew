@@ -9,13 +9,17 @@
  * does not change the decay rate.
  */
 import { computeEngineOutputs, turnThrustBalance } from './engine-mix';
+import type { EngineMix } from './engine-mix';
 import type { ShipGeometry } from './ship-engines';
+import { stabilizerEngineOutputs } from './stabilizer';
 
 export interface FlightControls {
   forward: boolean;
   reverse: boolean;
   turnLeft: boolean;
   turnRight: boolean;
+  /** X: fire thrusters to null translation and spin (flight assist hold). */
+  stabilize: boolean;
 }
 
 export interface FlightTuning {
@@ -55,6 +59,8 @@ export interface FlightState {
   linearInput: number;
   /** Ramped input, -1..1. */
   angularInput: number;
+  /** Ramped stabiliser demand, 0..1. */
+  stabilizeInput: number;
 }
 
 /** Body-frame force and torque from the engine mix at the given ramped inputs. */
@@ -82,6 +88,7 @@ export function createFlightState(x = 0, y = 0, rotation = 0): FlightState {
     angularVelocity: 0,
     linearInput: 0,
     angularInput: 0,
+    stabilizeInput: 0,
   };
 }
 
@@ -105,7 +112,15 @@ export function engineWrench(
   // Equal-force couple: a turn must not translate even when the reverse
   // engines are weaker, so the main side is throttled down to match them.
   const balance = turnThrustBalance(tuning.mainThrustN, tuning.reverseThrustN);
-  const mix = computeEngineOutputs(linearInput, angularInput, balance);
+  return wrenchFromMix(computeEngineOutputs(linearInput, angularInput, balance), tuning, geometry);
+}
+
+/** Body-frame force and torque from explicit per-nozzle outputs. */
+export function wrenchFromMix(
+  mix: EngineMix,
+  tuning: FlightTuning,
+  geometry: ShipGeometry,
+): EngineWrench {
   let forceX = 0;
   let forceY = 0;
   let torque = 0;
@@ -173,8 +188,9 @@ export function stepFlight(
   dt: number,
   tuning: FlightTuning,
   geometry: ShipGeometry,
-): void {
-  if (dt <= 0) return;
+): EngineMix {
+  const idleMix: EngineMix = { main: [0, 0, 0], reverse: [0, 0] };
+  if (dt <= 0) return idleMix;
 
   const linearTarget = controls.forward ? 1 : controls.reverse ? -1 : 0;
   const angularTarget = controls.turnRight ? 1 : controls.turnLeft ? -1 : 0;
@@ -183,10 +199,20 @@ export function stepFlight(
 
   state.linearInput = moveTowards(state.linearInput, linearTarget, maxInputStep);
   state.angularInput = moveTowards(state.angularInput, angularTarget, maxInputStep);
+  state.stabilizeInput = moveTowards(
+    state.stabilizeInput,
+    controls.stabilize ? 1 : 0,
+    maxInputStep,
+  );
 
   const mass = Math.max(tuning.massKg, 0.001);
   const inertia = Math.max(shipInertiaKgM2(tuning, geometry), 0.001);
-  const wrench = engineWrench(state.linearInput, state.angularInput, tuning, geometry);
+  const balance = turnThrustBalance(tuning.mainThrustN, tuning.reverseThrustN);
+  const mix =
+    state.stabilizeInput > 0
+      ? stabilizerEngineOutputs(state, tuning, geometry, state.stabilizeInput)
+      : computeEngineOutputs(state.linearInput, state.angularInput, balance);
+  const wrench = wrenchFromMix(mix, tuning, geometry);
 
   // Body frame to world: body forward is -y and positive rotation is clockwise
   // on screen, so the matrix that turns the hull also turns its thrust.
@@ -205,7 +231,8 @@ export function stepFlight(
   // sets finite terminal speeds. After key-up the input still takes
   // inputRampSeconds to reach 0, so drag stays on for that whole tail; once all
   // inputs hit zero the ship coasts on its momentum.
-  const anyInput = state.linearInput !== 0 || state.angularInput !== 0;
+  const anyInput =
+    state.linearInput !== 0 || state.angularInput !== 0 || state.stabilizeInput !== 0;
   if (anyInput) {
     const linearDrag = Math.exp(-tuning.linearDrag * dt);
     state.vx *= linearDrag;
@@ -218,4 +245,5 @@ export function stepFlight(
   state.rotation += state.angularVelocity * dt;
   state.x += state.vx * dt;
   state.y += state.vy * dt;
+  return mix;
 }

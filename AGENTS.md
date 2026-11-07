@@ -66,11 +66,17 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   acceleration is torque/inertia (`shipInertiaKgM2` from the radius of gyration), and the yaw
   couple is force-balanced to the weaker engine group. Inputs ramp
   over 0.3 s; drag multiplies velocity on both axes while any input is active; terminal speeds
-  and yaw rate emerge from thrust/drag. Unit-tested in `tests/ship-flight.test.ts`.
+  and yaw rate emerge from thrust/drag. Hold X swaps the mix for the stabiliser outputs; the
+  per-nozzle mix that was used is returned so the exhaust and engine audio show the same thrust.
+  Unit-tested in `tests/ship-flight.test.ts`.
 - `src/app/ship-engines.ts` — the drive geometry: every `EngineMount` (group/index, nozzle
   position relative to the centre of mass in body metres, thrust direction) built from the baked
   `engine-layout.ts` art and the current layout scale, plus the radius of gyration. Unit-tested
   in `tests/ship-engines.test.ts`.
+- `src/app/stabilizer.ts` — hold-X flight assist: with only axial thrust available it points the
+  hull at the retro burn (nose along velocity for reversers, against it for mains when moving
+  backwards), fires that group to null travel, and adds a force-balanced yaw couple to damp spin.
+  Re-evaluated every frame; ramped with the input ramp. Unit-tested in `tests/stabilizer.test.ts`.
 - `src/app/flight-tuner.ts` — live DOM slider overlay that mutates `FlightTuning` (mass, per-engine
   thrust, drags, ramp); dev-facing.
 - `src/app/flight-telemetry.ts` — read-only DOM overlay for mass, terminal W/S/yaw, current and

@@ -14,7 +14,7 @@ import {
 } from './ship-flight';
 import type { FlightControls } from './ship-flight';
 import { createShipGeometry, SHIP_COM_AFT_PX } from './ship-engines';
-import { turnThrustBalance } from './engine-mix';
+import type { EngineMix } from './engine-mix';
 import { createFlightTuner } from './flight-tuner';
 import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
@@ -97,7 +97,7 @@ const lighting: LightingState = {
   time: 0,
 };
 
-const CONTROL_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD']);
+const CONTROL_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyX']);
 
 const assetUrl = (path: string): string => joinBaseUrl(import.meta.env.BASE_URL, path);
 
@@ -283,6 +283,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const updateHint = (): void => {
     hint.text =
       weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode()) +
+      ' · X stabilize' +
       (showColliders ? ' · F2 hide colliders' : ' · F2 colliders');
   };
   updateHint();
@@ -306,7 +307,10 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     reverse: false,
     turnLeft: false,
     turnRight: false,
+    stabilize: false,
   };
+  /** Per-nozzle outputs from the last flight step, shared with exhaust/audio. */
+  let engineMix: EngineMix = { main: [0, 0, 0], reverse: [0, 0] };
   let shipPlaced = false;
   let shipBaseScale = 1;
   /** Art width of the world rocks, metres; set when the world is first seeded. */
@@ -431,7 +435,6 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     audio.setListenerGain(listenerGainForZoom(dust.zoom));
 
     const centre = shipCentre();
-    const turnBalance = turnThrustBalance(tuning.mainThrustN, tuning.reverseThrustN);
     const shipWorldX = centre.x * PIXELS_PER_METER;
     const shipWorldY = centre.y * PIXELS_PER_METER;
 
@@ -488,7 +491,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       height,
       linearInput: flight.linearInput,
       angularInput: flight.angularInput,
-      turnBalance,
+      engineMix,
       shipVx: flight.vx * PIXELS_PER_METER,
       shipVy: flight.vy * PIXELS_PER_METER,
       dt: deltaSeconds,
@@ -502,7 +505,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       width,
       linearInput: flight.linearInput,
       angularInput: flight.angularInput,
-      turnBalance,
+      engineMix,
       vx: flight.vx,
       vy: flight.vy,
       terminalSpeed: forwardTerminalSpeed(tuning, shipGeometry),
@@ -551,7 +554,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const deltaSeconds = Math.min(ticker.deltaMS / 1000, MAX_DELTA_SECONDS);
     lighting.time += deltaSeconds;
 
-    stepFlight(flight, controls, deltaSeconds, tuning, shipGeometry);
+    engineMix = stepFlight(flight, controls, deltaSeconds, tuning, shipGeometry);
     // Collision spin is not player input: bleed it off so a hit cannot leave
     // the ship turning forever (the flight model only damps while input is on).
     const spinDecay = Math.exp(-IMPACT_SPIN_DAMPING * deltaSeconds);
@@ -802,6 +805,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     if (event.code === 'KeyS') controls.reverse = true;
     if (event.code === 'KeyA') controls.turnLeft = true;
     if (event.code === 'KeyD') controls.turnRight = true;
+    if (event.code === 'KeyX') controls.stabilize = true;
   };
 
   const onKeyUp = (event: KeyboardEvent): void => {
@@ -810,6 +814,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     if (event.code === 'KeyS') controls.reverse = false;
     if (event.code === 'KeyA') controls.turnLeft = false;
     if (event.code === 'KeyD') controls.turnRight = false;
+    if (event.code === 'KeyX') controls.stabilize = false;
   };
 
   const onBlur = (): void => {
@@ -817,6 +822,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     controls.reverse = false;
     controls.turnLeft = false;
     controls.turnRight = false;
+    controls.stabilize = false;
     pointerDown = false;
     spaceDown = false;
   };

@@ -17,6 +17,7 @@ const idle: FlightControls = {
   reverse: false,
   turnLeft: false,
   turnRight: false,
+  stabilize: false,
 };
 
 function press(partial: Partial<FlightControls>): FlightControls {
