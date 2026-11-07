@@ -422,7 +422,19 @@ export function createMining(): Mining {
       for (const chunk of chunks) {
         if (!chunk.active) continue;
 
-        if (chunk.tracted) {
+        // A tractor only reels its cargo in once the beam is visually
+        // connected: barrels still swinging onto a fresh chunk do not move it.
+        const engaged: { barrel: number; emitter: { x: number; y: number } }[] = [];
+        for (const barrel of chunk.barrels) {
+          const emitter = poses[barrel];
+          if (!emitter) continue;
+          const toChunk = Math.atan2(chunk.x - emitter.x, -(chunk.y - emitter.y));
+          if (Math.abs(wrapAngle(toChunk - emitter.angle)) <= BEAM_ALIGN_RAD) {
+            engaged.push({ barrel, emitter });
+          }
+        }
+
+        if (engaged.length > 0) {
           if (carryMode === 'physics') {
             // Real-ish tractor: steer the chunk's velocity in the ship's frame
             // with a bounded acceleration, then integrate its momentum.
@@ -450,7 +462,7 @@ export function createMining(): Mining {
               { x: grillX - ship.x, y: grillY - ship.y },
               { x: chunk.vx - ship.vx, y: chunk.vy - ship.vy },
               frame.dt,
-              chunk.barrels.length,
+              engaged.length,
               {
                 speedPerBeam: CURVE_SPEED_PER_BEAM_MPS,
                 maxSpeed: CURVE_MAX_SPEED_MPS,
@@ -465,6 +477,8 @@ export function createMining(): Mining {
             chunk.vy = ship.vy + carried.vy;
           }
         } else {
+          // No beam is connected yet (or the beam just broke): keep drifting,
+          // and only age free metal.
           const damped = dampVelocity(
             { x: chunk.vx, y: chunk.vy },
             CHUNK_DAMPING_PER_SECOND,
@@ -474,7 +488,7 @@ export function createMining(): Mining {
           chunk.vy = damped.y;
           chunk.x += chunk.vx * frame.dt;
           chunk.y += chunk.vy * frame.dt;
-          chunk.life -= frame.dt;
+          if (!chunk.tracted) chunk.life -= frame.dt;
         }
 
         if (chunk.life <= 0) {
@@ -499,13 +513,7 @@ export function createMining(): Mining {
           continue;
         }
 
-        for (const barrel of chunk.barrels) {
-          const emitter = poses[barrel];
-          if (!emitter) continue;
-          // Only draw the beam once the barrel is actually facing its cargo,
-          // so a beam never appears to leave a still-turning turret sideways.
-          const toChunk = Math.atan2(chunk.x - emitter.x, -(chunk.y - emitter.y));
-          if (Math.abs(wrapAngle(toChunk - emitter.angle)) > BEAM_ALIGN_RAD) continue;
+        for (const { barrel, emitter } of engaged) {
           const flicker = 0.5 + 0.12 * Math.sin(frame.now * 24 + barrel);
           beams
             .moveTo(emitter.x * PIXELS_PER_METER, emitter.y * PIXELS_PER_METER)
