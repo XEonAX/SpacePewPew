@@ -84,7 +84,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   chunks that leave along the laser's reflection angle and cool/slow as they drift, six
   autonomous green tractor beams (5 m reach, max six carried chunks, grips are sticky and never
   stolen, free beams claim the most external chunk first, barrels swing fully round to face
-  their chunk, cargo that would need >3 rad/s of slew is dropped for another beam) that carry metal in the ship's frame into the hull's own slatted hatch. Carry is
+  their chunk with extra slew, beams only render once aimed within 13 deg, cargo that would
+  need >3 rad/s of slew is dropped for another beam) that carry metal in the ship's frame into
+  the hull's own slatted hatch. Carry is
   switchable in game with **P**: `curved` (default — arcs to the hatch at a turn rate the barrels
   can track) or `physics` (bounded acceleration). Beams drop a chunk that leaves their reach;
   uncaptured metal cools and fades. Object-pooled chunks (256); no audio yet.

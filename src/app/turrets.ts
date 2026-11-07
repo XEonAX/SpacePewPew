@@ -38,6 +38,8 @@ const REAR_CENTER = (140.25 * Math.PI) / 180;
 const REAR_CONE = (50.25 * Math.PI) / 180;
 const TURRET_SCALE = 1.5;
 const FRONT_TURN_SCALE = 1.85;
+/** Tractor barrels slew faster than guns so their beams stay on the cargo. */
+const MINING_TURN_SCALE = 1.7;
 const MUZZLE_GLOW_SIZE = 28;
 
 const mount = (
@@ -206,7 +208,9 @@ export function createTurrets(texture: Texture): Turrets {
               Math.atan2(tractorTarget.x - mountScreenX, -(tractorTarget.y - mountScreenY)) -
                 frame.rotation,
             );
-            stepTurretAim(aim, rawTarget, frame.dt, config.turnScale);
+            // Tractor barrels get extra slew so capturing a chunk never leaves
+            // the beam detached from a still-turning barrel.
+            stepTurretAim(aim, rawTarget, frame.dt, config.turnScale * MINING_TURN_SCALE);
           } else {
             // Aim as close to straight ahead as this mount's cone allows; all
             // pairs are hot so the keyboard can fire the whole battery.

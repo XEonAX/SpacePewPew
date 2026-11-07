@@ -12,6 +12,7 @@ import {
   steerToward,
 } from './mining-model';
 import type { Vec2 } from './mining-model';
+import { wrapAngle } from './turret-aim';
 import { muzzleWorldPose } from './weapons';
 import type { MuzzleAim } from './weapons';
 
@@ -38,6 +39,8 @@ const TRACTOR_RANGE_M = 5;
 const TRACTOR_TRACK_RATE_LIMIT = 3;
 /** How long a dropped chunk is left alone by the barrel that dropped it. */
 const TRACTOR_RELEASE_COOLDOWN = 0.4;
+/** Aim error (radians) tolerated before a tractor beam is drawn. */
+const BEAM_ALIGN_RAD = 0.22;
 // Curved fake carry: the chunk arcs to the hatch with a bounded heading change
 // so a tractor barrel can keep its beam on it. P swaps in the physics model.
 const CURVE_SPEED_PER_BEAM_MPS = 2.5;
@@ -445,6 +448,10 @@ export function createMining(): Mining {
         for (const barrel of chunk.barrels) {
           const emitter = poses[barrel];
           if (!emitter) continue;
+          // Only draw the beam once the barrel is actually facing its cargo,
+          // so a beam never appears to leave a still-turning turret sideways.
+          const toChunk = Math.atan2(chunk.x - emitter.x, -(chunk.y - emitter.y));
+          if (Math.abs(wrapAngle(toChunk - emitter.angle)) > BEAM_ALIGN_RAD) continue;
           const flicker = 0.5 + 0.12 * Math.sin(frame.now * 24 + barrel);
           beams
             .moveTo(emitter.x * PIXELS_PER_METER, emitter.y * PIXELS_PER_METER)
