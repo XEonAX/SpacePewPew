@@ -85,8 +85,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   aiming modes 1/2, the turret aim resolver and the control hint. Unit-tested.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders.
 - `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers that must **dwell
-  on a spot for ~1.1 s** before melting a chunk (orange melt patches attached to the rock's
-  spinning frame mark where it is heating), small flat-solid **grey-blue** metal chunks
+  on a spot for ~1.1 s** before melting a chunk (irregular, flickering orange melt craters with
+  torn rims, hot cores, bloom and drifting embers, attached to the rock's spinning frame, left
+  behind as cooling scars), small flat-solid **grey-blue** metal chunks
   (square / triangle, two baked textures) that leave along the laser's reflection angle and
   cool/slow as they drift, six
   autonomous green tractor beams (5 m reach, max six carried chunks, grips are sticky and never
@@ -107,7 +108,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   and rotated-rect intake math, unit-tested.
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
   mesh plus a circle collider fitted to the roughly circular art, exposed as collider/mining
-  lists (with the rock's current spin for melt decals). `add(x, y, diameter, variant?)` places
+  lists (with the rock's current spin for melt decals). Rocks tumble slowly (0.02–0.06 rad/s,
+  seeded). `add(x, y, diameter, variant?)` places
   one, picking an art variant. The field is seeded with the demo rock beside the pad and the
   **second supplied asteroid** 20 m dead ahead of the nose at **3× the base diameter**
   (variant 1).

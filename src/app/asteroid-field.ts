@@ -4,6 +4,7 @@ import { ASTEROID_RADIUS_OF_WIDTH } from './asteroid-collision';
 import type { Circle } from './asteroid-collision';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
+import { createRng, randomRange } from '../utils/random';
 import { PIXELS_PER_METER } from './world-scale';
 
 /** One asteroid art set (processed colour + normal maps). */
@@ -59,6 +60,7 @@ export interface AsteroidField {
 export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField {
   if (arts.length === 0) throw new Error('Asteroid field needs at least one art variant');
   const container = new Container();
+  const spinRng = createRng(0x51a7_2f3d);
   const asteroids: Asteroid[] = [];
   const colliders: Circle[] = [];
   const miningTargets: { x: number; y: number; radius: number; rotation: number }[] = [];
@@ -69,11 +71,13 @@ export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField
       const art = arts[Math.min(Math.max(variant, 0), arts.length - 1)]!;
       const mesh = createLitSprite(art.color, art.normal);
       container.addChild(mesh.mesh);
+      // Slow tumble, either direction: rocks are heavy, not pinwheels.
+      const spin = randomRange(spinRng, 0.02, 0.06) * (spinRng() > 0.5 ? 1 : -1);
       const asteroid: Asteroid = {
         x,
         y,
         diameter,
-        spin: -0.22,
+        spin,
         mesh,
         art,
       };

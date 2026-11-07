@@ -601,3 +601,31 @@ Rules:
 aiming accuracy and dwell matter more than rate. Melt decals are pure rendering state in
 `mining.ts` (no entities), and the rock's spin is part of its mining target, so any future
 rotating bodies get the same treatment for free.
+
+## ADR-024 — Melt look: irregular ember craters, slow asteroid tumble
+
+**Status:** accepted (2026-11-07).
+
+The first melt pass read as a clean orange dot: two perfect circles that grew on a timer, on a
+rock spinning at 0.22 rad/s. Real rock melts are ragged, flicker, spit, and the rock itself is a
+heavy object — it should tumble slowly.
+
+Rules:
+
+- **Asteroids tumble slowly.** Spin is now seeded per rock at **0.02–0.06 rad/s** in either
+  direction (`0.22` was pinwheel-fast): a 20 m rock takes minutes to turn, not seconds.
+- **Melt patches are torn, not circular.** Four pre-generated irregular crater outlines (10 unit
+  points with radii jittered 0.68–1.22) are picked per heated spot, with a per-spot flicker
+  phase. Drawing is layered: a dark torn rim (`MELT_RIM_COLOR`), a molten orange pool, a hot
+  core, and two additive bloom polygons slightly larger than the crater, all scaled by radius and
+  wobbling on two sine frequencies so the patch breathes instead of pulsing uniformly.
+- **Live melts spit embers.** Three small additive ember dots orbit/drift out of a live patch
+  (only while intensity is high; cooling scars don't spit), each with its own phase and wobble.
+- **Scars keep their shape.** A finished melt stores the crater shape and phase with its local
+  rock offset, so cooling scars keep the same torn outline as they fade, spinning with the rock.
+- Chunks stay grey-blue; only the molten craters are orange, matching how metal glows while
+  heated and sets once it is torn off.
+
+**Consequences:** all of it is still pure `Graphics` drawing plus pool state in `mining.ts` — no
+particles, textures or filters. Shape variants and flicker are seeded (deterministic), so the
+look is stable across runs.
