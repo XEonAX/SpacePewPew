@@ -629,3 +629,43 @@ Rules:
 **Consequences:** all of it is still pure `Graphics` drawing plus pool state in `mining.ts` — no
 particles, textures or filters. Shape variants and flicker are seeded (deterministic), so the
 look is stable across runs.
+
+## ADR-025 — Two-stage asteroid colliders: circle fast pass, silhouette polygon narrow pass
+
+**Status:** accepted (2026-11-07).
+
+A single fitted circle was a placeholder: the rock art is an irregular polygon, so the circle
+sometimes poked outside the visible silhouette (and left gaps inside it), and bumps looked wrong.
+The rock also tumbles, so whatever collider exists has to turn with the art.
+
+Rules:
+
+- **The collider is traced from the art.** Per art variant, once at startup, the colour map's
+  alpha is sampled into 28 angular slices around the texture centre; each slice keeps its
+  maximum radius; empty slices interpolate from neighbours; the result goes through a convex
+  hull. The template is scaled to each rock's diameter and stored as an **`AsteroidCollider`**:
+  world centre, current rotation, convex outline in local metres, and a bounding radius.
+- **Fast pass, then accurate pass.** Every query starts with the **bounding circle**:
+  ship-vs-rock rejects on centre distance > rock radius + ship bounding radius; ray tests use a
+  cheap circle/range reject; tracer segments use the circle before touching the polygon. Only
+  survivors pay for polygon work.
+- **Ship collision is separating-axis** between the rock's rotated outline and the ship hull
+  polygon inflated by the shield bubble radius (the bubble rounds the hull, so its support grows
+  by `radius` on every axis). The minimum-overlap axis gives the contact normal and depth; the
+  existing impulse response (mass/inertia, restitution, Coulomb friction) is unchanged, so hits
+  still spin the hull about its centre of mass. The contact patch is the ship hull's support
+  point toward the rock plus the bubble radius — still the shield surface.
+- **Lasers and tracers use the polygon.** Mining rays clip against the rock's half-planes
+  (fast circle reject first) and return the nearest surface hit; tracers use a swept segment test
+  (either endpoint inside or an edge crossing). Chunk spawn normals and melt-disc offsets come
+  from the **true surface edge normal** (`polygonHitNormal`), so debris leaves perpendicular to
+  the silhouette face it was cut from.
+- **Colliders turn with the rock.** `getColliders()` and `getMiningTargets()` return the same
+  objects, and the field updates each collider's rotation with the mesh every frame — so the
+  polygon, melt decals and the visible art all agree while the rock tumbles.
+
+**Consequences:** the circle constants (`ASTEROID_RADIUS_OF_WIDTH`, `rayCircleHit`) are gone; art
+silhouettes drive collision. Cost stays small: a handful of rocks × ~28-edge SAT and clipping,
+with the circle rejecting most of it. Concave dents are hulled away — acceptable, since a rock's
+bites are shallow compared with its outline; add multiple convex pieces later only if a shape
+needs real concavity.

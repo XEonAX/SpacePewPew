@@ -7,13 +7,14 @@ import {
   distance,
   pointInRotatedRect,
   pulsePhase,
-  rayCircleHit,
   reflectDirection,
   relativeAngularRate,
   steerToward,
 } from './mining-model';
 import type { Vec2 } from './mining-model';
 import { wrapAngle } from './turret-aim';
+import { polygonHitNormal, rayPolygonHit } from './asteroid-collision';
+import type { AsteroidCollider } from './asteroid-collision';
 import { muzzleWorldPose } from './weapons';
 import type { MuzzleAim } from './weapons';
 
@@ -152,13 +153,8 @@ export interface MiningShip {
   metresPerShipPixel: number;
 }
 
-export interface MiningAsteroid {
-  x: number;
-  y: number;
-  radius: number;
-  /** Current spin of the rock, so decals can stick to its surface. */
-  rotation: number;
-}
+/** Rocks are polygon colliders that turn with their art. */
+export type MiningAsteroid = AsteroidCollider;
 
 export interface MiningFrame {
   dt: number;
@@ -337,8 +333,7 @@ export function createMining(): Mining {
   const spawnChunk = (hit: Vec2, direction: Vec2, asteroid: MiningAsteroid): void => {
     const chunk = chunks.find((candidate) => !candidate.active);
     if (!chunk) return;
-    const radius = Math.max(asteroid.radius, 1e-3);
-    const normal = { x: (hit.x - asteroid.x) / radius, y: (hit.y - asteroid.y) / radius };
+    const normal = polygonHitNormal(asteroid, hit);
     // Molten metal leaves along the reflected laser direction, with a little
     // scatter so consecutive hits do not stack into one line.
     const reflected = reflectDirection(direction, normal);
@@ -462,7 +457,7 @@ export function createMining(): Mining {
         let hitRock: MiningAsteroid | null = null;
         let hitDistance = Infinity;
         for (const rock of frame.asteroids) {
-          const candidate = rayCircleHit(pose, direction, LASER_RANGE_M, rock, rock.radius);
+          const candidate = rayPolygonHit(pose, direction, LASER_RANGE_M, rock);
           if (!candidate) continue;
           const distance = Math.hypot(candidate.x - pose.x, candidate.y - pose.y);
           if (distance < hitDistance) {
@@ -498,8 +493,9 @@ export function createMining(): Mining {
             // The beam keeps boring at one world point (that is where the
             // barrels point); the scar it leaves behind is attached to the
             // rock's spinning surface, so it turns away with the art.
-            const normalX = (hit.x - hitRock.x) / Math.max(hitRock.radius, 1e-3);
-            const normalY = (hit.y - hitRock.y) / Math.max(hitRock.radius, 1e-3);
+            const surfaceNormal = polygonHitNormal(hitRock, hit);
+            const normalX = surfaceNormal.x;
+            const normalY = surfaceNormal.y;
             const heat = meltHeat[barrel]! / MELT_SECONDS;
             const heatRadius = (0.1 + 0.26 * heat) * PIXELS_PER_METER;
             const heatX = (hit.x - normalX * 0.1) * PIXELS_PER_METER;

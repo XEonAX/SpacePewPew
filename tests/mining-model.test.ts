@@ -6,7 +6,6 @@ import {
   distance,
   pointInRotatedRect,
   pulsePhase,
-  rayCircleHit,
   reflectDirection,
   relativeAngularRate,
 } from '../src/app/mining-model';
@@ -31,30 +30,6 @@ describe('mining reflection', () => {
   it('leaves the reflection unit-length', () => {
     const reflected = reflectDirection({ x: 3, y: 4 }, { x: -1, y: 0.5 });
     expect(Math.hypot(reflected.x, reflected.y)).toBeCloseTo(1);
-  });
-});
-
-describe('mining laser hit test', () => {
-  const asteroid = { x: 20, y: 0, radius: 5 };
-
-  it('finds the near surface of the asteroid', () => {
-    const hit = rayCircleHit({ x: 0, y: 0 }, { x: 1, y: 0 }, 100, asteroid, 5);
-    expect(hit).not.toBeNull();
-    expect(hit?.x).toBeCloseTo(15);
-    expect(hit?.y).toBeCloseTo(0);
-  });
-
-  it('misses when the ray passes beside the asteroid', () => {
-    expect(rayCircleHit({ x: 0, y: 0 }, { x: 1, y: 0 }, 100, { x: 20, y: 12 }, 5)).toBeNull();
-  });
-
-  it('misses when the asteroid is beyond the laser range', () => {
-    expect(rayCircleHit({ x: 0, y: 0 }, { x: 1, y: 0 }, 10, asteroid, 5)).toBeNull();
-  });
-
-  it('still hits when the emitter is inside the asteroid', () => {
-    const hit = rayCircleHit({ x: 20, y: 0 }, { x: 1, y: 0 }, 100, asteroid, 5);
-    expect(hit?.x).toBeCloseTo(25);
   });
 });
 

@@ -1,7 +1,7 @@
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 import { BULLET_RANGE_METERS, bulletAlpha } from './bullet-math';
-import { segmentCircleHit } from './asteroid-collision';
-import type { Circle } from './asteroid-collision';
+import { segmentPolygonHit } from './asteroid-collision';
+import type { AsteroidCollider } from './asteroid-collision';
 import { PIXELS_PER_METER } from './world-scale';
 
 const BULLET_TEXTURE_WIDTH = 128;
@@ -28,8 +28,8 @@ export interface BulletFrame {
   width: number;
   height: number;
   dt: number;
-  /** Solid circles (world metres) tracers stop on; typically the asteroids. */
-  blockers?: readonly Circle[];
+  /** Rock colliders tracers stop on (fast circle pass inside each test). */
+  blockers?: readonly AsteroidCollider[];
 }
 
 export interface Bullets {
@@ -128,7 +128,7 @@ export function createBullets(): Bullets {
         let blocked = false;
         for (const blocker of frame.blockers ?? []) {
           if (
-            segmentCircleHit({ x: previousX, y: previousY }, { x: bullet.x, y: bullet.y }, blocker)
+            segmentPolygonHit({ x: previousX, y: previousY }, { x: bullet.x, y: bullet.y }, blocker)
           ) {
             blocked = true;
             break;

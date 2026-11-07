@@ -104,23 +104,24 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   can track) or `physics` (bounded acceleration). Beams drop a chunk that leaves their reach;
   uncaptured metal cools and fades, but a gripped chunk's lifetime is reset each frame so
   cargo never expires in transit. Object-pooled chunks (256); no audio yet.
-- `src/app/mining-model.ts` — pure reflection, ray/circle laser-hit, beam-carry, intake-pulse
-  and rotated-rect intake math, unit-tested.
+- `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
+  math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
-  mesh plus a circle collider fitted to the roughly circular art, exposed as collider/mining
-  lists (with the rock's current spin for melt decals). Rocks tumble slowly (0.02–0.06 rad/s,
-  seeded). `add(x, y, diameter, variant?)` places
-  one, picking an art variant. The field is seeded with the demo rock beside the pad and the
-  **second supplied asteroid** 20 m dead ahead of the nose at **3× the base diameter**
+  mesh plus a **two-stage collider** — a bounding circle and a convex silhouette polygon traced
+  once per art variant from the colour-map alpha, scaled to the rock and **rotated with its
+  spin**. The field exposes collider/mining lists (same objects, so melt decals and lasers share
+  the spin). Rocks tumble slowly (0.02–0.06 rad/s, seeded). `add(x, y, diameter, variant?)`
+  places one, picking an art variant. The field is seeded with the demo rock beside the pad and
+  the **second supplied asteroid** 20 m dead ahead of the nose at **3× the base diameter**
   (variant 1).
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade; a swept
-  test stops them on every asteroid circle (`blockers` in the frame).
+  test stops them on every asteroid's polygon collider (circle fast pass inside) via `blockers`.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
-- `src/app/asteroid-collision.ts` — solid circle collider for the asteroid (radius fitted to the
-  roughly circular art) and the ship's **hull bubble** collider: a convex hull outline inflated
-  by a bubble radius (capsule segments with rounded joins), plus an **impulse response** with
-  ship mass/inertia, shield restitution and Coulomb friction (off-centre hits spin the hull), and
-  a swept segment/circle test for tracers. Pure and unit-tested.
+- `src/app/asteroid-collision.ts` — polygon collision math: `AsteroidCollider` (rotating convex
+  outline + bounding radius), convex hull, separating-axis collision between the ship's **hull
+  bubble** and a rock polygon with an **impulse response** (mass/inertia, shield restitution,
+  Coulomb friction, off-centre hits spin the hull), plus polygon ray and swept-segment tests for
+  mining lasers and tracers. Pure and unit-tested.
 - `src/app/ship-shield.ts` — the hull-shaped energy shield, drawn in ship-texture px so it
   inherits the ship transform; its boundary glows and fades inward, and impacts light up the
   contact patch (masked to the bubble). It draws the same hull used for collision.

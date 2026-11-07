@@ -33,34 +33,6 @@ export function reflectDirection(direction: Vec2, normal: Vec2): Vec2 {
   return { x: d.x - 2 * dot * n.x, y: d.y - 2 * dot * n.y };
 }
 
-/**
- * First intersection of a ray with a circle, or `null` when the ray misses or
- * the circle sits beyond `length`. Used to decide whether a mining laser has
- * bitten the asteroid.
- */
-export function rayCircleHit(
-  origin: Vec2,
-  direction: Vec2,
-  length: number,
-  centre: Vec2,
-  radius: number,
-): Vec2 | null {
-  if (radius <= 0 || length <= 0) return null;
-  const d = unit(direction);
-  const ox = origin.x - centre.x;
-  const oy = origin.y - centre.y;
-  const b = ox * d.x + oy * d.y;
-  const c = ox * ox + oy * oy - radius * radius;
-  const discriminant = b * b - c;
-  if (discriminant < 0) return null;
-
-  const root = Math.sqrt(discriminant);
-  let t = -b - root;
-  if (t < 0) t = -b + root;
-  if (t < 0 || t > length) return null;
-  return { x: origin.x + d.x * t, y: origin.y + d.y * t };
-}
-
 export interface CarryOptions {
   /** Metres per second each tractor beam adds while carrying. */
   speedPerBeam: number;
