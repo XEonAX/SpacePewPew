@@ -164,6 +164,12 @@ function createChunkTexture(variant: number): Texture {
     }
     path.closePath();
 
+    // The shape is drawn around the origin, so translate it to the texture
+    // centre: otherwise the solid body sits in the top-left corner and the
+    // glow halo is centred elsewhere.
+    ctx.save();
+    ctx.translate(half, half);
+
     // Flat solid body: no gradient, cheap and readable at this size.
     ctx.fillStyle = variant === 1 ? '#ff9d45' : '#ffb15a';
     ctx.fill(path);
@@ -172,6 +178,7 @@ function createChunkTexture(variant: number): Texture {
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = 'rgba(122, 58, 22, 0.9)';
     ctx.stroke(path);
+    ctx.restore();
   }
   return new Texture({ source: new CanvasSource({ resource: canvas }) });
 }
