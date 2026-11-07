@@ -81,10 +81,13 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   aiming modes 1/2, the turret aim resolver and the control hint. Unit-tested.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders.
 - `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers, molten metal
-  chunks that leave along the laser's reflection angle, six autonomous green tractor beams that
-  drag metal into the centre cargo grill. Object-pooled chunks; no audio yet.
-- `src/app/mining-model.ts` — pure reflection, ray/circle laser-hit and tractor-drag math,
-  unit-tested.
+  chunks that leave along the laser's reflection angle and cool/slow as they drift, six
+  autonomous green tractor beams
+  (5 m reach, one chunk per beam) that fake-carry metal into the hull's own slatted hatch,
+  faster with more beams and easing in so it cannot overshoot. Beams drop a chunk that leaves
+  their reach; uncaptured metal cools and fades. Object-pooled chunks (256); no audio yet.
+- `src/app/mining-model.ts` — pure reflection, ray/circle laser-hit, beam-carry and
+  rotated-rect intake math, unit-tested.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).

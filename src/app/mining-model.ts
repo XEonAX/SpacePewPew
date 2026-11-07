@@ -7,6 +7,15 @@ export function distance(a: Vec2, b: Vec2): number {
   return Math.hypot(b.x - a.x, b.y - a.y);
 }
 
+/**
+ * Molten metal cools and slows the longer it drifts: an exponential decay of
+ * velocity, so a fresh chunk is fast but settles instead of sailing forever.
+ */
+export function dampVelocity(velocity: Vec2, dampingPerSecond: number, dt: number): Vec2 {
+  const decay = Math.exp(-Math.max(0, dampingPerSecond) * Math.max(0, dt));
+  return { x: velocity.x * decay, y: velocity.y * decay };
+}
+
 function unit(v: Vec2): Vec2 {
   const length = Math.hypot(v.x, v.y);
   if (length === 0) return { x: 0, y: 0 };
@@ -52,27 +61,64 @@ export function rayCircleHit(
   return { x: origin.x + d.x * t, y: origin.y + d.y * t };
 }
 
-export interface MoveTowardResult {
+export interface CarryOptions {
+  /** Metres per second each tractor beam adds while carrying. */
+  speedPerBeam: number;
+  /** Hard cap on the carried speed, however many beams are on the chunk. */
+  maxSpeed: number;
+  /** Seconds the tractor uses for the remaining distance as it eases in. */
+  arrivalSeconds: number;
+}
+
+export interface CarryResult {
   x: number;
   y: number;
   arrived: boolean;
 }
 
-/** Ease a point toward a target at a capped speed; `arrived` means it reached it. */
-export function moveToward(
+/**
+ * Fake tractor carry: slide a gripped chunk straight at the hatch. It is not a
+ * physics force — the chunk is simply translated toward the target, at a speed
+ * that grows with the number of beams holding it and eases off near the hatch.
+ * Because the step never exceeds the remaining distance, the chunk cannot
+ * overshoot or be flung past the intake.
+ */
+export function carryToward(
   position: Vec2,
   target: Vec2,
-  speed: number,
   dt: number,
-): MoveTowardResult {
+  beams: number,
+  options: CarryOptions,
+): CarryResult {
   const dx = target.x - position.x;
   const dy = target.y - position.y;
   const dist = Math.hypot(dx, dy);
-  const step = Math.max(0, speed) * Math.max(0, dt);
-  if (dist === 0 || dist <= step) return { x: target.x, y: target.y, arrived: true };
+  if (dist === 0) return { x: target.x, y: target.y, arrived: true };
+
+  const arrival = Math.max(options.arrivalSeconds, 1e-3);
+  const beamSpeed = Math.min(options.maxSpeed, Math.max(0, beams) * options.speedPerBeam);
+  const speed = Math.min(beamSpeed, dist / arrival);
+  const step = Math.min(dist, speed * Math.max(0, dt));
   return {
     x: position.x + (dx / dist) * step,
     y: position.y + (dy / dist) * step,
-    arrived: false,
+    arrived: step >= dist,
   };
+}
+
+/** Point-in-rectangle test for a rectangle rotated with the ship. */
+export function pointInRotatedRect(
+  point: Vec2,
+  centre: Vec2,
+  rotation: number,
+  halfWidth: number,
+  halfHeight: number,
+): boolean {
+  const dx = point.x - centre.x;
+  const dy = point.y - centre.y;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const localX = dx * cos + dy * sin;
+  const localY = -dx * sin + dy * cos;
+  return Math.abs(localX) <= halfWidth && Math.abs(localY) <= halfHeight;
 }

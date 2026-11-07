@@ -321,15 +321,26 @@ Mining rules:
   around the asteroid (`rayCircleHit`); a hit melts off a molten chunk that leaves along the
   beam's **reflection** about the local surface normal (`reflectDirection`), with scatter so
   repeat hits do not stack.
-- The six middle/rear barrels = **green tractor beams** with a 26 m reach. They are autonomous
-  while the rig is equipped: any drifting chunk inside that reach is captured, then dragged to
-  the cargo grill at 18 m/s.
-- The grill is a world-space rectangle at the ship centre. Chunks that reach it are consumed and
-  increment the cargo counter in the hint. Leaving mining mode releases captured chunks with
-  their pre-capture drift velocity rather than teleporting or freezing them.
+- The six middle/rear barrels = **green tractor beams** with a 5 m reach, measured from the
+  barrel. Each beam grips at most one chunk (nearest in reach) and they are autonomous while the
+  rig is equipped. A chunk can be gripped by several beams at once; their carry speeds stack
+  (1.8 m/s per beam, capped at 9 m/s).
+- Carrying is **deliberately faked**: a gripped chunk is translated straight toward the hatch at
+  a speed that also eases off with the remaining distance (`carryToward`). The step is clamped to
+  the remaining distance, so a chunk can never overshoot the intake or be flung past it. This
+  replaced a physics force law that could miss at high speed.
+- If every beam loses the chunk (5 m reach) it is dropped and drifts freely again. Leaving mining
+  mode drops all grips. Uncaptered metal cools and fades after ~8 s so it cannot starve the pool.
+- The intake is the **hull's own slatted hatch** between the two rearmost pairs (ship-texture
+  pixels: centre `(-1, 123)`, half-extents `23 × 45`), so no grill graphic is drawn. Chunks whose
+  centre enters that rotated rectangle are consumed and increment the cargo counter in the hint.
+- Metal leaves the laser slowly (1.2–2.8 m/s along the reflection) and cools while drifting, an
+  exponential `dampVelocity` of 0.55 /s, so a burst settles near the ship instead of sailing past
+  and the short-reach beams can catch it.
 - Beams and chunk sprites live in the same metric world container as tracers, so they scale with
   zoom and pan with the dust layer. Chunks are object-pooled (64). No mining audio yet.
 
 **Consequences:** mining never fires gun pairs (`updateWeapons` returns early in mining mode) and
-gun barrels never emit tractor beams. Laser aim, tractor reach and the grill remain separate
-knobs in `mining.ts`; the pure geometry (`mining-model.ts`) stays DOM-free and unit-tested.
+gun barrels never emit tractor beams. Laser aim, tractor reach, tractor acceleration and the
+hatch rectangle remain separate knobs in `mining.ts`; the pure geometry (`mining-model.ts`) stays
+DOM-free and unit-tested.

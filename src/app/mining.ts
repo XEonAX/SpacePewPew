@@ -1,29 +1,52 @@
 import { CanvasSource, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { createRng, randomRange } from '../utils/random';
 import { PIXELS_PER_METER } from './world-scale';
-import { distance, moveToward, rayCircleHit, reflectDirection } from './mining-model';
+import {
+  carryToward,
+  dampVelocity,
+  distance,
+  pointInRotatedRect,
+  rayCircleHit,
+  reflectDirection,
+} from './mining-model';
 import type { Vec2 } from './mining-model';
 import { muzzleWorldPose } from './weapons';
 import type { MuzzleAim } from './weapons';
 
-export const CHUNK_POOL_SIZE = 64;
+export const CHUNK_POOL_SIZE = 256;
 const CHUNK_SIZE_M = 0.6;
-const CHUNK_MIN_SPEED = 6;
-const CHUNK_MAX_SPEED = 13;
+// Molten metal floats away slowly so the gentle tractors can reel it in.
+const CHUNK_MIN_SPEED = 1.2;
+const CHUNK_MAX_SPEED = 2.8;
 const CHUNK_SPREAD_RAD = 0.3;
-const CHUNK_LIFETIME = 30;
-const CHUNK_FADE_SECONDS = 4;
+// Metal cools as it drifts, so a burst slows over a couple of seconds instead
+// of sailing past the ship forever.
+const CHUNK_DAMPING_PER_SECOND = 0.55;
+// Uncaptered molten metal cools and fades; captured chunks are not aged.
+const CHUNK_LIFETIME = 8;
+const CHUNK_FADE_SECONDS = 3;
 const CHUNK_CULL_RADIUS_M = 700;
 const LASER_RANGE_M = 220;
 const LASER_SPAWN_INTERVAL = 0.1;
 const LASER_BARRELS = 2;
 const TRACTOR_FIRST_BARREL = 2;
-const TRACTOR_RANGE_M = 26;
-const TRACTOR_PULL_SPEED = 18;
-const GRILL_WIDTH_M = 1.8;
-const GRILL_HEIGHT_M = 1.0;
-const GRILL_INTAKE_M = 1.3;
+/** Tractor reach, measured from the barrel that captured the chunk. */
+const TRACTOR_RANGE_M = 5;
+// Carrying is deliberately faked: grip the chunk, slide it at the hatch, slow
+// near the intake. More beams on one chunk drag it in faster.
+const PULL_SPEED_PER_BEAM_MPS = 1.8;
+const PULL_MAX_SPEED_MPS = 9;
+const PULL_ARRIVAL_SECONDS = 0.9;
 const CHUNK_TEXTURE_SIZE = 32;
+
+// The grill is part of the hull texture: the slatted hatch between the two
+// rearmost pairs. These are ship-texture pixels relative to the ship centre.
+const GRILL_LOCAL_X_PX = -1;
+const GRILL_LOCAL_Y_PX = 123;
+const GRILL_HALF_W_PX = 23;
+const GRILL_HALF_H_PX = 45;
+/** Grow the intake by half a chunk so metal does not need pixel-perfect aim. */
+const GRILL_PAD_M = CHUNK_SIZE_M * 0.5;
 
 const LASER_COLOR = 0xff5340;
 const LASER_CORE_COLOR = 0xffd9c2;
@@ -36,14 +59,12 @@ interface Chunk {
   y: number;
   vx: number;
   vy: number;
-  /** Velocity before capture, restored if the tractors shut off mid-pull. */
-  driftVx: number;
-  driftVy: number;
   spin: number;
   life: number;
   active: boolean;
   tracted: boolean;
-  barrel: number;
+  /** Every tractor barrel currently locked onto this chunk (more = faster). */
+  barrels: number[];
 }
 
 export interface MiningShip {
@@ -105,10 +126,6 @@ function createChunkTexture(): Texture {
 
 export function createMining(): Mining {
   const container = new Container();
-  const grill = new Graphics();
-  grill.blendMode = 'normal';
-  container.addChild(grill);
-
   const texture = createChunkTexture();
   const chunks: Chunk[] = [];
   for (let index = 0; index < CHUNK_POOL_SIZE; index += 1) {
@@ -122,13 +139,11 @@ export function createMining(): Mining {
       y: 0,
       vx: 0,
       vy: 0,
-      driftVx: 0,
-      driftVy: 0,
       spin: 0,
       life: 0,
       active: false,
       tracted: false,
-      barrel: -1,
+      barrels: [],
     });
   }
 
@@ -138,8 +153,9 @@ export function createMining(): Mining {
 
   const rng = createRng(0x0d1f_7a3b);
   const laserTimers = new Array<number>(LASER_BARRELS).fill(0);
+  // One chunk per tractor beam; a chunk can be gripped by several beams.
+  const barrelTargets = new Array<Chunk | null>(8).fill(null);
   let cargo = 0;
-  let flash = 0;
 
   const spawnChunk = (hit: Vec2, direction: Vec2, asteroid: MiningAsteroid): void => {
     const chunk = chunks.find((candidate) => !candidate.active);
@@ -155,13 +171,11 @@ export function createMining(): Mining {
 
     chunk.active = true;
     chunk.tracted = false;
-    chunk.barrel = -1;
+    chunk.barrels = [];
     chunk.x = hit.x + normal.x * CHUNK_SIZE_M * 0.6;
     chunk.y = hit.y + normal.y * CHUNK_SIZE_M * 0.6;
     chunk.vx = Math.cos(angle) * speed;
     chunk.vy = Math.sin(angle) * speed;
-    chunk.driftVx = chunk.vx;
-    chunk.driftVy = chunk.vy;
     chunk.life = CHUNK_LIFETIME;
     chunk.spin = randomRange(rng, -3, 3);
 
@@ -185,14 +199,22 @@ export function createMining(): Mining {
       container.scale.set(frame.zoom);
 
       const ship = frame.ship;
+      const metres = ship.metresPerShipPixel;
+      const cos = Math.cos(ship.rotation);
+      const sin = Math.sin(ship.rotation);
       const poses = frame.muzzles.map((muzzle) =>
-        muzzleWorldPose(muzzle, ship.x, ship.y, ship.rotation, ship.metresPerShipPixel),
+        muzzleWorldPose(muzzle, ship.x, ship.y, ship.rotation, metres),
       );
-      const grillX = ship.x;
-      const grillY = ship.y;
+
+      // Intake is the hull's own slatted hatch, so no grill graphic is drawn.
+      const grillLocalX = GRILL_LOCAL_X_PX * metres;
+      const grillLocalY = GRILL_LOCAL_Y_PX * metres;
+      const grillX = ship.x + grillLocalX * cos - grillLocalY * sin;
+      const grillY = ship.y + grillLocalX * sin + grillLocalY * cos;
+      const grillHalfW = GRILL_HALF_W_PX * metres + GRILL_PAD_M;
+      const grillHalfH = GRILL_HALF_H_PX * metres + GRILL_PAD_M;
 
       beams.clear();
-      flash = Math.max(0, flash - frame.dt * 2.2);
 
       // Front pair: red mining lasers. Each barrel that bites the asteroid
       // melts a fragment off along the reflection angle.
@@ -232,105 +254,114 @@ export function createMining(): Mining {
         }
       }
 
-      // Rear six: autonomous green tractor beams drag nearby metal into the
-      // centre grill. Capture only happens while the rig is equipped.
+      for (const chunk of chunks) {
+        chunk.tracted = false;
+        chunk.barrels = [];
+      }
+
+      // Each beam grips at most one chunk, choosing the nearest one in reach.
+      // Several beams can grip the same chunk, and their forces stack.
+      if (frame.tractorsActive) {
+        for (let barrel = TRACTOR_FIRST_BARREL; barrel < poses.length; barrel += 1) {
+          const pose = poses[barrel];
+          if (!pose) {
+            barrelTargets[barrel] = null;
+            continue;
+          }
+          let target = barrelTargets[barrel] ?? null;
+          const stillHeld =
+            target !== null &&
+            target.active &&
+            Math.hypot(pose.x - target.x, pose.y - target.y) <= TRACTOR_RANGE_M;
+          if (!stillHeld) {
+            target = null;
+            let bestDistance = TRACTOR_RANGE_M;
+            for (const chunk of chunks) {
+              if (!chunk.active) continue;
+              const reach = Math.hypot(pose.x - chunk.x, pose.y - chunk.y);
+              if (reach <= bestDistance) {
+                bestDistance = reach;
+                target = chunk;
+              }
+            }
+            barrelTargets[barrel] = target;
+          }
+          if (target) {
+            target.tracted = true;
+            target.barrels.push(barrel);
+          }
+        }
+      }
+
       for (const chunk of chunks) {
         if (!chunk.active) continue;
-        if (!frame.tractorsActive) {
-          if (chunk.tracted) {
-            chunk.tracted = false;
-            chunk.vx = chunk.driftVx;
-            chunk.vy = chunk.driftVy;
-          }
+
+        if (chunk.tracted) {
+          // Fake carry: translate straight to the hatch, faster per beam and
+          // never faster than the remaining distance, so it cannot overshoot.
+          const carried = carryToward(
+            { x: chunk.x, y: chunk.y },
+            { x: grillX, y: grillY },
+            frame.dt,
+            chunk.barrels.length,
+            {
+              speedPerBeam: PULL_SPEED_PER_BEAM_MPS,
+              maxSpeed: PULL_MAX_SPEED_MPS,
+              arrivalSeconds: PULL_ARRIVAL_SECONDS,
+            },
+          );
+          chunk.x = carried.x;
+          chunk.y = carried.y;
+        } else {
+          const damped = dampVelocity(
+            { x: chunk.vx, y: chunk.vy },
+            CHUNK_DAMPING_PER_SECOND,
+            frame.dt,
+          );
+          chunk.vx = damped.x;
+          chunk.vy = damped.y;
+          chunk.x += chunk.vx * frame.dt;
+          chunk.y += chunk.vy * frame.dt;
+          chunk.life -= frame.dt;
+        }
+
+        if (chunk.life <= 0) {
+          chunk.active = false;
+          chunk.sprite.visible = false;
           continue;
         }
 
-        if (!chunk.tracted) {
-          let bestBarrel = -1;
-          let bestDistance = TRACTOR_RANGE_M;
-          for (let barrel = TRACTOR_FIRST_BARREL; barrel < poses.length; barrel += 1) {
-            const pose = poses[barrel];
-            if (!pose) continue;
-            const reach = Math.hypot(pose.x - chunk.x, pose.y - chunk.y);
-            if (reach <= bestDistance) {
-              bestDistance = reach;
-              bestBarrel = barrel;
-            }
-          }
-          if (bestBarrel >= 0) {
-            chunk.tracted = true;
-            chunk.barrel = bestBarrel;
-            chunk.driftVx = chunk.vx;
-            chunk.driftVy = chunk.vy;
-          }
+        if (!chunk.tracted && distance(chunk, ship) > CHUNK_CULL_RADIUS_M) {
+          chunk.active = false;
+          chunk.sprite.visible = false;
+          continue;
         }
 
-        if (!chunk.tracted) continue;
-
-        const toGrill = distance(chunk, { x: grillX, y: grillY });
-        if (toGrill <= GRILL_INTAKE_M) {
+        if (
+          chunk.tracted &&
+          pointInRotatedRect(chunk, { x: grillX, y: grillY }, ship.rotation, grillHalfW, grillHalfH)
+        ) {
           chunk.active = false;
           chunk.sprite.visible = false;
           cargo += 1;
-          flash = 1;
           continue;
         }
-        const stepped = moveToward(
-          { x: chunk.x, y: chunk.y },
-          { x: grillX, y: grillY },
-          TRACTOR_PULL_SPEED,
-          frame.dt,
-        );
-        chunk.x = stepped.x;
-        chunk.y = stepped.y;
 
-        const emitter = poses[chunk.barrel];
-        if (emitter) {
-          const flicker = 0.5 + 0.12 * Math.sin(frame.now * 24 + chunk.barrel);
+        for (const barrel of chunk.barrels) {
+          const emitter = poses[barrel];
+          if (!emitter) continue;
+          const flicker = 0.5 + 0.12 * Math.sin(frame.now * 24 + barrel);
           beams
             .moveTo(emitter.x * PIXELS_PER_METER, emitter.y * PIXELS_PER_METER)
             .lineTo(chunk.x * PIXELS_PER_METER, chunk.y * PIXELS_PER_METER)
             .stroke({ color: TRACTOR_COLOR, width: 2.4, alpha: flicker });
         }
-      }
 
-      // Drift, age and draw the metal.
-      for (const chunk of chunks) {
-        if (!chunk.active) continue;
-        if (!chunk.tracted) {
-          chunk.x += chunk.vx * frame.dt;
-          chunk.y += chunk.vy * frame.dt;
-          chunk.life -= frame.dt;
-          const tooFar = distance(chunk, { x: ship.x, y: ship.y }) > CHUNK_CULL_RADIUS_M;
-          if (chunk.life <= 0 || tooFar) {
-            chunk.active = false;
-            chunk.sprite.visible = false;
-            continue;
-          }
-        }
         chunk.sprite.position.set(chunk.x * PIXELS_PER_METER, chunk.y * PIXELS_PER_METER);
         chunk.sprite.rotation += chunk.spin * frame.dt;
-        chunk.sprite.alpha = Math.min(1, Math.max(0, chunk.life / CHUNK_FADE_SECONDS));
-      }
-
-      // Centre cargo grill: a dark rectangle with glowing intake slats.
-      const widthPx = GRILL_WIDTH_M * PIXELS_PER_METER;
-      const heightPx = GRILL_HEIGHT_M * PIXELS_PER_METER;
-      grill.position.set(grillX * PIXELS_PER_METER, grillY * PIXELS_PER_METER);
-      grill.rotation = ship.rotation;
-      grill.clear();
-      grill
-        .roundRect(-widthPx / 2, -heightPx / 2, widthPx, heightPx, 6)
-        .fill({ color: 0x050d12, alpha: 0.92 });
-      grill
-        .roundRect(-widthPx / 2, -heightPx / 2, widthPx, heightPx, 6)
-        .stroke({ color: TRACTOR_COLOR, width: 2, alpha: 0.45 + 0.45 * flash });
-      for (let slat = 1; slat <= 3; slat += 1) {
-        const x = -widthPx / 2 + (slat * widthPx) / 4 - 1;
-        grill.rect(x, -heightPx / 2 + 5, 2, heightPx - 10).fill({
-          color: 0x1a6b4c,
-          alpha: 0.55 + 0.4 * flash,
-        });
+        chunk.sprite.alpha = chunk.tracted
+          ? 1
+          : Math.min(1, Math.max(0, chunk.life / CHUNK_FADE_SECONDS));
       }
     },
     getCargo(): number {
