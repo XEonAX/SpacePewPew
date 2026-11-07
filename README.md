@@ -51,6 +51,19 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 | `pnpm browser:stop`                 | Close the shared browser                                             |
 | `pnpm mcp:browser`                  | Run the Playwright MCP stdio server manually                         |
 
+### Harness slash commands
+
+In the DeepSeek Harness chat composer, type `/` (or click the composer's `+`) to see the
+zero-token commands contributed by the desktop profile's `spacepewpew-commands` bundle:
+
+- `/dev` — start/ensure the detached dev server (`pnpm dev:bg`),
+- `/browser` — launch/reuse the shared Playwright Chrome.
+
+Command handlers run in the Harness host process, outside the agent sandbox: no model turn, no
+tokens, and Chrome keeps its own sandbox. The bundle lives in
+`~/.dsh/profiles/desktop/spacepewpew-commands`; the equivalent terminal commands remain
+`pnpm dev:bg` and `pnpm browser:launch`.
+
 ## Project layout
 
 ```

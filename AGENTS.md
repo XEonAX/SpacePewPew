@@ -171,6 +171,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 ## Shared browser + Playwright MCP
 
 - CDP endpoint: `http://127.0.0.1:9222`; profile: `.agent/chrome-profile`.
+- The desktop profile contributes zero-token chat commands `/dev` and `/browser`
+  (`~/.dsh/profiles/desktop/spacepewpew-commands`, host-side, no model turn).
 - The browser is launched once and reused across sessions until `pnpm browser:stop`.
 - `pnpm browser:inspect` writes `.agent/browser/latest.png` and `.agent/browser/latest.json`
   (page errors, console errors, failed requests, canvas size, renderer, FPS).
