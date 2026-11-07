@@ -41,6 +41,9 @@ const FRONT_TURN_SCALE = 1.85;
 /** Tractor barrels slew faster than guns so their beams stay on the cargo. */
 const MINING_TURN_SCALE = 1.7;
 const MUZZLE_GLOW_SIZE = 28;
+/** Mining barrel glow colours: red front lasers, green tractor barrels. */
+const MINING_LASER_TINT = 0xff4a2e;
+const MINING_TRACTOR_TINT = 0x4dff8a;
 
 const mount = (
   x: number,
@@ -120,6 +123,8 @@ interface TurretFrame {
    * barrels can swing fully round to point at what they carry.
    */
   tractorTargets?: readonly ({ x: number; y: number } | null)[];
+  /** Which barrels are currently emitting a mining beam (per mount index). */
+  miningBeams?: readonly boolean[];
   dt: number;
   now: number;
 }
@@ -251,19 +256,35 @@ export function createTurrets(texture: Texture): Turrets {
         const muzzleY = config.y - Math.cos(aim.angle) * muzzleLength;
 
         const glow = glowSprites[index]!;
-        // A pair charging a committed shot keeps its firing barrels lit even
-        // once the mouse leaves their arc.
-        const charging = (glowLevels[pairIndex] ?? 1) > 1;
-        if (!charging) {
-          latchedBarrels[index] = false;
-        } else if (inArc) {
-          latchedBarrels[index] = true;
+        let targetAlpha: number;
+        let glowSize: number;
+
+        if (frame.mode === 'mining') {
+          // Mining muzzle glows never vanish: front pair is laser red, the six
+          // tractor barrels green, and each brightens while its beam is live.
+          const beamActive = frame.miningBeams?.[index] ?? false;
+          glow.tint = index < 2 ? MINING_LASER_TINT : MINING_TRACTOR_TINT;
+          const miningFlicker = Math.sin(frame.now * 18 + index * 1.7);
+          targetAlpha = beamActive ? 1 : 0.72;
+          glowSize = MUZZLE_GLOW_SIZE * (beamActive ? 1.9 : 1) * (1 + 0.02 * miningFlicker);
+        } else {
+          glow.tint = 0xffffff;
+          // A pair charging a committed shot keeps its firing barrels lit even
+          // once the mouse leaves their arc.
+          const charging = (glowLevels[pairIndex] ?? 1) > 1;
+          if (!charging) {
+            latchedBarrels[index] = false;
+          } else if (inArc) {
+            latchedBarrels[index] = true;
+          }
+          const level = inArc || latchedBarrels[index] ? (glowLevels[pairIndex] ?? 1) : 1;
+          const charge = Math.max(0, level - 1);
+          const flicker = Math.sin(frame.now * 5 + index * 1.7);
+          targetAlpha =
+            level <= 0 ? 0 : Math.min(1, 0.92 + 0.08 * Math.min(1, charge / 0.9) + 0.02 * flicker);
+          glowSize = MUZZLE_GLOW_SIZE * (1 + 0.55 * charge) * (1 + 0.015 * flicker);
         }
-        const level = inArc || latchedBarrels[index] ? (glowLevels[pairIndex] ?? 1) : 1;
-        const charge = Math.max(0, level - 1);
-        const flicker = Math.sin(frame.now * 5 + index * 1.7);
-        const targetAlpha =
-          level <= 0 ? 0 : Math.min(1, 0.92 + 0.08 * Math.min(1, charge / 0.9) + 0.02 * flicker);
+
         const alpha =
           glowAlphas[index]! + (targetAlpha - glowAlphas[index]!) * Math.min(1, frame.dt * 10);
         glowAlphas[index] = alpha;
@@ -271,9 +292,8 @@ export function createTurrets(texture: Texture): Turrets {
         glow.position.set(muzzleX, muzzleY);
         glow.alpha = alpha;
         glow.visible = alpha > 0.005 || targetAlpha > 0;
-        const size = MUZZLE_GLOW_SIZE * (1 + 0.55 * charge) * (1 + 0.015 * flicker);
-        glow.width = size;
-        glow.height = size;
+        glow.width = glowSize;
+        glow.height = glowSize;
 
         nextAimPoses.push({
           pairIndex,

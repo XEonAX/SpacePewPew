@@ -358,6 +358,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       mouseActive: pointer.active,
       mode: turretAimMode(weaponMode, aimMode),
       tractorTargets,
+      miningBeams: mining.getActiveBeams(),
       dt: deltaSeconds,
       now: lighting.time,
     });

@@ -131,6 +131,8 @@ export interface Mining {
   toggleCarryMode(): CarryMode;
   /** World position of the chunk each barrel holds (front barrels are null). */
   getTractorTargets(): readonly ({ x: number; y: number } | null)[];
+  /** Which barrels are currently emitting a beam, indexed by mount. */
+  getActiveBeams(): readonly boolean[];
   destroy(): void;
 }
 
@@ -220,6 +222,7 @@ export function createMining(): Mining {
   const rng = createRng(0x0d1f_7a3b);
   const laserTimers = new Array<number>(LASER_BARRELS).fill(0);
   const tractorTargets: ({ x: number; y: number } | null)[] = new Array(8).fill(null);
+  const beamActivity: boolean[] = new Array(8).fill(false);
   // Sticky per-beam grips: a beam keeps its chunk until it is delivered/lost,
   // only hunting for a new (external-first) chunk when free.
   const barrelTargets = new Array<Chunk | null>(8).fill(null);
@@ -287,6 +290,7 @@ export function createMining(): Mining {
       const grillHalfH = GRILL_HALF_H_PX * metres + GRILL_PAD_M;
 
       beams.clear();
+      beamActivity.fill(false);
 
       // Front pair: red mining lasers. Each barrel that bites the asteroid
       // melts a fragment off along the reflection angle.
@@ -307,6 +311,7 @@ export function createMining(): Mining {
         };
 
         if (frame.laserFiring) {
+          beamActivity[barrel] = true;
           beams
             .moveTo(pose.x * PIXELS_PER_METER, pose.y * PIXELS_PER_METER)
             .lineTo(end.x * PIXELS_PER_METER, end.y * PIXELS_PER_METER)
@@ -497,6 +502,7 @@ export function createMining(): Mining {
         }
 
         for (const { barrel, emitter } of engaged) {
+          beamActivity[barrel] = true;
           const flicker = 0.5 + 0.12 * Math.sin(frame.now * 24 + barrel);
           beams
             .moveTo(emitter.x * PIXELS_PER_METER, emitter.y * PIXELS_PER_METER)
@@ -523,6 +529,9 @@ export function createMining(): Mining {
     },
     getTractorTargets(): readonly ({ x: number; y: number } | null)[] {
       return tractorTargets;
+    },
+    getActiveBeams(): readonly boolean[] {
+      return beamActivity;
     },
     destroy(): void {
       container.destroy({ children: true });
