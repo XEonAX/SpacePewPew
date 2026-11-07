@@ -114,6 +114,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     shipGlow,
     asteroidColor,
     asteroidNormal,
+    asteroid2Color,
+    asteroid2Normal,
     turretTexture,
   ] = await Promise.all([
     Assets.load<Texture>(assetUrl('assets/lighting/ship-color.png')),
@@ -122,6 +124,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     Assets.load<Texture>(assetUrl('assets/lighting/ship-glow.png')),
     Assets.load<Texture>(assetUrl('assets/lighting/asteroid-color.png')),
     Assets.load<Texture>(assetUrl('assets/lighting/asteroid-normal.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/asteroid2-color.png')),
+    Assets.load<Texture>(assetUrl('assets/lighting/asteroid2-normal.png')),
     Assets.load<Texture>(assetUrl('assets/lighting/turret.png')),
   ]);
 
@@ -134,7 +138,10 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   content.addChild(ground.mesh, exhaust.smoke);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
-  const asteroidField = createAsteroidField(asteroidColor, asteroidNormal);
+  const asteroidField = createAsteroidField([
+    { color: asteroidColor, normal: asteroidNormal },
+    { color: asteroid2Color, normal: asteroid2Normal },
+  ]);
   const turrets = createTurrets(turretTexture);
   const bullets = createBullets();
   const mining = createMining();
@@ -346,6 +353,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
         (shipScreenX - width / 2) / PIXELS_PER_METER,
         padCentreY - ASTEROID_AHEAD_METERS,
         rockDiameter,
+        1,
       );
       shipPlaced = true;
     }

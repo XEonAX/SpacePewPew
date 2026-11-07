@@ -105,8 +105,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   and rotated-rect intake math, unit-tested.
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
   mesh plus a circle collider fitted to the roughly circular art, exposed as collider/mining
-  lists. `add(x, y, diameter)` places one; the field is seeded with the demo rock beside the pad
-  and a new rock 20 m dead ahead of the nose.
+  lists. `add(x, y, diameter, variant?)` places one, picking an art variant. The field is seeded
+  with the demo rock beside the pad and the **second supplied asteroid** 20 m dead ahead of the
+  nose (variant 1).
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade; a swept
   test stops them on every asteroid circle (`blockers` in the frame).
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
@@ -170,7 +171,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   generation/projection math pure in `*-model.ts` files so it can be unit tested.
 - **Reference art is source, not runtime.** Treat `docs/reference/` as supplied source art and
   `public/assets/lighting/` as the processed runtime copies. Processing runs were a one-off
-  matte/despill/premultiplied-resample pass; don't add a build-time asset pipeline.
+  matte/despill/premultiplied-resample pass (see `public/assets/lighting/README.md`), including
+  the ~0.30 normal-strength softening and flat normals in the transparent gutter; don't add a
+  build-time asset pipeline.
 - **Lighting is a custom Mesh shader.** Lit meshes come from `src/app/lit-sprite.ts`; normals
   are rotated by each mesh's rotation and combined with one directional key light + ambient.
   The renderer is pinned to WebGL because the shader is GLSL. Do not add a lighting library back

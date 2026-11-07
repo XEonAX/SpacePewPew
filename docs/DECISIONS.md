@@ -535,3 +535,33 @@ Rules:
 **Consequences:** rock count is the field's responsibility; scene code only iterates the collider
 list. Grow the field with `add()`, and keep the collider math pure in `asteroid-collision.ts` so
 the same response works for any number of rocks.
+
+## ADR-022 — Second asteroid art variant
+
+**Status:** accepted (2026-11-07).
+
+A second asteroid was supplied (rounder, more cratered than the first) for the rock parked ahead
+of the ship. It is a separate art variant, not a reskin of the first: `createAsteroidField` now
+takes an array of `AsteroidArt` (colour + normal) and `add(x, y, diameter, variant)` picks one, so
+more supplied asteroids can be added without touching the field's contract.
+
+The new art went through the **same one-off treatment** documented in
+`public/assets/lighting/README.md`, so it lights identically to the existing rocks:
+
+- magenta chroma-key to alpha with soft-edge matte extraction and despill,
+- trimmed to the silhouette with a 4 px transparent gutter,
+- resampled in premultiplied alpha (LANCZOS) at roughly 2× the rock's on-screen size
+  (620 px wide at the current camera scale),
+- normal map masked with the colour alpha and paired at identical framing,
+- normals **softened to ~0.30** (blended toward a flat `(0, 0, 1)` normal) because the art already
+  has baked cel shading; flat `(127, 127, 254)` normals fill the transparent gutter so linear
+  filtering never pulls a sideways normal into the silhouette edge.
+
+The processed silhouette radius measures **0.474 × art width** against the first rock's 0.477, so
+both use the shared `ASTEROID_RADIUS_OF_WIDTH` collider ratio rather than a per-variant constant.
+The supplied sources live in `docs/reference/asteroid2-*.webp`; runtime copies are
+`public/assets/lighting/asteroid2-*.png`.
+
+**Consequences:** adding an asteroid is now "supply art, process it with the documented pass,
+append it to the field's art array, pick its variant index". Keep processed textures out of the
+source tree and the pipeline one-off.

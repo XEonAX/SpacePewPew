@@ -34,6 +34,23 @@ Top-down fighter, 941 × 1672 px.
   </tr>
 </table>
 
+## Asteroid, second variant
+
+1288 × 1221 px — a rounder rock, supplied with the same colour/normal pairing. Processed to
+`public/assets/lighting/asteroid2-*.png` with the identical one-off treatment and used for the
+second rock in the world field.
+
+<table>
+  <tr>
+    <td><img src="reference/asteroid2-color.webp" width="320" alt="Second asteroid color/key art" /></td>
+    <td><img src="reference/asteroid2-normal.webp" width="320" alt="Second asteroid normal map" /></td>
+  </tr>
+  <tr>
+    <td align="center"><code>asteroid2-color.webp</code></td>
+    <td align="center"><code>asteroid2-normal.webp</code></td>
+  </tr>
+</table>
+
 ## Notes for future use
 
 - Key out the magenta background before generating runtime sprites.
