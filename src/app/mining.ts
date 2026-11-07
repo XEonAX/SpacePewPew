@@ -2,7 +2,7 @@ import { CanvasSource, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { createRng, randomRange } from '../utils/random';
 import { PIXELS_PER_METER } from './world-scale';
 import {
-  carryToward,
+  arcToward,
   dampVelocity,
   distance,
   pointInRotatedRect,
@@ -33,15 +33,16 @@ const LASER_BARRELS = 2;
 const TRACTOR_FIRST_BARREL = 2;
 /** Tractor reach, measured from the barrel that captured the chunk. */
 const TRACTOR_RANGE_M = 5;
-// Carrying is deliberately faked: grip the chunk and slide it at the hatch at
-// full speed, easing only over the last short stretch so delivery stays snappy.
-const PULL_SPEED_PER_BEAM_MPS = 2.5;
-const PULL_MAX_SPEED_MPS = 9;
-const PULL_EASE_DISTANCE_M = 0.2;
-const PULL_EASE_FLOOR = 0.7;
+// Curved fake carry: the chunk arcs to the hatch with a bounded heading change
+// so a tractor barrel can keep its beam on it. P swaps in the physics model.
+const CURVE_SPEED_PER_BEAM_MPS = 2.5;
+const CURVE_MAX_SPEED_MPS = 8;
+// Below the turret's own ~3.2 rad/s sustained slew, so the beam can track it.
+const CURVE_MAX_TURN_RATE = 2.2;
+const CURVE_EASE_DISTANCE_M = 0.2;
+const CURVE_EASE_FLOOR = 0.7;
 
-// Physics-flavoured carry (P toggles in game for an A/B feel test).
-export type CarryMode = 'physics' | 'fake';
+export type CarryMode = 'curved' | 'physics';
 const PHYSICS_ACCEL_MPS2 = 6;
 const PHYSICS_MAX_SPEED_MPS = 8;
 const PHYSICS_ARRIVAL_SECONDS = 0.7;
@@ -173,7 +174,7 @@ export function createMining(): Mining {
   // Sticky per-beam grips: a beam keeps its chunk until it is delivered/lost,
   // only hunting for a new (external-first) chunk when free.
   const barrelTargets = new Array<Chunk | null>(8).fill(null);
-  let carryMode: CarryMode = 'physics';
+  let carryMode: CarryMode = 'curved';
   let cargo = 0;
 
   const spawnChunk = (hit: Vec2, direction: Vec2, asteroid: MiningAsteroid): void => {
@@ -358,26 +359,27 @@ export function createMining(): Mining {
             chunk.x += chunk.vx * frame.dt;
             chunk.y += chunk.vy * frame.dt;
           } else {
-            // Fake carry in the ship's frame: the chunk is dragged along with
-            // the ship as well as toward the hatch, so a flying ship never
-            // outruns it. Speed scales per beam, capped by remaining distance.
-            const carried = carryToward(
-              { x: chunk.x + ship.vx * frame.dt, y: chunk.y + ship.vy * frame.dt },
-              { x: grillX, y: grillY },
+            // Curved carry in the ship's frame: the chunk arcs to the hatch,
+            // turning no faster than a tractor barrel can follow it and keeping
+            // up with a moving ship. It can never overshoot the intake.
+            const carried = arcToward(
+              { x: chunk.x - ship.x, y: chunk.y - ship.y },
+              { x: grillX - ship.x, y: grillY - ship.y },
+              { x: chunk.vx - ship.vx, y: chunk.vy - ship.vy },
               frame.dt,
               chunk.barrels.length,
               {
-                speedPerBeam: PULL_SPEED_PER_BEAM_MPS,
-                maxSpeed: PULL_MAX_SPEED_MPS,
-                easeDistance: PULL_EASE_DISTANCE_M,
-                easeFloor: PULL_EASE_FLOOR,
+                speedPerBeam: CURVE_SPEED_PER_BEAM_MPS,
+                maxSpeed: CURVE_MAX_SPEED_MPS,
+                maxTurnRate: CURVE_MAX_TURN_RATE,
+                easeDistance: CURVE_EASE_DISTANCE_M,
+                easeFloor: CURVE_EASE_FLOOR,
               },
             );
-            chunk.x = carried.x;
-            chunk.y = carried.y;
-            // Released metal keeps the ship's motion instead of hanging.
-            chunk.vx = ship.vx;
-            chunk.vy = ship.vy;
+            chunk.x = ship.x + carried.x;
+            chunk.y = ship.y + carried.y;
+            chunk.vx = ship.vx + carried.vx;
+            chunk.vy = ship.vy + carried.vy;
           }
         } else {
           const damped = dampVelocity(
@@ -438,7 +440,7 @@ export function createMining(): Mining {
       return carryMode;
     },
     toggleCarryMode(): CarryMode {
-      carryMode = carryMode === 'physics' ? 'fake' : 'physics';
+      carryMode = carryMode === 'curved' ? 'physics' : 'curved';
       return carryMode;
     },
     getTractorTargets(): readonly ({ x: number; y: number } | null)[] {

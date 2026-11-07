@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  arcToward,
   carryToward,
   dampVelocity,
   distance,
@@ -9,6 +10,7 @@ import {
 } from '../src/app/mining-model';
 
 const CARRY = { speedPerBeam: 1.8, maxSpeed: 9, arrivalSeconds: 0.9 };
+const ARC = { speedPerBeam: 2.5, maxSpeed: 8, maxTurnRate: 2.2 };
 
 describe('mining reflection', () => {
   it('bounces a head-on ray straight back', () => {
@@ -67,6 +69,48 @@ describe('metal damping', () => {
 
   it('leaves a chunk untouched with no damping', () => {
     expect(dampVelocity({ x: 3, y: 4 }, 0, 1)).toEqual({ x: 3, y: 4 });
+  });
+});
+
+describe('curved tractor carry', () => {
+  it('turns toward the hatch no faster than the allowed rate', () => {
+    const carried = arcToward({ x: 0, y: 5 }, { x: 0, y: 0 }, { x: 3, y: 0 }, 1 / 60, 1, ARC);
+    const before = Math.atan2(0, 3);
+    const after = Math.atan2(carried.vy, carried.vx);
+    expect(Math.abs(after - before)).toBeLessThanOrEqual(ARC.maxTurnRate / 60 + 1e-9);
+  });
+
+  it('limits speed by distance so the arc stays trackable', () => {
+    const carried = arcToward({ x: 0.5, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, 1, 6, ARC);
+    expect(Math.hypot(carried.vx, carried.vy)).toBeLessThanOrEqual(ARC.maxTurnRate * 0.5 + 1e-9);
+  });
+
+  it('arrives without overshooting', () => {
+    let position = { x: 6, y: 0 };
+    let velocity = { x: 0, y: 2 };
+    let arrived = false;
+    for (let frame = 0; frame < 600 && !arrived; frame += 1) {
+      const carried = arcToward(position, { x: 0, y: 0 }, velocity, 1 / 60, 1, ARC);
+      position = { x: carried.x, y: carried.y };
+      velocity = { x: carried.vx, y: carried.vy };
+      arrived = carried.arrived;
+    }
+    expect(arrived).toBe(true);
+    expect(Math.hypot(position.x, position.y)).toBeLessThan(0.05);
+  });
+
+  it('travels a longer (curved) path than the straight line', () => {
+    let position = { x: 6, y: 0 };
+    let velocity = { x: 0, y: 2 };
+    let travelled = 0;
+    for (let frame = 0; frame < 600; frame += 1) {
+      const carried = arcToward(position, { x: 0, y: 0 }, velocity, 1 / 60, 1, ARC);
+      travelled += Math.hypot(carried.x - position.x, carried.y - position.y);
+      position = { x: carried.x, y: carried.y };
+      velocity = { x: carried.vx, y: carried.vy };
+      if (carried.arrived) break;
+    }
+    expect(travelled).toBeGreaterThan(6.5);
   });
 });
 

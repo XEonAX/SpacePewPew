@@ -40,7 +40,7 @@ export function weaponHint(
   aimMode: AimMode,
   muted: boolean,
   cargo = 0,
-  carryMode: 'physics' | 'fake' = 'physics',
+  carryMode: 'curved' | 'physics' = 'curved',
 ): string {
   const controls =
     weaponMode === 'mining'

@@ -70,6 +70,8 @@ export interface CarryOptions {
   easeDistance?: number;
   /** Fraction of carry speed kept right at the hatch (1 = no slowdown). */
   easeFloor?: number;
+  /** Distance at which the chunk counts as delivered (metres). */
+  arriveDistance?: number;
 }
 
 export interface CarryResult {
@@ -168,4 +170,85 @@ export function pointInRotatedRect(
   const localX = dx * cos + dy * sin;
   const localY = -dx * sin + dy * cos;
   return Math.abs(localX) <= halfWidth && Math.abs(localY) <= halfHeight;
+}
+
+export interface ArcOptions {
+  /** Metres per second each tractor beam adds while carrying. */
+  speedPerBeam: number;
+  /** Hard cap on the carried speed, however many beams are on the chunk. */
+  maxSpeed: number;
+  /** Radar/s of heading change the tractor allows, so the barrel can follow. */
+  maxTurnRate: number;
+  /** Final-approach easing distance in metres (0 = no easing). */
+  easeDistance?: number;
+  /** Fraction of carry speed kept right at the hatch (1 = no slowdown). */
+  easeFloor?: number;
+  /** Distance at which the chunk counts as delivered (metres). */
+  arriveDistance?: number;
+}
+
+export interface ArcResult {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  arrived: boolean;
+}
+
+/**
+ * Curved tractor carry. The chunk is pulled toward the hatch but its heading
+ * only rotates at `maxTurnRate`, and its speed is limited by how far it is from
+ * the hatch, so the arc stays inside what a tractor barrel can physically track.
+ * The step never exceeds the remaining distance, so it still cannot overshoot.
+ */
+export function arcToward(
+  position: Vec2,
+  target: Vec2,
+  velocity: Vec2,
+  dt: number,
+  beams: number,
+  options: ArcOptions,
+): ArcResult {
+  const dx = target.x - position.x;
+  const dy = target.y - position.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist === 0 || dt <= 0) {
+    return { x: target.x, y: target.y, vx: 0, vy: 0, arrived: true };
+  }
+
+  const desired = { x: dx / dist, y: dy / dist };
+  const speedNow = Math.hypot(velocity.x, velocity.y);
+  let heading = speedNow > 0.05 ? { x: velocity.x / speedNow, y: velocity.y / speedNow } : desired;
+
+  const maxTurn = Math.max(0, options.maxTurnRate) * dt;
+  const cross = heading.x * desired.y - heading.y * desired.x;
+  const dot = Math.max(-1, Math.min(1, heading.x * desired.x + heading.y * desired.y));
+  const turn = Math.max(-maxTurn, Math.min(maxTurn, Math.atan2(cross, dot)));
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  heading = { x: heading.x * cos - heading.y * sin, y: heading.x * sin + heading.y * cos };
+
+  const beamSpeed = Math.min(options.maxSpeed, Math.max(0, beams) * options.speedPerBeam);
+  const easeDistance = Math.max(0, options.easeDistance ?? 0);
+  const easeFloor = Math.min(1, Math.max(0, options.easeFloor ?? 1));
+  const ease =
+    easeDistance > 0 && dist < easeDistance
+      ? easeFloor + (1 - easeFloor) * (dist / easeDistance)
+      : 1;
+  // Cap the speed by the turn rate so the chunk never swings round the hull
+  // faster than the tractor barrel can rotate toward it. Keep a margin below
+  // the orbital rate, otherwise the chunk would circle the hatch forever.
+  const orbitLimit = Math.max(0, options.maxTurnRate) * dist * 0.7;
+  const speed = Math.min(beamSpeed * ease, orbitLimit);
+  const arriveDistance = Math.max(0, options.arriveDistance ?? 0.05);
+  const step = Math.min(dist, speed * dt);
+  const arrived = dist <= Math.max(step, arriveDistance);
+
+  return {
+    x: arrived ? target.x : position.x + heading.x * step,
+    y: arrived ? target.y : position.y + heading.y * step,
+    vx: arrived ? 0 : heading.x * speed,
+    vy: arrived ? 0 : heading.y * speed,
+    arrived,
+  };
 }

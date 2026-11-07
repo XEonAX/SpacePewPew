@@ -85,9 +85,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   autonomous green tractor beams (5 m reach, max six carried chunks, grips are sticky and never
   stolen, free beams claim the most external chunk first, barrels swing fully round to face
   their chunk) that carry metal in the ship's frame into the hull's own slatted hatch. Carry is
-  switchable in game with **P**: `physics` (bounded acceleration, default) or `fake` (straight
-  slide with a short final ease). Beams drop a chunk that leaves their reach; uncaptured metal
-  cools and fades. Object-pooled chunks (256); no audio yet.
+  switchable in game with **P**: `curved` (default — arcs to the hatch at a turn rate the barrels
+  can track) or `physics` (bounded acceleration). Beams drop a chunk that leaves their reach;
+  uncaptured metal cools and fades. Object-pooled chunks (256); no audio yet.
 - `src/app/mining-model.ts` — pure reflection, ray/circle laser-hit, beam-carry and
   rotated-rect intake math, unit-tested.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade.
