@@ -167,8 +167,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const canvas = app.canvas as HTMLCanvasElement;
   const pointer = { x: app.screen.width / 2, y: app.screen.height / 2, active: false };
   const shipScreen = { x: 0, y: 0 };
-  /** Collider debug gizmo, on by default while the shapes are being tuned. */
-  let showColliders = true;
+  /** Collider debug gizmo: hidden for normal play, F2 shows it for tuning. */
+  let showColliders = false;
   const updatePointer = (event: PointerEvent): void => {
     const bounds = canvas.getBoundingClientRect();
     pointer.x = ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * app.screen.width;
@@ -285,6 +285,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode()) +
       (showColliders ? ' · F2 hide colliders' : ' · F2 colliders');
   };
+  updateHint();
 
   const flight = createFlightState();
   /**
