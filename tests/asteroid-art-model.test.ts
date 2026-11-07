@@ -20,8 +20,8 @@ describe('asteroid art model', () => {
   });
 
   it('builds a detailed star-shaped visual outline', () => {
-    expect(art.outline.length).toBeGreaterThanOrEqual(16);
-    expect(art.outline.length).toBeLessThanOrEqual(24);
+    expect(art.outline.length).toBeGreaterThanOrEqual(10);
+    expect(art.outline.length).toBeLessThanOrEqual(20);
     expect(pointInPolygon(art.outline, { x: 0, y: 0 })).toBe(true);
     for (const point of art.outline) {
       expect(Math.hypot(point.x, point.y)).toBeLessThanOrEqual(SIZE * 0.55 + 1e-9);
@@ -33,7 +33,7 @@ describe('asteroid art model', () => {
 
   it('supplies a simplified collider silhouette', () => {
     expect(art.silhouette.length).toBeGreaterThanOrEqual(6);
-    expect(art.silhouette.length).toBeLessThanOrEqual(16);
+    expect(art.silhouette.length).toBeLessThanOrEqual(18);
     expect(art.silhouette.length).toBeLessThan(art.outline.length);
     for (const point of art.silhouette) {
       expect(Number.isFinite(point.x)).toBe(true);

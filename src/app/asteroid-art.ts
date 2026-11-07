@@ -4,8 +4,10 @@ import { generateAsteroidArt } from './asteroid-art-model';
 import type { AsteroidPalette } from './asteroid-art-model';
 
 /** Procedural variants generated at startup, on top of the two supplied arts. */
-export const GENERATED_ASTEROID_VARIANTS = 6;
-const TEXTURE_SIZE = 512;
+export const GENERATED_ASTEROID_VARIANTS = 8;
+/** Art quality first: bake large, detail-rich textures. */
+const TEXTURE_SIZE = 1024;
+const PALETTE_CYCLE: AsteroidPalette[] = ['slate', 'ice', 'limestone'];
 const SEED_BASE = 0x0a57e20;
 
 /**
@@ -18,7 +20,7 @@ const SEED_BASE = 0x0a57e20;
 export function createGeneratedAsteroidArts(count = GENERATED_ASTEROID_VARIANTS): AsteroidArt[] {
   const arts: AsteroidArt[] = [];
   for (let index = 0; index < count; index += 1) {
-    const palette: AsteroidPalette = index % 2 === 0 ? 'slate' : 'ice';
+    const palette = PALETTE_CYCLE[index % PALETTE_CYCLE.length]!;
     const pixels = generateAsteroidArt(SEED_BASE + index * 7919, {
       size: TEXTURE_SIZE,
       palette,
