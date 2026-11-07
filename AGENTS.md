@@ -28,6 +28,9 @@ Playwright 1.65, `@playwright/mcp` 0.0.84.
 | --------------------------- | ------------------------------------------------------------ |
 | `pnpm install`              | Install dependencies                                         |
 | `pnpm dev`                  | Dev server on http://localhost:5173                          |
+| `pnpm dev:bg`               | Start the dev server detached (pid/log in `.agent/`)         |
+| `pnpm dev:status`           | Report whether the detached dev server is running            |
+| `pnpm dev:stop`             | Stop the detached dev server                                 |
 | `pnpm typecheck`            | `tsc --noEmit`                                               |
 | `pnpm lint`                 | ESLint                                                       |
 | `pnpm format`               | Prettier write                                               |
@@ -37,7 +40,8 @@ Playwright 1.65, `@playwright/mcp` 0.0.84.
 | `pnpm check`                | **Definition of done**: typecheck, lint, format, test, build |
 | `pnpm browser:inspect`      | Screenshot + console/state dump of the shared browser        |
 | `pnpm browser:act <action>` | Drive the shared browser (`click`, `fill`, `eval`, …)        |
-| `pnpm browser:open`         | Reuse the shared browser (launch once outside the sandbox)   |
+| `pnpm browser:launch`       | Launch/reuse the shared Playwright-controlled browser        |
+| `pnpm browser:open`         | Alias for `browser:launch`                                   |
 | `pnpm browser:stop`         | Close the shared browser                                     |
 | `pnpm mcp:browser`          | Run the Playwright MCP stdio server manually                 |
 
@@ -86,6 +90,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `docs/reference/` — supplied color/normal reference art for the ship and asteroid.
 - `public/assets/lighting/` — processed runtime copies (color + normal maps) used by the scene.
 - `scripts/browser.mjs` — CLI for the shared browser.
+- `scripts/dev-server.mjs` — detached dev server (start/stop/status).
 - `scripts/lib/shared-browser.mjs` — browser lifecycle, CDP health checks, shared profile.
 - `scripts/mcp-browser.mjs` — Playwright MCP stdio wrapper.
 - `tests/` — Vitest tests. Keep them fast, pure and DOM-free.

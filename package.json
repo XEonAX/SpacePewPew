@@ -10,6 +10,9 @@
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "dev": "vite",
+    "dev:bg": "node scripts/dev-server.mjs start",
+    "dev:stop": "node scripts/dev-server.mjs stop",
+    "dev:status": "node scripts/dev-server.mjs status",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
@@ -21,6 +24,7 @@
     "test:watch": "vitest",
     "browser:inspect": "node scripts/browser.mjs inspect",
     "browser:open": "node scripts/browser.mjs open",
+    "browser:launch": "node scripts/browser.mjs open",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build",
     "browser:act": "node scripts/browser.mjs act",
     "mcp:browser": "node scripts/mcp-browser.mjs",

@@ -30,8 +30,9 @@ state at any time.
 ## Lifecycle
 
 ```bash
-pnpm dev                     # app on http://localhost:5173
-pnpm browser:open            # reuse the shared browser, or launch it
+pnpm dev                     # app on http://localhost:5173 (foreground)
+pnpm dev:bg                  # or detached; use dev:status / dev:stop
+pnpm browser:launch          # launch/reuse the shared Playwright browser
 pnpm browser:inspect         # screenshot + state dump
 pnpm browser:act click "canvas"
 pnpm browser:act eval "document.title"

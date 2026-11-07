@@ -34,6 +34,9 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 | Command                             | What it does                                                         |
 | ----------------------------------- | -------------------------------------------------------------------- |
 | `pnpm dev`                          | Vite dev server with HMR on `http://localhost:5173`                  |
+| `pnpm dev:bg`                       | Start a detached dev server (pid/log in `.agent/`)                   |
+| `pnpm dev:status`                   | Show whether the detached dev server is running                      |
+| `pnpm dev:stop`                     | Stop the detached dev server                                         |
 | `pnpm build`                        | Typecheck and build to `dist/`                                       |
 | `pnpm preview`                      | Serve the production build                                           |
 | `pnpm typecheck`                    | `tsc --noEmit`                                                       |
@@ -41,7 +44,8 @@ Open http://localhost:5173. Node **22.12+** and pnpm **10** are expected (`.nvmr
 | `pnpm format` / `pnpm format:check` | Prettier                                                             |
 | `pnpm test` / `pnpm test:watch`     | Vitest                                                               |
 | `pnpm check`                        | Typecheck + lint + format check + tests + build (definition of done) |
-| `pnpm browser:open`                 | Reuse the shared Chrome (launch once outside the sandbox)            |
+| `pnpm browser:launch`               | Launch/reuse the shared Playwright-controlled Chrome                 |
+| `pnpm browser:open`                 | Alias for `browser:launch`                                           |
 | `pnpm browser:inspect`              | Screenshot + console/state dump (`--headless` for a throwaway run)   |
 | `pnpm browser:act <action>`         | Drive the shared browser (click, type, eval, maximize, …)            |
 | `pnpm browser:stop`                 | Close the shared browser                                             |
