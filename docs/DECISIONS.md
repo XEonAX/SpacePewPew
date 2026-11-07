@@ -729,3 +729,39 @@ Rules:
 **Consequences:** vertex count is fixed at 128 for every art variant (predictable cost). If the
 field grows large, decrease `SILHOUETTE_SAMPLES` for distant rocks, or add a distance LOD — the
 physics contract does not change.
+
+## ADR-028 — Low-poly collider fit with a vertex budget
+
+**Status:** accepted (2026-11-07).
+
+ADR-027 fixed the vertex _placement_ by tracing the contour ray-by-ray. It did not fix the
+vertex _count_: 128 points per rock, and every query pays per vertex — ship SAT builds one
+triangle per edge, each laser ray clips per triangle, each tracer segment tests every edge. With
+a field of asteroids coming, that is the wrong scaling.
+
+Rules:
+
+- **Trace subpixel, then simplify.** Each ray now interpolates the alpha crossing between the
+  last opaque sample and the first transparent one, so contour points lie on the real edge
+  instead of the pixel grid. Without this, Ramer–Douglas–Peucker chases staircase noise and
+  keeps almost every sample.
+- **Closed-polygon Ramer–Douglas–Peucker with a budget.** `src/app/polygon-fit.ts` simplifies the
+  closed loop (split at the vertex farthest from the first, simplify both halves, join without
+  duplicating the seam) and grows the tolerance from 1 % of the rock radius until the outline
+  fits `COLLIDER_MAX_VERTICES = 32`. The two current art variants fit at **24 and 28 vertices**
+  (down from 128) with ≤ ~2 % of radius deviation — below the stroke width at normal zoom, and
+  well under the ~0.2 m that matters for a 24 t ship.
+- **Accuracy is a budget, not a religion.** The art is faceted, so the silhouette has dozens of
+  small scallops that no gameplay interaction can feel. The vertex budget is the tunable knob;
+  raise it if a hero rock ever needs a tighter fit.
+- **Cheap where it counts.** Fan triangles are cached per rock (keyed by its stable local points
+  array) instead of rebuilt per query, and SAT skips pieces whose bounding circle cannot reach
+  the ship before doing any separating-axis work. Ray and tracer tests still walk the simplified
+  edges directly.
+
+**Consequences:** per-rock collision cost drops roughly 4–5×, and adding rocks scales with ~26
+triangles each rather than 128. The collider is now visibly low-poly in the F2 gizmo, which is
+the point: it matches the faceted art rather than the anti-aliased alpha fringe. If distant-rock
+cost ever matters, the same budget can drop with distance without touching the physics contract.
+See `docs/research/polygon-collider-simplification.md` for engine limits and simplification
+references.
