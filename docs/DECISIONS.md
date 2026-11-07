@@ -771,3 +771,46 @@ polygon area. Tests cover a U-shaped outline where the centre is outside the ker
 
 See `docs/research/polygon-collider-simplification.md` for engine limits, algorithm comparisons,
 and the measured vertex/error table behind these constants.
+
+## ADR-029 — Mass-based flight with the engines as force sources
+
+**Status:** accepted (2026-11-07).
+
+The flight model was acceleration-based: thrust, reverse and turn torque were abstract numbers in
+m/s² and rad/s², so the ship had no mass in its handling, and a turn was a scripted angular
+acceleration that the engine visuals and engine mix never actually caused. Mass existed only in
+the collision solver.
+
+Rules:
+
+- **Every nozzle is a force source.** `src/app/ship-engines.ts` turns the baked
+  `engine-layout.ts` art into `EngineMount`s: group and mix index, nozzle position relative to the
+  centre of mass in body metres, and thrust direction (main = nose-forward, reverse = aft). The
+  mounts are rebuilt from the current layout scale, like the collision hull.
+- **Input becomes force in one place.** `engineWrench(linearInput, angularInput)` runs the ramped
+  inputs through the existing `computeEngineOutputs` mix and sums `thrust × output` per nozzle into
+  a body-frame force and torque. The same mix already drives the flames and engine audio, so
+  physics, exhaust and sound agree.
+- **Mass and inertia are real.** Acceleration is `force / mass`; yaw acceleration is
+  `torque / inertia`, with inertia from the hull's radius of gyration (≈ 0.3 × hull length).
+  Mass is a tuning value (default 24 t) shared with the collision solver, so impacts and handling
+  read the same number.
+- **One thrust per engine group.** `mainThrustN` and `reverseThrustN` are per-engine, in newtons.
+  Reverse is set equal to main by default: the engine mix yaws by firing one main and the
+  opposite reverse engine, so equal thrust makes a standstill turn pure torque (no translation).
+  A weaker reverse engine makes turning creep forward, which is physically what firing that pair
+  would do.
+- **Drag stays a velocity multiplier.** Both drags apply while any input is active (as before),
+  matching Unity/Box2D damping semantics: mass changes acceleration/top speed, not the decay rate.
+- **Terminal speeds are derived, not capped.** Forward terminal = Σ main thrust / (mass × drag);
+  reverse terminal uses both reverse engines; yaw terminal = nozzle torque / (inertia × angular
+  drag). All three are shown in telemetry.
+
+**Consequences:** a heavier ship accelerates and turns more slowly and has a lower terminal speed
+for the same thrust; the mass slider also makes impacts heavier because collision uses the same
+mass/inertia. Turning while thrusting now loses forward thrust — the mix cuts the inside main
+engine and lights the same-side reverse engine — so a full-yaw burn keeps roughly one third of
+the forward force. That is what the baked flames already showed; if it feels too costly, retune
+the mix or the thrusters rather than reintroducing a synthetic yaw torque. The geometry is built
+from the layout scale, so a window resize rescales the ship and its drive together (the world
+already scales with the viewport).

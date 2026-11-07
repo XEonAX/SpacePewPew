@@ -57,12 +57,22 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   flight state lives at the ship's **centre of mass** (orange panel just behind the cargo
   hatch): `shipCentre()` derives the texture-centre pose used for rendering, turrets, mining and
   the shield, and the camera tracks the centre of mass so turns pivot there. Holds the collision
-  tuning (mass, shield restitution/friction, impact spin damping, camera shake).
-- `src/app/ship-flight.ts` — pure ramped arcade flight model in metres (0.3 s input ramp,
-  thrust, drag; both axes damp while any input is active; terminal speed emerges from
-  thrust/drag). Unit-tested in `tests/ship-flight.test.ts`.
-- `src/app/flight-tuner.ts` — live DOM slider overlay that mutates `FlightTuning`; dev-facing.
-- `src/app/flight-telemetry.ts` — read-only DOM overlay for terminal/current/ramped state.
+  tuning (shield restitution/friction, impact spin damping, camera shake) and reuses the flight
+  model's mass and hull inertia for impacts.
+- `src/app/ship-flight.ts` — pure mass-based flight in metres. The hull is a rigid body: each
+  nozzle produces `thrust × engine-mix output` at its mount, so linear force is summed and yaw
+  torque falls out of the nozzle positions (`engineWrench`). Acceleration is force/mass, angular
+  acceleration is torque/inertia (`shipInertiaKgM2` from the radius of gyration). Inputs ramp
+  over 0.3 s; drag multiplies velocity on both axes while any input is active; terminal speeds
+  and yaw rate emerge from thrust/drag. Unit-tested in `tests/ship-flight.test.ts`.
+- `src/app/ship-engines.ts` — the drive geometry: every `EngineMount` (group/index, nozzle
+  position relative to the centre of mass in body metres, thrust direction) built from the baked
+  `engine-layout.ts` art and the current layout scale, plus the radius of gyration. Unit-tested
+  in `tests/ship-engines.test.ts`.
+- `src/app/flight-tuner.ts` — live DOM slider overlay that mutates `FlightTuning` (mass, per-engine
+  thrust, drags, ramp); dev-facing.
+- `src/app/flight-telemetry.ts` — read-only DOM overlay for mass, terminal W/S/yaw, current and
+  ramped state.
 - `src/app/world-scale.ts` — `PIXELS_PER_METER = 64`; all flight physics is in metres.
 - `src/app/ground-grid.ts` — screen-space 1 m × 1 m grid fixed to the near dust layer
   (64 world px per metre; major lines every 5 m).
@@ -196,6 +206,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   full-screen shaders or filters unless profiling justifies them.
 - **Flight physics is metric.** Keep velocities/accelerations/positions in metres; convert to
   screen pixels only at render time with `PIXELS_PER_METER`. Grid/telemetry display metres.
+- **Flight is force-based.** Tune mass and per-engine thrust, never an abstract acceleration or a
+  synthetic yaw torque: turning must fall out of the nozzle positions via `engineWrench` and the
+  engine mix, so the physics matches the flames and audio.
 - **Galaxies are fixed sky.** The two galaxy sprites have zero parallax/zoom response; only
   stars, nebulas, and the near dust layer pan.
 - **Parallax pan is integrated.** Each panned layer owns an accumulated pan offset advanced by

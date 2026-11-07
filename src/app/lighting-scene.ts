@@ -10,8 +10,10 @@ import {
   stepFlight,
   DEFAULT_FLIGHT_TUNING,
   forwardTerminalSpeed,
+  shipInertiaKgM2,
 } from './ship-flight';
 import type { FlightControls } from './ship-flight';
+import { createShipGeometry, SHIP_COM_AFT_PX } from './ship-engines';
 import { createFlightTuner } from './flight-tuner';
 import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
@@ -68,8 +70,6 @@ const LOOKAHEAD_BASE_OFFSET = 0.07;
 const LOOKAHEAD_MAX_OFFSET = 0.11;
 const LOOKAHEAD_ZOOM_BOOST = 1.5;
 
-/** Ship mass, kg. Gives impacts weight: flare and shake scale with hit energy. */
-const SHIP_MASS_KG = 24_000;
 /** Shield surface: how much of the hit bounces back, and its tangential grip. */
 const SHIELD_RESTITUTION = 0.22;
 const SHIELD_FRICTION = 0.5;
@@ -80,11 +80,6 @@ const IMPACT_SPIN_LIMIT = 1.2;
 const SHAKE_ENERGY_REFERENCE_J = 90_000;
 const SHAKE_PEAK_PIXELS = 9;
 const SHAKE_DECAY_PER_SECOND = 4.5;
-/**
- * The ship's rotation pivot (its physics centre of mass) is the orange panel
- * just aft of the cargo hatch, in ship-texture px from the texture centre.
- */
-const SHIP_COM_AFT_PX = 171.5;
 /** The second asteroid starts this many metres dead ahead of the ship's nose. */
 const ASTEROID_AHEAD_METERS = 20;
 /** The new rock is a big one: this many times the base rock diameter. */
@@ -312,8 +307,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   let rockDiameter = 6;
   /** Hull bubble in metres, refreshed on layout; drawn by the shield too. */
   let shipCollider: ShipHull = { points: [], radius: 0 };
-  /** Moment of inertia about the centre of mass, kg·m². */
-  let shipInertia = 1;
+  /** Engine mounts and inertia scale, refreshed with the ship's layout scale. */
+  let shipGeometry = createShipGeometry({ metresPerPixel: 1 / PIXELS_PER_METER, hullLengthM: 6 });
   /** Spin added by collisions, bled off separately from player turning. */
   let impactSpin = 0;
   /** 0..1 camera shake from the last impact. */
@@ -376,9 +371,13 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       points: hull.points.map((point) => ({ x: point.x * hullScale, y: point.y * hullScale })),
       radius: hull.radius * hullScale,
     };
-    // Uniform-ish hull: radius of gyration ≈ 0.3 × length.
-    const hullLength = (shipColor.height * shipScale) / PIXELS_PER_METER;
-    shipInertia = SHIP_MASS_KG * (0.3 * hullLength) ** 2;
+    // Uniform-ish hull: radius of gyration ≈ 0.3 × length. The drive geometry
+    // shares the same scale, so nozzle arms are the real ones from the art.
+    const hullLengthM = (shipColor.height * shipScale) / PIXELS_PER_METER;
+    shipGeometry = createShipGeometry({
+      metresPerPixel: shipScale / PIXELS_PER_METER,
+      hullLengthM,
+    });
     hint.position.set(centerX, height - 28);
   };
 
@@ -388,7 +387,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const directionX = speed > 0 ? flight.vx / speed : 0;
     const directionY = speed > 0 ? flight.vy / speed : 0;
 
-    const terminalW = forwardTerminalSpeed(tuning);
+    const terminalW = forwardTerminalSpeed(tuning, shipGeometry);
     const speedFraction = terminalW > 0 ? Math.min(1, speed / terminalW) : 0;
     const curve = speedFraction * speedFraction;
 
@@ -497,7 +496,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       angularInput: flight.angularInput,
       vx: flight.vx,
       vy: flight.vy,
-      terminalSpeed: forwardTerminalSpeed(tuning),
+      terminalSpeed: forwardTerminalSpeed(tuning, shipGeometry),
       dt: deltaSeconds,
     });
 
@@ -543,7 +542,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const deltaSeconds = Math.min(ticker.deltaMS / 1000, MAX_DELTA_SECONDS);
     lighting.time += deltaSeconds;
 
-    stepFlight(flight, controls, deltaSeconds, tuning);
+    stepFlight(flight, controls, deltaSeconds, tuning, shipGeometry);
     // Collision spin is not player input: bleed it off so a hit cannot leave
     // the ship turning forever (the flight model only damps while input is on).
     const spinDecay = Math.exp(-IMPACT_SPIN_DAMPING * deltaSeconds);
@@ -557,8 +556,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       const centre = shipCentre();
       const pivotAft = (SHIP_COM_AFT_PX * shipBaseScale) / PIXELS_PER_METER;
       const body = {
-        mass: SHIP_MASS_KG,
-        inertia: shipInertia,
+        mass: tuning.massKg,
+        inertia: shipInertiaKgM2(tuning, shipGeometry),
         restitution: SHIELD_RESTITUTION,
         friction: SHIELD_FRICTION,
         pivotX: 0,
@@ -799,7 +798,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const weaponTuner = createWeaponTuner(weaponCooldowns);
   document.body.append(weaponTuner.element);
 
-  const telemetry = createFlightTelemetry(flight, tuning);
+  const telemetry = createFlightTelemetry(flight, tuning, () => shipGeometry);
   document.body.append(telemetry.element);
 
   canvas.addEventListener('pointerdown', onPointerDown);

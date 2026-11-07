@@ -8,19 +8,40 @@ interface SliderSpec {
   step: number;
   digits: number;
   unit: string;
+  /** Value divisor for the displayed number (e.g. kg → t, N → kN). */
+  divisor?: number;
 }
 
 const SLIDERS: SliderSpec[] = [
-  { key: 'forwardAccel', label: 'W thrust', min: 0, max: 60, step: 0.1, digits: 2, unit: 'm/s²' },
-  { key: 'reverseAccel', label: 'S thrust', min: 0, max: 45, step: 0.1, digits: 2, unit: 'm/s²' },
   {
-    key: 'angularAccel',
-    label: 'A/D torque',
-    min: 0,
-    max: 40,
-    step: 0.1,
+    key: 'massKg',
+    label: 'Ship mass',
+    min: 6_000,
+    max: 60_000,
+    step: 500,
     digits: 1,
-    unit: 'rad/s²',
+    unit: 't',
+    divisor: 1_000,
+  },
+  {
+    key: 'mainThrustN',
+    label: 'Main engine',
+    min: 10_000,
+    max: 500_000,
+    step: 5_000,
+    digits: 0,
+    unit: 'kN',
+    divisor: 1_000,
+  },
+  {
+    key: 'reverseThrustN',
+    label: 'Reverse engine',
+    min: 10_000,
+    max: 500_000,
+    step: 5_000,
+    digits: 0,
+    unit: 'kN',
+    divisor: 1_000,
   },
   { key: 'linearDrag', label: 'Linear drag', min: 0.05, max: 8, step: 0.05, digits: 2, unit: '/s' },
   {
@@ -60,7 +81,8 @@ const PANEL_STYLE: Partial<CSSStyleDeclaration> = {
 };
 
 function format(value: number, spec: SliderSpec): string {
-  return `${value.toFixed(spec.digits)} ${spec.unit}`;
+  const shown = value / (spec.divisor ?? 1);
+  return `${shown.toFixed(spec.digits)} ${spec.unit}`;
 }
 
 export interface FlightTuner {
@@ -68,7 +90,7 @@ export interface FlightTuner {
   destroy(): void;
 }
 
-/** Small live overlay for tuning the arcade flight constants. */
+/** Small live overlay for tuning the mass-based flight constants. */
 export function createFlightTuner(tuning: FlightTuning): FlightTuner {
   const root = document.createElement('div');
   Object.assign(root.style, PANEL_STYLE);

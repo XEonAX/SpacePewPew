@@ -70,7 +70,8 @@ tokens, and Chrome keeps its own sandbox. The bundle lives in
 src/
   app/create-app.ts       PixiJS Application bootstrap
   app/lighting-scene.ts   Ship + asteroid lighting demo (keep small)
-  app/ship-flight.ts      Pure ramped WASD flight model (tested)
+  app/ship-flight.ts      Pure mass-based force flight model (tested)
+  app/ship-engines.ts     Engine mounts as force sources: nozzle positions relative to COM (tested)
   app/flight-tuner.ts     Live overlay sliders for flight tuning
   app/flight-telemetry.ts Read-only terminal/velocity/input telemetry overlay
   app/ground-grid.ts      Screen-space 1 m grid fixed to the near dust layer
@@ -113,9 +114,12 @@ docs/                     Architecture decisions, reference art and agent workfl
 
 ## Controls
 
-- **W/S** thrust forward/back; **A/D** rotate. Inputs ramp in over 0.3 s. Drag applies to both
-  linear and angular motion whenever any input is active; **thrust vs drag decide terminal
-  speeds** — no separate speed cap.
+- **W/S** thrust forward/back; **A/D** rotate. The ship is a rigid body: each nozzle pushes a
+  force at its real position, and the engine mix (W/S plus A/D) decides each nozzle's output.
+  Turning is therefore real **differential thrust** torque, not a scripted spin. Inputs ramp in
+  over 0.3 s. Drag applies to both linear and angular motion whenever any input is active;
+  **thrust vs drag decide terminal speeds** — no separate speed cap. Mass and inertia come from
+  the hull, so a heavier ship accelerates and turns more slowly for the same thrust.
 - The ship flies on the **near dust layer**; the camera smoothly pans with it. Lookahead grows
   **quadratically with speed** (near zero at low speed, full near terminal) and increases when
   zoomed out, so at speed the ship sits behind centre in its travel direction. The asteroid is
@@ -126,9 +130,10 @@ docs/                     Architecture decisions, reference art and agent workfl
   dust/grid layer always moves fastest and each farther layer moves proportionally less. Wheel
   zoom only scales layers about the viewport centre, so zooming never slides the sky after a
   long flight. The two distant galaxies are fixed to the sky.
-- The top-left **FLIGHT TUNING** panel has live sliders for thrust (0–60 m/s² forward, 0–45 reverse), torque (0–40 rad/s²),
-  linear/angular drag and input ramp. The top-right **FLIGHT TELEMETRY** panel shows terminal W/S/A-D speeds,
-  current velocity, angular velocity, and ramped inputs (all linear units in metres). The
+- The top-left **FLIGHT TUNING** panel has live sliders for ship mass (6–60 t), main and reverse
+  engine thrust (10–500 kN each), linear/angular drag and input ramp. The top-right **FLIGHT
+  TELEMETRY** panel shows mass, terminal W/S/yaw, current velocity, angular velocity, and ramped
+  inputs (all linear units in metres). The
   bottom-left **RATE OF FIRE** panel tunes the cooldown of each weapon pair, clamped to the
   pair's charge duration.
 - Eight turrets with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
@@ -144,7 +149,7 @@ docs/                     Architecture decisions, reference art and agent workfl
 
 **Asteroids live in the world**, in the same dust layer the ship flies through, so they pan and zoom with the environment; they tumble slowly (0.02–0.06 rad/s) rather than spin. The field currently holds the demo rock beside the pad and the **second supplied asteroid** (a rounder rock, its own colour/normal art processed with the same one-off treatment) **20 m dead ahead of the nose at 3× the base rock size** — fly up to mine or ram it, or zoom out to see both. Adding more is a single `add(x, y, diameter, variant?)` on the field; every rock gets a collider traced from its own art — a bounding circle for the fast pass and a **convex silhouette polygon that turns with the rock** for the accurate pass — stops tracers, and can be mined (lasers bite the nearest rock their beam hits, tested against that polygon).
 
-**The asteroid is solid.** A collider **gizmo** is drawn over the world (green = rock silhouettes and bounding circles, cyan = ship hull bubble): press **F2** to toggle it while tuning. **The asteroid is solid.** The ship carries a hull-shaped **energy shield** that is both its collision shape and its visual: its outline follows the hull — pointed nose, wing tips, blunt tail — as a convex outline inflated by a bubble radius (equivalently, capsule segments joined with rounded corners), so the whole ship sits inside it. The boundary glows and fades inward, so the edge reads as a surface. Collisions are **impulse-based with weight**: the ship has a **mass** of 24 t and a moment of inertia from its hull, the shield surface has **22% restitution** and a **0.5 friction** coefficient, and the impact is applied at the contact patch — so a nose or wing hit **spins the hull about its centre of mass**, glancing hits scrape and slow it, and head-on hits thud with a **camera shake** scaled by hit energy. An impact highlights the **contact patch** (a bloom at the point the rock touched, fading over ~0.3 s) **clipped to the shield**, so it brightens the bubble without spilling into space. Gun tracers are **stopped by the rock's silhouette** — a swept test means fast rounds cannot tunnel through it. Rock collision is a **two-stage compound polygon collider**: a bounding circle rejects almost everything cheaply, then a separating-axis test runs against **fan triangles covering the rock's low-poly contour** — traced ray-by-ray from the art alpha (128 subpixel samples) and simplified to a **32-vertex budget** (24–28 points per rock, ~1–2 % of radius) so the shape follows the real facets without paying for anti-aliasing detail, rotating with the rock's spin, so notches and bites are respected instead of being bridged by a convex hull. No physics engine is involved; the flight model stays authoritative.
+**The asteroid is solid.** A collider **gizmo** is drawn over the world (green = rock silhouettes and bounding circles, cyan = ship hull bubble): press **F2** to toggle it while tuning. **The asteroid is solid.** The ship carries a hull-shaped **energy shield** that is both its collision shape and its visual: its outline follows the hull — pointed nose, wing tips, blunt tail — as a convex outline inflated by a bubble radius (equivalently, capsule segments joined with rounded corners), so the whole ship sits inside it. The boundary glows and fades inward, so the edge reads as a surface. Collisions are **impulse-based with weight**: the ship carries its flight-model **mass** (24 t by default) and a moment of inertia from its hull, the shield surface has **22% restitution** and a **0.5 friction** coefficient, and the impact is applied at the contact patch — so a nose or wing hit **spins the hull about its centre of mass**, glancing hits scrape and slow it, and head-on hits thud with a **camera shake** scaled by hit energy. An impact highlights the **contact patch** (a bloom at the point the rock touched, fading over ~0.3 s) **clipped to the shield**, so it brightens the bubble without spilling into space. Gun tracers are **stopped by the rock's silhouette** — a swept test means fast rounds cannot tunnel through it. Rock collision is a **two-stage compound polygon collider**: a bounding circle rejects almost everything cheaply, then a separating-axis test runs against **fan triangles covering the rock's low-poly contour** — traced ray-by-ray from the art alpha (128 subpixel samples) and simplified to a **32-vertex budget** (24–28 points per rock, ~1–2 % of radius) so the shape follows the real facets without paying for anti-aliasing detail, rotating with the rock's spin, so notches and bites are respected instead of being bridged by a convex hull. No physics engine is involved; the flight model stays authoritative.
 
 The ship turns about a **physics centre of mass at the orange panel just behind the cargo hatch**, not its geometric centre: the hull's visual centre orbits the pivot, so hard turns swing the nose wide instead of rotating about the middle of the ship.
 

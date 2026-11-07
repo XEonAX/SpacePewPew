@@ -1,4 +1,6 @@
 import type { FlightState, FlightTuning } from './ship-flight';
+import { forwardTerminalSpeed, reverseTerminalSpeed, yawTerminalSpeed } from './ship-flight';
+import type { ShipGeometry } from './ship-engines';
 
 const PANEL_STYLE: Partial<CSSStyleDeclaration> = {
   position: 'fixed',
@@ -31,7 +33,11 @@ function fixed(value: number, digits = 2): string {
 }
 
 /** Read-only overlay showing the flight model's current limits and state. */
-export function createFlightTelemetry(flight: FlightState, tuning: FlightTuning): FlightTelemetry {
+export function createFlightTelemetry(
+  flight: FlightState,
+  tuning: FlightTuning,
+  geometry: () => ShipGeometry,
+): FlightTelemetry {
   const root = document.createElement('div');
   Object.assign(root.style, PANEL_STYLE);
 
@@ -57,9 +63,10 @@ export function createFlightTelemetry(flight: FlightState, tuning: FlightTuning)
     values.set(label, value);
   };
 
+  addRow('Mass');
   addRow('Terminal W');
   addRow('Terminal S');
-  addRow('Terminal A/D');
+  addRow('Terminal yaw');
   addRow('Velocity');
   addRow('Angular velocity');
   addRow('Linear input');
@@ -71,12 +78,11 @@ export function createFlightTelemetry(flight: FlightState, tuning: FlightTuning)
   };
 
   const update = (): void => {
-    const linearDrag = Math.max(tuning.linearDrag, 0.0001);
-    const angularDrag = Math.max(tuning.angularDrag, 0.0001);
-
-    set('Terminal W', `${fixed(tuning.forwardAccel / linearDrag)} m/s`);
-    set('Terminal S', `${fixed(tuning.reverseAccel / linearDrag)} m/s`);
-    set('Terminal A/D', `${fixed(tuning.angularAccel / angularDrag)} rad/s`);
+    const shipGeometry = geometry();
+    set('Mass', `${fixed(tuning.massKg / 1_000, 1)} t`);
+    set('Terminal W', `${fixed(forwardTerminalSpeed(tuning, shipGeometry))} m/s`);
+    set('Terminal S', `${fixed(reverseTerminalSpeed(tuning, shipGeometry))} m/s`);
+    set('Terminal yaw', `${fixed(yawTerminalSpeed(tuning, shipGeometry))} rad/s`);
     set('Velocity', `${fixed(Math.hypot(flight.vx, flight.vy))} m/s`);
     set('Angular velocity', `${fixed(flight.angularVelocity)} rad/s`);
     set('Linear input', fixed(flight.linearInput));
