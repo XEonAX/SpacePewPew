@@ -94,7 +94,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   as cargo. Carry is
   switchable in game with **P**: `curved` (default — arcs to the hatch at a turn rate the barrels
   can track) or `physics` (bounded acceleration). Beams drop a chunk that leaves their reach;
-  uncaptured metal cools and fades. Object-pooled chunks (256); no audio yet.
+  uncaptured metal cools and fades, but a gripped chunk's lifetime is reset each frame so
+  cargo never expires in transit. Object-pooled chunks (256); no audio yet.
 - `src/app/mining-model.ts` — pure reflection, ray/circle laser-hit, beam-carry, intake-pulse
   and rotated-rect intake math, unit-tested.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade.

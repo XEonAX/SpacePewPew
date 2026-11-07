@@ -338,7 +338,9 @@ Mining rules:
     with a flying ship instead of falling behind. Neither can overshoot: the final step is clamped
     to the remaining distance.
 - If every beam loses the chunk (5 m reach) it is dropped and drifts freely again. Leaving mining
-  mode drops all grips. Uncaptered metal cools and fades after ~8 s so it cannot starve the pool.
+  mode drops all grips. Uncaptered metal cools and fades after ~8 s so it cannot starve the pool,
+  but a **gripped chunk's lifetime is reset every frame**: cargo in transit is never aged, so it
+  cannot cool away between the beam and the hatch.
 - The intake is the **hull's own slatted hatch** between the two rearmost pairs (ship-texture
   pixels: centre `(-1, 123)`, half-extents `23 × 45`), so no grill graphic is drawn. Any chunk
   whose centre enters that rotated rectangle is handed to a short **swallow** animation (~0.3 s)

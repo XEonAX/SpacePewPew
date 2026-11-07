@@ -465,6 +465,9 @@ export function createMining(): Mining {
           const held = barrelTargets[barrel];
           if (!held) continue;
           held.tracted = true;
+          // A gripped chunk is cargo in transit, not debris: keep its clock
+          // full so it can never cool away between the beam and the hatch.
+          held.life = CHUNK_LIFETIME;
           held.barrels.push(barrel);
           tractorTargets[barrel] = { x: held.x, y: held.y };
         }
