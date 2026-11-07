@@ -499,3 +499,39 @@ Parameters (in `lighting-scene.ts` unless noted):
 **Consequences:** the impulse response stays pure in `asteroid-collision.ts`
 (`resolveShipCollision(ship, hull, circle, body)`) and is unit-tested for bounce, friction, spin,
 energy and separation. Everything physical is SI: mass in kg, inertia in kg·m², impulses in N·s.
+
+## ADR-021 — Asteroids live in the world, as a field
+
+**Status:** accepted (2026-11-07).
+
+The first asteroid was placed by the screen layout next to the ship: it scaled with the
+viewport and there was exactly one. The direction is now a field of rocks the ship flies between,
+so asteroids moved into the **dust-layer world**: each rock has a metric position and a diameter
+in metres, and it pans and zooms with the environment like everything else.
+
+Rules:
+
+- **`src/app/asteroid-field.ts` owns them.** `add(x, y, diameter)` creates a lit mesh (shared
+  colour/normal textures) and a fitted circle collider; the field exposes `getColliders()` and
+  `getMiningTargets()` and does the per-frame transform work (world px → screen px through the
+  dust transform, scaled by zoom) plus lighting. Adding a rock is one call, so a field of them is
+  just a loop.
+- **Rocks are metric size now.** Diameter is fixed in metres instead of being derived from the
+  viewport scale, which is the correct model once rocks are world objects; the layout gives the
+  seed rocks the same on-screen size as before at 1920×908.
+- **Seed field:** the demo rock beside the ship plus **one new rock 20 m dead ahead** of the
+  hull's centre (`ASTEROID_AHEAD_METERS = 20`). At the default 1× zoom that rock starts just off
+  the top of the screen — it is 1280 px away at 64 px/m — so you fly at it or scroll out to see
+  it.
+- **Every system consumes the same list.** Ship collision resolves against each rock in turn
+  (strongest hit drives the shield flash and shake); tracers are swept against every circle;
+  mining bites the **nearest rock along each beam**, so any asteroid can be mined, not just the
+  demo one.
+- **No physics engine, still.** With static rocks this is collider work, not solver work; a
+  uniform-grid broadphase is the next step if the field reaches hundreds of rocks. An engine
+  becomes justified when the rocks themselves are dynamic (tumbling, pushing, resting contacts)
+  or when debris needs chained contacts.
+
+**Consequences:** rock count is the field's responsibility; scene code only iterates the collider
+list. Grow the field with `add()`, and keep the collider math pure in `asteroid-collision.ts` so
+the same response works for any number of rocks.

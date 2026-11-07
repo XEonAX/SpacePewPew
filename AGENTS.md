@@ -95,15 +95,20 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   (the hatch's shape, 1.2× at spawn scaling down through it — a pulling-in wave) while the rig is
   equipped; they quicken/flare with inbound cargo and flash on delivery. Any chunk that drifts into the
   hatch — tractored or not — sinks in and scales to nothing (~0.3 s) before it counts
-  as cargo. Carry is
+  as cargo. Lasers can bite any asteroid in the field (the nearest hit along each beam).
+  Carry is
   switchable in game with **P**: `curved` (default — arcs to the hatch at a turn rate the barrels
   can track) or `physics` (bounded acceleration). Beams drop a chunk that leaves their reach;
   uncaptured metal cools and fades, but a gripped chunk's lifetime is reset each frame so
   cargo never expires in transit. Object-pooled chunks (256); no audio yet.
 - `src/app/mining-model.ts` — pure reflection, ray/circle laser-hit, beam-carry, intake-pulse
   and rotated-rect intake math, unit-tested.
+- `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
+  mesh plus a circle collider fitted to the roughly circular art, exposed as collider/mining
+  lists. `add(x, y, diameter)` places one; the field is seeded with the demo rock beside the pad
+  and a new rock 20 m dead ahead of the nose.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade; a swept
-  test stops them on the asteroid's circle collider (`blocker` in the frame).
+  test stops them on every asteroid circle (`blockers` in the frame).
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
 - `src/app/asteroid-collision.ts` — solid circle collider for the asteroid (radius fitted to the
   roughly circular art) and the ship's **hull bubble** collider: a convex hull outline inflated

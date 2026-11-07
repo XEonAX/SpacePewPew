@@ -28,8 +28,8 @@ export interface BulletFrame {
   width: number;
   height: number;
   dt: number;
-  /** Solid circle (in metres) tracers stop on; typically the asteroid. */
-  blocker?: Circle | null;
+  /** Solid circles (world metres) tracers stop on; typically the asteroids. */
+  blockers?: readonly Circle[];
 }
 
 export interface Bullets {
@@ -125,14 +125,16 @@ export function createBullets(): Bullets {
         const previousY = bullet.y;
         bullet.x += bullet.vx * frame.dt;
         bullet.y += bullet.vy * frame.dt;
-        if (
-          frame.blocker &&
-          segmentCircleHit(
-            { x: previousX, y: previousY },
-            { x: bullet.x, y: bullet.y },
-            frame.blocker,
-          )
-        ) {
+        let blocked = false;
+        for (const blocker of frame.blockers ?? []) {
+          if (
+            segmentCircleHit({ x: previousX, y: previousY }, { x: bullet.x, y: bullet.y }, blocker)
+          ) {
+            blocked = true;
+            break;
+          }
+        }
+        if (blocked) {
           // The rock stops the tracer at its surface.
           bullet.active = false;
           bullet.sprite.visible = false;

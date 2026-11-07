@@ -149,7 +149,8 @@ export interface MiningFrame {
   dt: number;
   now: number;
   ship: MiningShip;
-  asteroid: MiningAsteroid;
+  /** Every rock the lasers can bite, in world metres. */
+  asteroids: readonly MiningAsteroid[];
   /** All mount muzzle poses, in mount order (front pair first). */
   muzzles: readonly MuzzleAim[];
   laserFiring: boolean;
@@ -362,13 +363,21 @@ export function createMining(): Mining {
         const pose = poses[barrel];
         if (!pose) continue;
         const direction = { x: Math.sin(pose.angle), y: -Math.cos(pose.angle) };
-        const hit = rayCircleHit(
-          pose,
-          direction,
-          LASER_RANGE_M,
-          { x: frame.asteroid.x, y: frame.asteroid.y },
-          frame.asteroid.radius,
-        );
+        // The nearest rock the beam bites wins, so a field of asteroids works
+        // without special-casing which one is "the" target.
+        let hit: Vec2 | null = null;
+        let hitRock: MiningAsteroid | null = null;
+        let hitDistance = Infinity;
+        for (const rock of frame.asteroids) {
+          const candidate = rayCircleHit(pose, direction, LASER_RANGE_M, rock, rock.radius);
+          if (!candidate) continue;
+          const distance = Math.hypot(candidate.x - pose.x, candidate.y - pose.y);
+          if (distance < hitDistance) {
+            hitDistance = distance;
+            hit = candidate;
+            hitRock = rock;
+          }
+        }
         const end = hit ?? {
           x: pose.x + direction.x * LASER_RANGE_M,
           y: pose.y + direction.y * LASER_RANGE_M,
@@ -386,9 +395,9 @@ export function createMining(): Mining {
             .stroke({ color: LASER_CORE_COLOR, width: 1.6, alpha: 0.95 });
 
           laserTimers[barrel] = (laserTimers[barrel] ?? 0) + frame.dt;
-          if (hit && laserTimers[barrel]! >= LASER_SPAWN_INTERVAL) {
+          if (hit && hitRock && laserTimers[barrel]! >= LASER_SPAWN_INTERVAL) {
             laserTimers[barrel] = laserTimers[barrel]! - LASER_SPAWN_INTERVAL;
-            spawnChunk(hit, direction, frame.asteroid);
+            spawnChunk(hit, direction, hitRock);
           }
         } else {
           laserTimers[barrel] = 0;
