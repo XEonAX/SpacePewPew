@@ -34,12 +34,12 @@ export interface FlightTuning {
 }
 
 export const DEFAULT_FLIGHT_TUNING: FlightTuning = {
-  massKg: 24_000,
-  mainThrustN: 120_000,
-  reverseThrustN: 120_000,
-  linearDrag: 0.32,
-  angularDrag: 1.5,
-  inputRampSeconds: 0.3,
+  massKg: 18_500,
+  mainThrustN: 200_000,
+  reverseThrustN: 150_000,
+  linearDrag: 0.6,
+  angularDrag: 2.5,
+  inputRampSeconds: 0.35,
 };
 
 export interface FlightState {

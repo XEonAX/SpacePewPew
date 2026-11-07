@@ -793,13 +793,11 @@ Rules:
   physics, exhaust and sound agree.
 - **Mass and inertia are real.** Acceleration is `force / mass`; yaw acceleration is
   `torque / inertia`, with inertia from the hull's radius of gyration (≈ 0.3 × hull length).
-  Mass is a tuning value (default 24 t) shared with the collision solver, so impacts and handling
+  Mass is a tuning value (default 18.5 t) shared with the collision solver, so impacts and handling
   read the same number.
 - **One thrust per engine group.** `mainThrustN` and `reverseThrustN` are per-engine, in newtons.
-  Reverse is set equal to main by default: the engine mix yaws by firing one main and the
-  opposite reverse engine, so equal thrust makes a standstill turn pure torque (no translation).
-  A weaker reverse engine makes turning creep forward, which is physically what firing that pair
-  would do.
+  The groups can be tuned independently; ADR-030 balances the yaw couple so a weaker reverse
+  group still produces a pure turn instead of creeping forward.
 - **Drag stays a velocity multiplier.** Both drags apply while any input is active (as before),
   matching Unity/Box2D damping semantics: mass changes acceleration/top speed, not the decay rate.
 - **Terminal speeds are derived, not capped.** Forward terminal = Σ main thrust / (mass × drag);
@@ -808,9 +806,9 @@ Rules:
 
 **Consequences:** a heavier ship accelerates and turns more slowly and has a lower terminal speed
 for the same thrust; the mass slider also makes impacts heavier because collision uses the same
-mass/inertia. Turning while thrusting now loses forward thrust — the mix cuts the inside main
-engine and lights the same-side reverse engine — so a full-yaw burn keeps roughly one third of
-the forward force. That is what the baked flames already showed; if it feels too costly, retune
+mass/inertia. Turning while thrusting loses forward thrust — the mix cuts the inside main
+engine and lights the same-side reverse engine — so a full-yaw burn keeps well under its
+straight-line force. That is what the baked flames already showed; if it feels too costly, retune
 the mix or the thrusters rather than reintroducing a synthetic yaw torque. The geometry is built
 from the layout scale, so a window resize rescales the ship and its drive together (the world
 already scales with the viewport).
@@ -842,7 +840,7 @@ reverseThrustN)` returns the per-group scale that equalises the two sides: the p
   dedicated reaction-control nozzles, not a stronger main engine.
 
 **Consequences:** the reverse-thrust slider no longer introduces translation during turns; it
-scales the turn couple and shows up directly as terminal yaw. With the shipped 120 kN per engine
-nothing changes (balance is 1/1). With 60 kN reverse, terminal yaw halves (2.01 → 1.01 rad/s) and
-a standstill turn stays at 0.00 m/s. The force balance covers the turn-only component; a
-throttle + turn still trades forward thrust for yaw, which is physical.
+scales the turn couple and shows up directly as terminal yaw. With equal groups nothing changes
+(balance is 1/1); with the shipped 200 kN main / 150 kN reverse the main side of the couple is
+throttled to 0.75 and a standstill turn stays at 0.00 m/s. The force balance covers the turn-only
+component; a throttle + turn still trades forward thrust for yaw, which is physical.
