@@ -49,7 +49,7 @@ describe('ship hull bubble', () => {
   it('sizes the shield bubble to the hull', () => {
     const hull = shipHull(100, 200);
     expect(hull.points).toHaveLength(5);
-    expect(hull.radius).toBeCloseTo(8);
+    expect(hull.radius).toBeCloseTo(16);
     // Symmetric about the hull's centre line, nose up.
     expect(hull.points[0]!.x).toBeCloseTo(0);
     expect(hull.points[0]!.y).toBeLessThan(-50);

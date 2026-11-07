@@ -48,7 +48,9 @@ export function shipHull(width: number, height: number): ShipHull {
       { x: -0.45 * halfWidth, y: 0.93 * halfHeight },
       { x: -0.965 * halfWidth, y: 0.39 * halfHeight },
     ],
-    radius: 0.08 * width,
+    // 2x the old bubble: the pointed nose and wing corners need more room, and
+    // the larger radius also softens each rounded corner.
+    radius: 0.16 * width,
   };
 }
 
