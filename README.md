@@ -121,8 +121,8 @@ docs/                     Architecture decisions, reference art and agent workfl
   dust/grid layer always moves fastest and each farther layer moves proportionally less. Wheel
   zoom only scales layers about the viewport centre, so zooming never slides the sky after a
   long flight. The two distant galaxies are fixed to the sky.
-- The top-left **FLIGHT TUNING** panel has live sliders for thrust, torque, linear/angular drag
-  and input ramp. The top-right **FLIGHT TELEMETRY** panel shows terminal W/S/A-D speeds,
+- The top-left **FLIGHT TUNING** panel has live sliders for thrust (0–60 m/s² forward, 0–45 reverse), torque (0–40 rad/s²),
+  linear/angular drag and input ramp. The top-right **FLIGHT TELEMETRY** panel shows terminal W/S/A-D speeds,
   current velocity, angular velocity, and ramped inputs (all linear units in metres). The
   bottom-left **RATE OF FIRE** panel tunes the cooldown of each weapon pair, clamped to the
   pair's charge duration.

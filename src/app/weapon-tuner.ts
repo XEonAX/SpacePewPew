@@ -1,6 +1,9 @@
-import { WEAPON_PAIRS, WEAPON_SHOT_DELAYS } from './weapons';
+import { WEAPON_PAIRS } from './weapons';
 
 const PAIR_LABELS = ['Front pair', '2nd pair', '3rd pair', 'Rear pair'] as const;
+// The slider reaches near-instantly-repeating fire on purpose; the scene still
+// paces shots off this cooldown, so keep it above zero to stay finite.
+const MIN_COOLDOWN = 0.02;
 const MAX_COOLDOWN = 2.5;
 
 const PANEL_STYLE: Partial<CSSStyleDeclaration> = {
@@ -34,7 +37,6 @@ export function createWeaponTuner(cooldowns: number[]): WeaponTuner {
   root.append(title);
 
   WEAPON_PAIRS.forEach((pair, index) => {
-    const minimum = Math.max(0.15, (WEAPON_SHOT_DELAYS[pair.sounds[0]!] ?? 0) + 0.05);
     const row = document.createElement('div');
     row.style.cssText = 'margin:6px 0;';
 
@@ -51,7 +53,7 @@ export function createWeaponTuner(cooldowns: number[]): WeaponTuner {
 
     const input = document.createElement('input');
     input.type = 'range';
-    input.min = String(minimum);
+    input.min = String(MIN_COOLDOWN);
     input.max = String(MAX_COOLDOWN);
     input.step = '0.01';
     input.value = String(cooldowns[index] ?? pair.cooldown);

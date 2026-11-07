@@ -11,13 +11,13 @@ interface SliderSpec {
 }
 
 const SLIDERS: SliderSpec[] = [
-  { key: 'forwardAccel', label: 'W thrust', min: 0, max: 25, step: 0.1, digits: 2, unit: 'm/s²' },
-  { key: 'reverseAccel', label: 'S thrust', min: 0, max: 20, step: 0.1, digits: 2, unit: 'm/s²' },
+  { key: 'forwardAccel', label: 'W thrust', min: 0, max: 60, step: 0.1, digits: 2, unit: 'm/s²' },
+  { key: 'reverseAccel', label: 'S thrust', min: 0, max: 45, step: 0.1, digits: 2, unit: 'm/s²' },
   {
     key: 'angularAccel',
     label: 'A/D torque',
     min: 0,
-    max: 15,
+    max: 40,
     step: 0.1,
     digits: 1,
     unit: 'rad/s²',
