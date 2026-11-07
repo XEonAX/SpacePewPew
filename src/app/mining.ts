@@ -185,6 +185,10 @@ export interface Mining {
   getTractorTargets(): readonly ({ x: number; y: number } | null)[];
   /** Which barrels are currently emitting a beam, indexed by mount. */
   getActiveBeams(): readonly boolean[];
+  /** Active laser barrels (front pair). */
+  getLaserBeamCount(): number;
+  /** Active tractor barrels (all mounts after the front pair). */
+  getTractorBeamCount(): number;
   destroy(): void;
 }
 
@@ -856,6 +860,20 @@ export function createMining(): Mining {
     },
     getActiveBeams(): readonly boolean[] {
       return beamActivity;
+    },
+    getLaserBeamCount(): number {
+      let count = 0;
+      for (let barrel = 0; barrel < LASER_BARRELS; barrel += 1) {
+        if (beamActivity[barrel]) count += 1;
+      }
+      return count;
+    },
+    getTractorBeamCount(): number {
+      let count = 0;
+      for (let barrel = TRACTOR_FIRST_BARREL; barrel < beamActivity.length; barrel += 1) {
+        if (beamActivity[barrel]) count += 1;
+      }
+      return count;
     },
     destroy(): void {
       container.destroy({ children: true });

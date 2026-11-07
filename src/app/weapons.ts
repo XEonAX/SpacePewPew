@@ -1,8 +1,11 @@
 import type { SoundName } from '../audio/audio';
 
+/** One-shot weapon clips (not the mining/collision beds). */
+export type WeaponSound = Extract<SoundName, 'beam-front' | 'blast-3' | 'blast-4' | 'blast-5'>;
+
 export interface WeaponPairSpec {
   /** Cycled without an immediate repeat. */
-  sounds: readonly SoundName[];
+  sounds: readonly WeaponSound[];
   /** Seconds between shots from this pair. */
   cooldown: number;
   /** Per-shot volume multiplier. */
@@ -21,7 +24,7 @@ export const WEAPON_PAIRS: readonly WeaponPairSpec[] = [
 ];
 
 /** Time from clip start to its first audible shot transient. */
-export const WEAPON_SHOT_DELAYS: Record<SoundName, number> = {
+export const WEAPON_SHOT_DELAYS: Record<WeaponSound, number> = {
   'beam-front': 0.035,
   'blast-3': 0.286,
   'blast-4': 0.285,
@@ -31,7 +34,7 @@ export const WEAPON_SHOT_DELAYS: Record<SoundName, number> = {
 export function nextPairVariant(
   pair: WeaponPairSpec,
   cursor: number,
-): { sound: SoundName; cursor: number } {
+): { sound: WeaponSound; cursor: number } {
   const index = cursor % pair.sounds.length;
   return {
     sound: pair.sounds[index]!,

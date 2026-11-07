@@ -150,6 +150,8 @@ export interface ShipCollision {
   hit: boolean;
   /** Inward speed along the contact normal, m/s. */
   impactSpeed: number;
+  /** Tangential speed at the contact, m/s (how fast the shield is sliding). */
+  slideSpeed: number;
   /** Normal impulse magnitude, N·s. */
   impulse: number;
   /** Kinetic energy dissipated at the contact, J. */
@@ -167,6 +169,7 @@ const noHit = (ship: ShipPose): ShipCollision => ({
   angularVelocity: ship.angularVelocity,
   hit: false,
   impactSpeed: 0,
+  slideSpeed: 0,
   impulse: 0,
   hitEnergy: 0,
   contactX: ship.x,
@@ -465,6 +468,8 @@ export function resolveShipCollision(
   const contactVx = ship.vx - ship.angularVelocity * ry;
   const contactVy = ship.vy + ship.angularVelocity * rx;
   const inward = contactVx * normal.x + contactVy * normal.y;
+  const contactSpeedSq = contactVx * contactVx + contactVy * contactVy;
+  const slideSpeed = Math.sqrt(Math.max(0, contactSpeedSq - inward * inward));
 
   let vx = ship.vx;
   let vy = ship.vy;
@@ -514,6 +519,7 @@ export function resolveShipCollision(
     angularVelocity,
     hit: true,
     impactSpeed: inward > 0 ? inward : 0,
+    slideSpeed,
     impulse,
     hitEnergy,
     contactX,

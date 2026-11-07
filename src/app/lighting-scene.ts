@@ -20,6 +20,8 @@ import { createFlightTelemetry } from './flight-telemetry';
 import { createGroundGrid } from './ground-grid';
 import { FLAME_LOCAL_LENGTH, createEngineExhaust } from './engine-exhaust';
 import { createEngineAudio } from './engine-audio';
+import { createMiningAudio } from './mining-audio';
+import { createImpactAudio } from './impact-audio';
 import { PIXELS_PER_METER } from './world-scale';
 import { clamp } from '../utils/math';
 import type { AudioManager } from '../audio/audio';
@@ -135,6 +137,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const ground = createGroundGrid();
   const exhaust = createEngineExhaust();
   const engineAudio = createEngineAudio(audio);
+  const miningAudio = createMiningAudio(audio);
+  const impactAudio = createImpactAudio(audio);
   content.addChild(ground.mesh, exhaust.smoke);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
@@ -556,6 +560,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     layout();
     // The rock is solid: push the ship's shield capsule out of it and bounce
     // the part of its velocity heading inward, so it cannot fly through.
+    let impactSpeed = 0;
+    let impactEnergy = 0;
+    let scrapeSpeed = 0;
     if (shipCollider.points.length > 0) {
       const centre = shipCentre();
       const pivotAft = (SHIP_COM_AFT_PX * shipBaseScale) / PIXELS_PER_METER;
@@ -590,6 +597,11 @@ export async function createScene(app: Application, audio: AudioManager): Promis
           angularVelocity: collision.angularVelocity,
         };
         touched = true;
+        scrapeSpeed = Math.max(scrapeSpeed, collision.slideSpeed);
+        if (collision.hitEnergy >= impactEnergy) {
+          impactEnergy = collision.hitEnergy;
+          impactSpeed = collision.impactSpeed;
+        }
         if (collision.hitEnergy >= strongest) {
           strongest = collision.hitEnergy;
           shieldImpact = collision.impactSpeed;
@@ -616,6 +628,12 @@ export async function createScene(app: Application, audio: AudioManager): Promis
         );
       }
     }
+    impactAudio.update({
+      dt: deltaSeconds,
+      impactSpeed,
+      hitEnergy: impactEnergy,
+      slideSpeed: scrapeSpeed,
+    });
     telemetry.update();
     followCamera();
     updateTransforms(deltaSeconds);
@@ -644,13 +662,19 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       width,
       height,
     });
-    if (weaponMode === 'mining') {
-      const mined = mining.getCargo();
-      if (mined !== cargo) {
-        cargo = mined;
-        updateHint();
-      }
+    // Cargo is polled every frame (not just in mining mode) so a delivery that
+    // finishes after switching weapons still gets its latch sound.
+    const mined = mining.getCargo();
+    if (mined > cargo) miningAudio.cargoDelivered();
+    if (mined !== cargo) {
+      cargo = mined;
+      updateHint();
     }
+    miningAudio.update({
+      dt: deltaSeconds,
+      laserBeams: mining.getLaserBeamCount(),
+      tractorBeams: mining.getTractorBeamCount(),
+    });
 
     // Collider gizmo: the dust-world outline the physics actually uses.
     colliderGizmo.visible = showColliders;
@@ -844,6 +868,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       mining.destroy();
       exhaust.destroy();
       engineAudio.destroy();
+      miningAudio.destroy();
+      impactAudio.destroy();
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroidField.destroy();

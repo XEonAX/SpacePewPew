@@ -96,6 +96,7 @@ describe('ship vs asteroid polygon', () => {
       angularVelocity: 0,
       hit: false,
       impactSpeed: 0,
+      slideSpeed: 0,
       impulse: 0,
       hitEnergy: 0,
       contactX: 0,
@@ -160,6 +161,8 @@ describe('ship vs asteroid polygon', () => {
     const grippy = resolveShipCollision(ship, HULL, ROCK, { ...BODY, friction: 0.5 });
     expect(grippy.vx).toBeLessThan(slippery.vx);
     expect(Math.abs(grippy.angularVelocity)).toBeGreaterThan(0);
+    // The sliding component is what the scrape bed follows.
+    expect(slippery.slideSpeed).toBeGreaterThan(2.5);
   });
 });
 

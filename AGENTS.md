@@ -85,6 +85,13 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   nozzle's screen position. Adds a speed rush that ramps to forward terminal speed and a
   retro-strain bed driven by `dot(thrust, velocity) < 0` (main hums duck while braking). Pure
   helpers unit-tested in `tests/engine-audio.test.ts`.
+- `src/app/mining-audio.ts` — mining-rig audio: a laser bed whose gain follows active cutting
+  barrels, a tractor bed whose gain follows connected barrels, and the cargo-intake latch
+  one-shot. Gain helpers are pure and unit-tested in `tests/mining-audio.test.ts`.
+- `src/app/impact-audio.ts` — collision audio: impact one-shots scaled by hit energy (threshold,
+  energy curve, cooldown) plus a scrape bed driven by the contact's tangential slide speed.
+  `ShipCollision.slideSpeed` supplies that speed. Pure helpers unit-tested in
+  `tests/impact-audio.test.ts`.
 - `src/app/engine-layout.ts` — shared main/reverse nozzle geometry (must match the baked texture).
 - `src/app/engine-mix.ts` — pure ramped engine-output mixer: throttle plus the A/D turn couple,
   force-balanced with `turnThrustBalance` (the pair is capped by the weaker engine group, so a
@@ -116,7 +123,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   switchable in game with **P**: `curved` (default — arcs to the hatch at a turn rate the barrels
   can track) or `physics` (bounded acceleration). Beams drop a chunk that leaves their reach;
   uncaptured metal cools and fades, but a gripped chunk's lifetime is reset each frame so
-  cargo never expires in transit. Object-pooled chunks (256); no audio yet.
+  cargo never expires in transit. Object-pooled chunks (256); laser/tractor beds and the cargo
+  latch are driven by `mining-audio.ts` from the exposed beam counts and cargo total.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
@@ -172,8 +180,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   with `audio.setListenerGain(listenerGainForZoom(zoom))` (Howler master gain), so it scales
   one-shots and loops alike; do not bake zoom into individual voice gains.
 - **Audio assets are small and committed.** Weapon WAVs live in `public/audio/weapons/`,
-  seamless engine loops in `public/audio/engines/`; both are registered in
-  `src/audio/audio.ts`. Trim/fade/normalize offline; do not add a build-time audio pipeline.
+  seamless engine loops in `public/audio/engines/`, mining beds in `public/audio/mining/`, and
+  impact/scrape clips in `public/audio/impacts/`; all are registered in `src/audio/audio.ts`.
+  Trim/fade/normalize offline; do not add a build-time audio pipeline.
 - **Engine loops are tonal, not saturated.** Harmonic banks use random phases and stay sparse;
   no tanh/noise beds beyond a low smooth body. Zero-phase stacks and hard saturation read as
   buzz, which is the one thing these loops must avoid.

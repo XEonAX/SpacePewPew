@@ -1,11 +1,19 @@
 import { Howl, Howler } from 'howler';
 import { joinBaseUrl } from '../utils/paths';
 
-export type SoundName = 'beam-front' | 'blast-3' | 'blast-4' | 'blast-5';
+export type SoundName =
+  'beam-front' | 'blast-3' | 'blast-4' | 'blast-5' | 'cargo-intake' | 'impact-1' | 'impact-2';
 
-/** Continuous, looped beds (engine hums). */
+/** Continuous, looped beds (engine hums, beams, grinding). */
 export type LoopName =
-  'engine-main' | 'engine-side' | 'engine-reverse' | 'engine-rush' | 'engine-strain';
+  | 'engine-main'
+  | 'engine-side'
+  | 'engine-reverse'
+  | 'engine-rush'
+  | 'engine-strain'
+  | 'mining-laser'
+  | 'tractor-beam'
+  | 'scrape';
 
 export interface PlayOptions {
   /** Playback rate, default 1. */
@@ -48,6 +56,9 @@ const SOUND_SOURCES: Record<SoundName, string> = {
   'blast-3': 'audio/weapons/blast-3.wav',
   'blast-4': 'audio/weapons/blast-4.wav',
   'blast-5': 'audio/weapons/blast-5.wav',
+  'cargo-intake': 'audio/mining/cargo-intake.wav',
+  'impact-1': 'audio/impacts/impact-1.wav',
+  'impact-2': 'audio/impacts/impact-2.wav',
 };
 
 const LOOP_SOURCES: Record<LoopName, string> = {
@@ -56,6 +67,9 @@ const LOOP_SOURCES: Record<LoopName, string> = {
   'engine-reverse': 'audio/engines/engine-reverse.wav',
   'engine-rush': 'audio/engines/engine-rush.wav',
   'engine-strain': 'audio/engines/engine-strain.wav',
+  'mining-laser': 'audio/mining/mining-laser.wav',
+  'tractor-beam': 'audio/mining/tractor-beam.wav',
+  scrape: 'audio/impacts/scrape.wav',
 };
 
 export interface AudioManagerOptions {

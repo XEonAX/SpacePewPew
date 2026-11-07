@@ -844,3 +844,33 @@ scales the turn couple and shows up directly as terminal yaw. With equal groups 
 (balance is 1/1); with the shipped 200 kN main / 150 kN reverse the main side of the couple is
 throttled to 0.75 and a standstill turn stays at 0.00 m/s. The force balance covers the turn-only
 component; a throttle + turn still trades forward thrust for yaw, which is physical.
+
+## ADR-031 — Mining and impact audio: beds for continuous sounds, one-shots for events
+
+**Status:** accepted (2026-11-07).
+
+The added gameplay (mining lasers, tractor beams, cargo intake, collisions, scraping) had no
+audio. It has both continuous and discrete parts, and they should not be modelled the same way.
+
+Rules:
+
+- **Continuous states are looped beds.** The mining laser and tractor beams are loops whose
+  volume is a smoothed function of the active barrel counts (`mining-audio.ts`), not repeated
+  shots. The scrape is a loop whose gain follows the worst tangential contact speed. Loops are
+  created through `AudioManager.createLoop()` so they unlock with the first gesture and fade
+  with camera distance like every other continuous voice.
+- **Events are one-shots with physical gain mapping.** A chunk landing in the hatch fires the
+  cargo-intake latch. Contacts above `1.1 m/s` inward fire an impact one-shot (alternating two
+  sampled weights) with volume from `sqrt(hitEnergy / 90 kJ)` and a rate that drops as the hit
+  gets heavier; a `0.12 s` cooldown keeps resting contacts from machine-gunning.
+- **The collision result carries the audio inputs.** `ShipCollision` now exposes `slideSpeed`
+  alongside `impactSpeed` and `hitEnergy`, so the scene can hand one frame's worst contact to
+  `impact-audio.ts` without re-deriving contact velocity.
+- **Assets are generated offline and committed.** Loops quantise every component to an integer
+  number of cycles per loop (same rule as the engine hums), so the seam is mathematically
+  continuous; one-shots are short mono 16-bit WAVs with edge fades. No build-time pipeline.
+
+**Consequences:** continuous mining/scraping reads as sustained machinery, while impacts stay
+punchy and scale with the same energy that drives camera shake and shield flash. New one-shots
+need a `SoundName`/`LoopName` entry in `src/audio/audio.ts` and an asset under `public/audio/`;
+new beds should follow the loop rules rather than scheduling repeated clips.

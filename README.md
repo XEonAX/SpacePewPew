@@ -77,6 +77,8 @@ src/
   app/ground-grid.ts      Screen-space 1 m grid fixed to the near dust layer
   app/engine-exhaust.ts   Cone flames + world-space smoke exhaust
   app/engine-audio.ts     Per-engine hum loops driven by nozzle power (tested)
+  app/mining-audio.ts     Laser/tractor beds + cargo intake latch (tested)
+  app/impact-audio.ts     Impact one-shots + scrape bed from contact speed (tested)
   app/engine-layout.ts    Shared main/reverse engine positions
   app/engine-mix.ts       Pure ramped engine-output mixer (tested)
   app/turrets.ts          Eight turret mounts with finite-speed mouse tracking
@@ -102,6 +104,8 @@ public/
   favicon.svg
   audio/weapons/          Processed weapon SFX (1 beam + 3 charge-blasts)
   audio/engines/          Seamless engine loops (hums + speed rush + retro strain)
+  audio/mining/           Seamless laser/tractor beds + cargo intake latch
+  audio/impacts/          Impact one-shots (two weights) + seamless scrape bed
   assets/lighting/        Processed color/normal maps + ship emissive/glow maps
 scripts/
   browser.mjs             Shared-browser CLI (open / inspect / act / stop)
@@ -228,10 +232,29 @@ are quantised to integer cycles per loop and the noise beds are synthesised in t
 domain with random phases, so the loop point is mathematically seamless (no fades, no hard
 cut). Runtime rate changes are safe because the loop length is unchanged.
 
+### Mining, impacts and scraping
+
+Two more modules follow the same "loops for continuous sounds, one-shots for events" rule:
+
+- `mining-audio.ts` — one seamless **mining-laser** bed whose gain rises with the number of
+  barrels cutting, one **tractor-beam** bed whose gain follows connected barrels (and whose rate
+  lifts slightly as more connect), and the **cargo-intake** one-shot when a chunk lands in the
+  hatch (tiny deterministic pitch alternation so repeats do not clone).
+- `impact-audio.ts` — every contact frame reports the worst inward speed, hit energy and
+  tangential slide speed. Above 1.1 m/s inward the module fires one of two impact one-shots with
+  volume from a square-root energy curve (quiet graze → full crunch) and rate that drops as the
+  hit gets heavier; the tangential speed drives a smoothed **scrape** bed, so grinding along a
+  rock is continuous while a clean bounce is a single thud.
+
+The loops in `public/audio/mining/` and `public/audio/impacts/` are generated offline with the
+same rule as the engine hums: every component is an integer number of cycles per loop, so the
+seam is mathematically continuous. One-shots are short mono 16-bit WAVs with edge fades; the
+assets are committed and decoded by Howler, with no build-time processing.
+
 Camera distance is part of the mix: `listenerGainForZoom()` drives Howler's master gain (1× =
-full, ~0.20 at the 50× zoom-out limit), so engine hums, the speed rush, braking strain and
-weapon shots all fade together as the camera pulls out. Zoom is already eased, so the fade is
-smooth and mute/unmute restores the current distance level.
+full, ~0.20 at the 50× zoom-out limit), so engine hums, the speed rush, braking strain, mining
+beds, impacts and weapon shots all fade together as the camera pulls out. Zoom is already eased,
+so the fade is smooth and mute/unmute restores the current distance level.
 
 ## Agentic development
 
