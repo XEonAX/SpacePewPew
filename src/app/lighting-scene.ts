@@ -434,7 +434,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const { width, height } = app.screen;
     const dust = background.getDustTransform();
 
-    ground.setView(dust.x, dust.y, dust.zoom, width, height);
+    // The grid is a world-space mesh centred on the camera, so its zoom pivot is
+    // the camera point and its lines stay locked to the dust/asteroid layer.
+    ground.setView(dust.x * width, dust.y * height, dust.zoom, width, height);
     audio.setListenerGain(listenerGainForZoom(dust.zoom));
 
     const centre = shipCentre();

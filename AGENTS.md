@@ -82,8 +82,11 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/flight-telemetry.ts` — read-only DOM overlay for mass, terminal W/S/yaw, current and
   ramped state.
 - `src/app/world-scale.ts` — `PIXELS_PER_METER = 64`; all flight physics is in metres.
-- `src/app/ground-grid.ts` — screen-space 1 m × 1 m grid fixed to the near dust layer
-  (64 world px per metre; major lines every 5 m).
+- `src/app/ground-grid.ts` — world-space 1 m × 1 m grid (64 world px per metre; major lines every
+  5 m), drawn as a camera-centred quad transformed by the dust camera exactly like the asteroid
+  layer. Its zoom pivot is therefore the camera point, and it cannot drift from the world. The
+  x = 0 axis is amber and y = 0 is green as a world-space reference; `setView` takes the camera
+  position in world px plus the zoom and viewport size.
 - `src/app/engine-exhaust.ts` — flames and dust-world smoke driven by the engine mix; flame
   length/alpha are proportional to each engine's ramped output and smoke emission is weighted
   per engine.

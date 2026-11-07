@@ -139,7 +139,10 @@ docs/                     Architecture decisions, reference art and agent workfl
   the near dust/grid layer (the old parallax pan bug). The asteroid is
   fixed on that layer, and the layer is rigid.
 - A subtle cyan **ground grid** is fixed to that layer: minor cells are **1 m × 1 m** (64 world
-  px per metre), major lines every 5 m. Ship movement and speed read against it.
+  px per metre), major lines every 5 m. It is drawn as a world-space mesh (a camera-centred quad
+  transformed by the same camera as the dust/asteroid layer), so zooming pivots on the camera
+  point and the grid can never drift from the world. For orientation the **x = 0 axis is amber**
+  and the **y = 0 axis is green**. Ship movement and speed read against it.
 - Parallax is logical: pan is integrated from camera motion for every layer, so the near
   dust/grid layer always moves fastest and each farther layer moves proportionally less. Wheel
   zoom only scales layers about the viewport centre, so zooming never slides the sky after a

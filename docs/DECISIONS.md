@@ -956,3 +956,32 @@ Rules:
 **Consequences:** wheel zoom no longer changes the follow target, so the grid/asteroids/dust stay
 anchored to the ship and scale about it. The ship sits slightly closer to screen centre when
 zoomed out than it did with the boosted lookahead; that is the correct trade for a stable world.
+
+## ADR-035 — The ground grid is a world-space mesh, not a screen-space shader
+
+**Status:** accepted (2026-11-07).
+
+The grid was drawn as a full-screen quad whose fragment shader reconstructed world coordinates
+from screen position, camera position and zoom. That should mathematically match the world
+layers, but it duplicated the camera transform in the shader and made zoom-anchor/pan bugs hard to
+reason about.
+
+Rules:
+
+- **Use the real camera transform.** The grid mesh is a large quad centred on the viewport and
+  scaled by the dust zoom; a `uCameraWorld` uniform offsets its local vertices into world pixels.
+  The mesh therefore goes through Pixi's world/projection matrices exactly like the dust motes,
+  asteroids and ship, so it is in the same space by construction.
+- **The pivot is the camera point.** Because the quad stays centred on screen and only its scale
+  and world offset change, the world point under the viewport centre (the camera) is fixed while
+  zooming; the grid scales about the camera/ship, never about an offset point.
+- **Mark the origin.** The world x = 0 line is amber and y = 0 green, giving a world-locked
+  reference to eyeball the layer sync and zoom pivot.
+- **Cover the viewport at every zoom.** The quad's half-extent covers an 8K viewport at the
+  0.02x zoom-out limit; it is centred on the camera so it still covers when the ship is far from
+  the world origin.
+
+**Consequences:** the grid now shares the exact transform with the dust layer (verified: same
+position/scale and `center - cameraWorld * zoom` mapping for asteroid and dust containers at
+multiple zooms), and zooming is visually anchored on the ship. The earlier lookup-based shader
+and its `uResolution`/`uCamera` uniforms are gone.
