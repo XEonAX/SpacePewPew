@@ -17,7 +17,7 @@ import { muzzleWorldPose } from './weapons';
 import type { MuzzleAim } from './weapons';
 
 export const CHUNK_POOL_SIZE = 256;
-const CHUNK_SIZE_M = 0.6;
+const CHUNK_SIZE_M = 0.35;
 // Molten metal floats away slowly so the gentle tractors can reel it in.
 const CHUNK_MIN_SPEED = 1.2;
 const CHUNK_MAX_SPEED = 2.8;
@@ -54,8 +54,9 @@ export type CarryMode = 'curved' | 'physics';
 const PHYSICS_ACCEL_MPS2 = 6;
 const PHYSICS_MAX_SPEED_MPS = 8;
 const PHYSICS_ARRIVAL_SECONDS = 0.7;
-const CHUNK_TEXTURE_SIZE = 64;
-const CHUNK_TEXTURE_VARIANTS = 8;
+const CHUNK_TEXTURE_SIZE = 32;
+// Two shapes keep the chunk sprites in two batches.
+const CHUNK_TEXTURE_VARIANTS = 2;
 
 // The grill is part of the hull texture: the slatted hatch between the two
 // rearmost pairs. These are ship-texture pixels relative to the ship centre.
@@ -64,7 +65,7 @@ const GRILL_LOCAL_Y_PX = 123;
 const GRILL_HALF_W_PX = 23;
 const GRILL_HALF_H_PX = 45;
 /** Grow the intake by half a chunk so metal does not need pixel-perfect aim. */
-const GRILL_PAD_M = CHUNK_SIZE_M * 0.5;
+const GRILL_PAD_M = 0.3;
 
 const LASER_COLOR = 0xff5340;
 const LASER_CORE_COLOR = 0xffd9c2;
@@ -133,59 +134,44 @@ export interface Mining {
   destroy(): void;
 }
 
-/** Simple solid chunks: square, rectangle or triangle, each with a glow. */
+/** Small flat-solid chunk: a square or a triangle with a light glow rim. */
 function createChunkTexture(variant: number): Texture {
   const size = CHUNK_TEXTURE_SIZE;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
-  const rng = createRng(0x9e37_79b9 ^ (variant * 0x85eb_ca6b));
   if (ctx) {
     const half = size / 2;
 
-    // Soft glow halo behind the chunk.
-    const halo = ctx.createRadialGradient(half, half, half * 0.3, half, half, half);
-    halo.addColorStop(0, 'rgba(255, 146, 66, 0.5)');
-    halo.addColorStop(0.55, 'rgba(255, 92, 30, 0.2)');
-    halo.addColorStop(1, 'rgba(255, 70, 20, 0)');
+    // Light glow so the shard still reads as hot metal.
+    const halo = ctx.createRadialGradient(half, half, half * 0.35, half, half, half);
+    halo.addColorStop(0, 'rgba(255, 138, 60, 0.45)');
+    halo.addColorStop(1, 'rgba(255, 90, 30, 0)');
     ctx.fillStyle = halo;
     ctx.fillRect(0, 0, size, size);
 
-    const reach = 18 + rng() * 4;
-    const shape = variant % 3;
+    const reach = half - 4;
     const path = new Path2D();
-    if (shape === 2) {
+    if (variant === 1) {
       // Triangle.
       path.moveTo(0, -reach);
-      path.lineTo(reach * 0.95, reach * 0.8);
-      path.lineTo(-reach * 0.95, reach * 0.8);
+      path.lineTo(reach, reach * 0.8);
+      path.lineTo(-reach, reach * 0.8);
     } else {
-      // Square or rectangle.
-      const halfWidth = shape === 1 ? reach * 1.25 : reach;
-      const halfHeight = shape === 1 ? reach * 0.72 : reach;
-      path.rect(-halfWidth, -halfHeight, halfWidth * 2, halfHeight * 2);
+      // Square.
+      path.rect(-reach * 0.8, -reach * 0.8, reach * 1.6, reach * 1.6);
     }
     path.closePath();
 
-    ctx.save();
-    ctx.translate(half, half);
-    ctx.rotate(rng() * Math.PI * 2);
-
-    // Solid, heat-shaded body so the chunk reads as real metal.
-    const body = ctx.createLinearGradient(-20, -22, 22, 24);
-    body.addColorStop(0, '#8a5a3c');
-    body.addColorStop(0.45, '#e08a45');
-    body.addColorStop(0.75, '#ffcf8c');
-    body.addColorStop(1, '#ff9a4e');
-    ctx.fillStyle = body;
+    // Flat solid body: no gradient, cheap and readable at this size.
+    ctx.fillStyle = variant === 1 ? '#ff9d45' : '#ffb15a';
     ctx.fill(path);
 
-    // Rim keeps the edge crisp against the halo.
-    ctx.lineWidth = 1.8;
-    ctx.strokeStyle = 'rgba(255, 214, 150, 0.9)';
+    // Thin dark rim keeps the silhouette crisp against the glow.
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(122, 58, 22, 0.9)';
     ctx.stroke(path);
-    ctx.restore();
   }
   return new Texture({ source: new CanvasSource({ resource: canvas }) });
 }
@@ -257,9 +243,8 @@ export function createMining(): Mining {
     chunk.life = CHUNK_LIFETIME;
     chunk.spin = randomRange(rng, -3, 3);
 
-    // The drawn shard fills roughly half its texture, so oversize the sprite
-    // to keep the metal itself around CHUNK_SIZE_M across.
-    const size = CHUNK_SIZE_M * randomRange(rng, 0.75, 1.3) * PIXELS_PER_METER * 1.6;
+    // The shape fills most of its texture; a small sprite is all a chunk needs.
+    const size = CHUNK_SIZE_M * randomRange(rng, 0.8, 1.15) * PIXELS_PER_METER * 1.45;
     chunk.sprite.width = size;
     chunk.sprite.height = size;
     chunk.sprite.rotation = randomRange(rng, 0, Math.PI * 2);
