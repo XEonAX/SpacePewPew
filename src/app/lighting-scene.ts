@@ -55,6 +55,7 @@ import { createMining } from './mining';
 import { colliderWorldPoints, resolveShipCollision, shipHull } from './asteroid-collision';
 import type { AsteroidCollider, ShipHull, Vec2 } from './asteroid-collision';
 import { createAsteroidField } from './asteroid-field';
+import { DEFAULT_ASTEROID_COUNT, generateAsteroidLayout } from './asteroid-layout';
 import { createShipShield } from './ship-shield';
 
 export interface Scene {
@@ -82,10 +83,6 @@ const IMPACT_SPIN_LIMIT = 1.2;
 const SHAKE_ENERGY_REFERENCE_J = 90_000;
 const SHAKE_PEAK_PIXELS = 9;
 const SHAKE_DECAY_PER_SECOND = 4.5;
-/** The second asteroid starts this many metres dead ahead of the ship's nose. */
-const ASTEROID_AHEAD_METERS = 20;
-/** The new rock is a big one: this many times the base rock diameter. */
-const ASTEROID_AHEAD_SCALE = 3;
 
 /** World-space lighting shared by the lit meshes. */
 const lighting: LightingState = {
@@ -334,42 +331,23 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     if (shipPlaced && width === laidOutWidth && height === laidOutHeight) return;
     laidOutWidth = width;
     laidOutHeight = height;
-    const gap = Math.max(24, width * 0.045);
-
-    let shipScale = Math.min(height * 0.48, width * 0.52) / shipColor.height;
-    let asteroidScale = Math.min(height * 0.44, width * 0.3) / asteroidColor.width;
-
-    const shipWidth = shipColor.width * shipScale;
-    const asteroidWidth = asteroidColor.width * asteroidScale;
-    const fit = Math.min(1, (width * 0.86) / (shipWidth + asteroidWidth + gap));
-    shipScale *= fit;
-    asteroidScale *= fit;
-
+    const shipScale = Math.min(height * 0.48, width * 0.52) / shipColor.height;
+    const asteroidScale = Math.min(height * 0.44, width * 0.3) / asteroidColor.width;
     const centerX = width / 2;
-    const centerY = height * 0.5;
-    const shipScreenX = centerX - gap / 2 - shipWidth / 2;
-    const asteroidScreenX = centerX + gap / 2 + asteroidWidth / 2;
 
     if (!shipPlaced) {
-      // Flight is in metres relative to the viewport centre; rendering converts
-      // metres to screen pixels with PIXELS_PER_METER. The pivot is aft of the
-      // texture centre, so the centre of mass starts one pivot offset behind
-      // the layout position.
-      flight.x = (shipScreenX - width / 2) / PIXELS_PER_METER;
-      flight.y =
-        (centerY - height / 2) / PIXELS_PER_METER +
-        (SHIP_COM_AFT_PX * shipScale) / PIXELS_PER_METER;
-      // Populate the world: the demo rock beside the pad, plus a new rock in
-      // world space dead ahead of the hull's centre.
+      // The ship's centre of mass is the world origin, so the camera starts
+      // there too and the grid axes cross at the ship. The asteroid field is a
+      // deterministic scatter around the same origin, keeping the y axis clear.
+      flight.x = 0;
+      flight.y = 0;
       rockDiameter = (asteroidColor.width * asteroidScale) / PIXELS_PER_METER;
-      const padCentreY = (centerY - height / 2) / PIXELS_PER_METER;
-      asteroidField.add((asteroidScreenX - width / 2) / PIXELS_PER_METER, padCentreY, rockDiameter);
-      asteroidField.add(
-        (shipScreenX - width / 2) / PIXELS_PER_METER,
-        padCentreY - ASTEROID_AHEAD_METERS,
-        rockDiameter * ASTEROID_AHEAD_SCALE,
-        1,
-      );
+      for (const rock of generateAsteroidLayout({
+        count: DEFAULT_ASTEROID_COUNT,
+        baseDiameter: rockDiameter,
+      })) {
+        asteroidField.add(rock.x, rock.y, rock.diameter, rock.variant);
+      }
       shipPlaced = true;
     }
 

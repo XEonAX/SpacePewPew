@@ -72,9 +72,9 @@ void main() {
     // World axes through the origin: vertical x=0 in warm amber, horizontal
     // y=0 in green. They are world-locked, so they make it obvious whether the
     // grid pans or anchors with the dust layer while the camera moves/zooms.
-    float axisAlpha = 0.55;
-    float verticalAxis = 1.0 - smoothstep(0.0, fwidth(vWorld.x) * 1.7, abs(vWorld.x));
-    float horizontalAxis = 1.0 - smoothstep(0.0, fwidth(vWorld.y) * 1.7, abs(vWorld.y));
+    float axisAlpha = 0.18;
+    float verticalAxis = 1.0 - smoothstep(0.0, fwidth(vWorld.x) * 1.2, abs(vWorld.x));
+    float horizontalAxis = 1.0 - smoothstep(0.0, fwidth(vWorld.y) * 1.2, abs(vWorld.y));
     color = mix(color, vec3(1.0, 0.62, 0.22), verticalAxis);
     color = mix(color, vec3(0.35, 0.95, 0.6), horizontalAxis);
     alpha = max(alpha, max(verticalAxis, horizontalAxis) * axisAlpha);

@@ -985,3 +985,28 @@ Rules:
 position/scale and `center - cameraWorld * zoom` mapping for asteroid and dust containers at
 multiple zooms), and zooming is visually anchored on the ship. The earlier lookup-based shader
 and its `uResolution`/`uCamera` uniforms are gone.
+
+## ADR-036 — Ship CoM at the world origin with a deterministic 100-rock field
+
+**Status:** accepted (2026-11-07).
+
+The demo used to place the ship and one asteroid side by side for framing, plus a hero rock 20 m
+ahead. That made the world origin incidental and gave no field to fly through.
+
+Rules:
+
+- **Spawn at the origin.** The flight state (centre of mass) starts at `(0, 0)` on layout and the
+  camera follows it there immediately, so the world origin, the camera point and the amber/green
+  grid axes all coincide with the ship at start.
+- **Deterministic scatter.** `src/app/asteroid-layout.ts` generates 100 rocks from a fixed seed:
+  random position, diameter (0.5–2.2x base, ~6 % at 3x) and art variant, with rejection so rocks
+  do not interpenetrate and the ship's spawn bubble stays clear. Same seed, same field.
+- **Keep the vertical axis free.** Placement requires `|x| - rockRadius >= 5 m`, so no rock edge
+  crosses the world y axis and the amber origin line stays readable.
+- **No side-by-side framing.** Layout no longer positions the ship next to a pad rock; it only
+  sizes the ship/art scale and seeds the field around the origin.
+
+**Consequences:** the initial view shows the ship on the origin axes with clear space around it
+(spawn bubble 7 m edge clearance), and rocks appear in the side sectors as you look or fly out.
+The full field is visible by zooming out. The previous `ASTEROID_AHEAD_*` constants and demo-rock
+seeding are gone; more rocks are one `add()` call, but the field begins from the generator.

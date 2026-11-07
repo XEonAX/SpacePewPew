@@ -137,6 +137,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   latch are driven by `mining-audio.ts` from the exposed beam counts and cargo total.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
+- `src/app/asteroid-layout.ts` — pure deterministic asteroid scatter: seeded PRNG, rejection
+  placement, axis/spawn clearances, diameter/variant mix. Unit-tested in
+  `tests/asteroid-layout.test.ts`.
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
   mesh plus a **two-stage collider** — a bounding circle and a **low-poly silhouette fit**. The
   contour is traced with 128 subpixel rays from the texture centre to the alpha edge, then
@@ -144,9 +147,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   points per rock, ~1–2 % of radius deviation). Concavities are kept; the collision pass fans
   the outline into triangles. The fit scales to the rock and **rotates with its spin**. The field exposes collider/mining lists (same objects, so melt decals and lasers share
   the spin). Rocks tumble slowly (0.02–0.06 rad/s, seeded). `add(x, y, diameter, variant?)`
-  places one, picking an art variant. The field is seeded with the demo rock beside the pad and
-  the **second supplied asteroid** 20 m dead ahead of the nose at **3× the base diameter**
-  (variant 1).
+  places one, picking an art variant. The world is seeded once on layout with a deterministic
+  **100-rock scatter** from `asteroid-layout.ts`: seeded placement, both art variants, a few 3x
+  heroes, the ship's spawn bubble kept clear and the **vertical world axis kept free of rock
+  edges**. The ship's centre of mass and the camera start at the world origin.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade; a swept
   test stops them on every asteroid's polygon collider (circle fast pass inside) via `blockers`.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
