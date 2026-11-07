@@ -132,8 +132,8 @@ docs/                     Architecture decisions, reference art and agent workfl
   long flight. The two distant galaxies are fixed to the sky.
 - The top-left **FLIGHT TUNING** panel has live sliders for ship mass (6–60 t), main and reverse
   engine thrust (10–500 kN each), linear/angular drag and input ramp. The top-right **FLIGHT
-  TELEMETRY** panel shows mass, terminal W/S/yaw, current velocity, angular velocity, and ramped
-  inputs (all linear units in metres). The
+  TELEMETRY** panel shows mass, terminal W/S/yaw, current velocity, angular velocity, ramped
+  inputs and the drag rates currently in effect (zero while coasting). The
   bottom-left **RATE OF FIRE** panel tunes the cooldown of each weapon pair, clamped to the
   pair's charge duration.
 - Eight turrets with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
