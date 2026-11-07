@@ -62,7 +62,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/ship-flight.ts` — pure mass-based flight in metres. The hull is a rigid body: each
   nozzle produces `thrust × engine-mix output` at its mount, so linear force is summed and yaw
   torque falls out of the nozzle positions (`engineWrench`). Acceleration is force/mass, angular
-  acceleration is torque/inertia (`shipInertiaKgM2` from the radius of gyration). Inputs ramp
+  acceleration is torque/inertia (`shipInertiaKgM2` from the radius of gyration), and the yaw
+  couple is force-balanced to the weaker engine group. Inputs ramp
   over 0.3 s; drag multiplies velocity on both axes while any input is active; terminal speeds
   and yaw rate emerge from thrust/drag. Unit-tested in `tests/ship-flight.test.ts`.
 - `src/app/ship-engines.ts` — the drive geometry: every `EngineMount` (group/index, nozzle
@@ -85,8 +86,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   retro-strain bed driven by `dot(thrust, velocity) < 0` (main hums duck while braking). Pure
   helpers unit-tested in `tests/engine-audio.test.ts`.
 - `src/app/engine-layout.ts` — shared main/reverse nozzle geometry (must match the baked texture).
-- `src/app/engine-mix.ts` — pure ramped engine-output mixer, unit-tested in
-  `tests/engine-mix.test.ts`.
+- `src/app/engine-mix.ts` — pure ramped engine-output mixer: throttle plus the A/D turn couple,
+  force-balanced with `turnThrustBalance` (the pair is capped by the weaker engine group, so a
+  turn never translates); unit-tested in `tests/engine-mix.test.ts`.
 - `src/app/turrets.ts` — eight turret mounts with finite-speed mouse tracking, per-mount aiming cones, and charge glows at the barrel tips. In mining mode the barrel glows are tinted red (front pair) / green (tractors) on a neutral white glow texture with normal blending (additive would wash to cyan over the blue hull); they stay lit and brighten per mount while its beam is active (`miningBeams`).
 - `src/app/turret-aim.ts` — pure angular spring-damper aim, unit-tested.
 - `src/app/weapons.ts` — clean turret-pair sound pools, cadence, per-sound tracer delays, and

@@ -814,3 +814,35 @@ the forward force. That is what the baked flames already showed; if it feels too
 the mix or the thrusters rather than reintroducing a synthetic yaw torque. The geometry is built
 from the layout scale, so a window resize rescales the ship and its drive together (the world
 already scales with the viewport).
+
+## ADR-030 — Force-balanced yaw couple so unequal engines still turn pure
+
+**Status:** accepted (2026-11-07).
+
+ADR-029 made yaw emerge from the engine mix: turning fires one reverse engine and
+lights the opposite main engine. That couple only cancels its linear force when
+both engine groups have the same thrust, so lowering the reverse engines to get
+lighter braking also made every turn drift forward.
+
+Rules:
+
+- **The couple is a pair, not two independent commands.** `turnThrustBalance(mainThrustN,
+reverseThrustN)` returns the per-group scale that equalises the two sides: the pair force is
+  `min(main, reverse)`, and the stronger group is throttled down to deliver it
+  (`engine-mix.ts`).
+- **Only the turn component is scaled.** The mix applies the balance to the turn term
+  (`turnRight * balance.main` / `turnLeft * balance.reverse`), not to the throttle term, so W/S
+  still use each group's full thrust and braking is unaffected.
+- **Physics, flames and audio share the balanced mix.** `ship-flight.ts` passes the balance into
+  `engineWrench`, and the exhaust and engine-audio frames carry the same `turnBalance`, so the
+  main flame visibly dims to match the reverse nozzle's force instead of lying about it.
+- **Yaw authority is the weaker nozzle.** A pure rotation can only push with a force both sides
+  can deliver, so terminal yaw now tracks `min(main, reverse)` (visible in telemetry) instead of
+  the main engine's thrust. If a future design wants strong yaw with weak braking it needs
+  dedicated reaction-control nozzles, not a stronger main engine.
+
+**Consequences:** the reverse-thrust slider no longer introduces translation during turns; it
+scales the turn couple and shows up directly as terminal yaw. With the shipped 120 kN per engine
+nothing changes (balance is 1/1). With 60 kN reverse, terminal yaw halves (2.01 → 1.01 rad/s) and
+a standstill turn stays at 0.00 m/s. The force balance covers the turn-only component; a
+throttle + turn still trades forward thrust for yaw, which is physical.

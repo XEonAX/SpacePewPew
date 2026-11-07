@@ -119,7 +119,10 @@ docs/                     Architecture decisions, reference art and agent workfl
   Turning is therefore real **differential thrust** torque, not a scripted spin. Inputs ramp in
   over 0.3 s. Drag applies to both linear and angular motion whenever any input is active;
   **thrust vs drag decide terminal speeds** — no separate speed cap. Mass and inertia come from
-  the hull, so a heavier ship accelerates and turns more slowly for the same thrust.
+  the hull, so a heavier ship accelerates and turns more slowly for the same thrust. The A/D
+  couple is force-balanced: the main engine on the inside of the turn is throttled down to the
+  reverse engine's thrust, so turns stay pure even when the reverse engines are weaker — yaw
+  authority then equals the weaker thruster pair (shown as terminal yaw).
 - The ship flies on the **near dust layer**; the camera smoothly pans with it. Lookahead grows
   **quadratically with speed** (near zero at low speed, full near terminal) and increases when
   zoomed out, so at speed the ship sits behind centre in its travel direction. The asteroid is

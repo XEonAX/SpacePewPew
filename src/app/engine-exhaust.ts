@@ -2,6 +2,7 @@ import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 import { createRng, randomRange } from '../utils/random';
 import { MAIN_ENGINE_LAYOUT, REVERSE_ENGINE_LAYOUT } from './engine-layout';
 import { computeEngineOutputs } from './engine-mix';
+import type { EngineTurnBalance } from './engine-mix';
 
 export const FLAME_LOCAL_LENGTH = MAIN_ENGINE_LAYOUT.flameLength;
 const SMOKE_RATE_PER_OUTPUT = 20;
@@ -63,6 +64,8 @@ interface ExhaustFrame {
   linearInput: number;
   /** Ramped angular input, -1..1 (A negative, D positive). */
   angularInput: number;
+  /** Force-balance scale for the yaw couple when the engine groups differ. */
+  turnBalance: EngineTurnBalance;
   shipVx: number;
   shipVy: number;
   dt: number;
@@ -244,6 +247,7 @@ export function createEngineExhaust(): EngineExhaust {
       const { main: mainOutputs, reverse: reverseOutputs } = computeEngineOutputs(
         frame.linearInput,
         frame.angularInput,
+        frame.turnBalance,
       );
       const mainCount = mainOutputs.length;
       const cos = Math.cos(frame.rotation);

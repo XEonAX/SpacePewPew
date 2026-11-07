@@ -1,6 +1,7 @@
 import type { AudioManager, LoopHandle, LoopName } from '../audio/audio';
 import { MAIN_ENGINE_LAYOUT, REVERSE_ENGINE_LAYOUT } from './engine-layout';
 import { computeEngineOutputs } from './engine-mix';
+import type { EngineTurnBalance } from './engine-mix';
 import type { EngineMix } from './engine-mix';
 import { clamp, smoothstep } from '../utils/math';
 
@@ -31,6 +32,8 @@ export interface EngineAudioFrame {
   linearInput: number;
   /** Ramped angular input, -1..1 (A negative, D positive). */
   angularInput: number;
+  /** Force-balance scale for the yaw couple when the engine groups differ. */
+  turnBalance: EngineTurnBalance;
   /** Ship velocity in metres per second. */
   vx: number;
   vy: number;
@@ -208,7 +211,7 @@ export function createEngineAudio(audio: AudioManager): EngineAudio {
 
   return {
     update(frame: EngineAudioFrame): void {
-      const mix = computeEngineOutputs(frame.linearInput, frame.angularInput);
+      const mix = computeEngineOutputs(frame.linearInput, frame.angularInput, frame.turnBalance);
       const powers = engineHumPowers(mix);
       const speedFraction = engineSpeedFraction(frame.vx, frame.vy, frame.terminalSpeed);
       const forwardAlignment = engineThrustAlignment(frame.vx, frame.vy, frame.rotation, 1);

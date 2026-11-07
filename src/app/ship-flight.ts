@@ -8,7 +8,7 @@
  * same rule Unity/Box2D use for drag, and deliberately not a force, so mass
  * does not change the decay rate.
  */
-import { computeEngineOutputs } from './engine-mix';
+import { computeEngineOutputs, turnThrustBalance } from './engine-mix';
 import type { ShipGeometry } from './ship-engines';
 
 export interface FlightControls {
@@ -102,7 +102,10 @@ export function engineWrench(
   tuning: FlightTuning,
   geometry: ShipGeometry,
 ): EngineWrench {
-  const mix = computeEngineOutputs(linearInput, angularInput);
+  // Equal-force couple: a turn must not translate even when the reverse
+  // engines are weaker, so the main side is throttled down to match them.
+  const balance = turnThrustBalance(tuning.mainThrustN, tuning.reverseThrustN);
+  const mix = computeEngineOutputs(linearInput, angularInput, balance);
   let forceX = 0;
   let forceY = 0;
   let torque = 0;

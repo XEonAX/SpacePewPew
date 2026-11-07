@@ -78,6 +78,29 @@ describe('ship flight', () => {
     expect(left.y).toBeCloseTo(0, 9);
   });
 
+  it('turns without translating when the reverse engines are weaker', () => {
+    const weaker: FlightTuning = { ...TUNING, reverseThrustN: TUNING.reverseThrustN / 2 };
+    const state = createFlightState();
+    stepFlight(state, press({ turnRight: true }), 0.5, weaker, GEOMETRY);
+
+    expect(Math.hypot(state.vx, state.vy)).toBeLessThan(1e-9);
+    expect(state.angularVelocity).toBeGreaterThan(0);
+  });
+
+  it('balances the yaw couple to the weaker engine pair', () => {
+    const weaker: FlightTuning = { ...TUNING, reverseThrustN: TUNING.reverseThrustN / 2 };
+    const torque = Math.abs(engineWrench(0, 1, weaker, GEOMETRY).torque);
+    // Main arm 0.8 m + reverse arm 1.6 m, both sides at the weaker 60 kN.
+    expect(torque).toBeCloseTo((TUNING.reverseThrustN / 2) * (0.8 + 1.6), 6);
+    // Yaw authority shrinks with the weak reverse engines...
+    expect(yawTerminalSpeed(weaker, GEOMETRY)).toBeLessThan(yawTerminalSpeed(TUNING, GEOMETRY));
+    // ...but braking/thrust do not enter the couple.
+    expect(Math.abs(engineWrench(1, 0, weaker, GEOMETRY).forceY)).toBeCloseTo(
+      3 * TUNING.mainThrustN,
+      6,
+    );
+  });
+
   it('settles at the forward thrust/drag terminal speed', () => {
     const state = createFlightState();
     const dt = 1 / 60;
