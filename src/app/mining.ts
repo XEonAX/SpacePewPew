@@ -54,7 +54,8 @@ export type CarryMode = 'curved' | 'physics';
 const PHYSICS_ACCEL_MPS2 = 6;
 const PHYSICS_MAX_SPEED_MPS = 8;
 const PHYSICS_ARRIVAL_SECONDS = 0.7;
-const CHUNK_TEXTURE_SIZE = 32;
+const CHUNK_TEXTURE_SIZE = 64;
+const CHUNK_TEXTURE_VARIANTS = 8;
 
 // The grill is part of the hull texture: the slatted hatch between the two
 // rearmost pairs. These are ship-texture pixels relative to the ship centre.
@@ -68,7 +69,6 @@ const GRILL_PAD_M = CHUNK_SIZE_M * 0.5;
 const LASER_COLOR = 0xff5340;
 const LASER_CORE_COLOR = 0xffd9c2;
 const TRACTOR_COLOR = 0x52ff9b;
-const METAL_COLOR = 0xffb066;
 
 interface Chunk {
   sprite: Sprite;
@@ -133,32 +133,84 @@ export interface Mining {
   destroy(): void;
 }
 
-function createChunkTexture(): Texture {
+function chunkPolygon(rng: () => number): { x: number; y: number }[] {
+  const sides = 5 + Math.floor(rng() * 3);
+  const radius = 19 + rng() * 5;
+  const points: { x: number; y: number }[] = [];
+  for (let side = 0; side < sides; side += 1) {
+    const angle = (side / sides) * Math.PI * 2 + rng() * 0.4;
+    const reach = radius * (0.62 + rng() * 0.45);
+    points.push({ x: Math.cos(angle) * reach, y: Math.sin(angle) * reach });
+  }
+  return points;
+}
+
+/** An irregular solid metal shard with a hot core and a soft baked glow. */
+function createChunkTexture(variant: number): Texture {
   const size = CHUNK_TEXTURE_SIZE;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
+  const rng = createRng(0x9e37_79b9 ^ (variant * 0x85eb_ca6b));
   if (ctx) {
     const half = size / 2;
-    const gradient = ctx.createRadialGradient(half, half, 0, half, half, half);
-    gradient.addColorStop(0, 'rgba(255, 250, 236, 1)');
-    gradient.addColorStop(0.28, 'rgba(255, 206, 120, 1)');
-    gradient.addColorStop(0.62, 'rgba(255, 138, 58, 0.82)');
-    gradient.addColorStop(1, 'rgba(190, 56, 18, 0)');
-    ctx.fillStyle = gradient;
+
+    // Soft glow halo behind the shard.
+    const halo = ctx.createRadialGradient(half, half, half * 0.3, half, half, half);
+    halo.addColorStop(0, 'rgba(255, 146, 66, 0.5)');
+    halo.addColorStop(0.55, 'rgba(255, 92, 30, 0.2)');
+    halo.addColorStop(1, 'rgba(255, 70, 20, 0)');
+    ctx.fillStyle = halo;
     ctx.fillRect(0, 0, size, size);
+
+    const polygon = chunkPolygon(rng);
+    const path = new Path2D();
+    polygon.forEach((point, index) => {
+      const x = half + point.x;
+      const y = half + point.y;
+      if (index === 0) path.moveTo(x, y);
+      else path.lineTo(x, y);
+    });
+    path.closePath();
+
+    // Solid, heat-shaded body so the shard reads as real metal.
+    ctx.save();
+    ctx.translate(half, half);
+    const body = ctx.createLinearGradient(-20, -22, 22, 24);
+    body.addColorStop(0, '#8a5a3c');
+    body.addColorStop(0.45, '#e08a45');
+    body.addColorStop(0.75, '#ffcf8c');
+    body.addColorStop(1, '#ff9a4e');
+    ctx.fillStyle = body;
+    ctx.fill(path);
+
+    // Molten core inside the shard.
+    ctx.scale(0.55, 0.55);
+    ctx.fillStyle = 'rgba(255, 246, 214, 0.92)';
+    ctx.fill(path);
+
+    // Rim keeps the edge crisp against the halo.
+    ctx.restore();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = 'rgba(255, 214, 150, 0.9)';
+    ctx.stroke(path);
   }
   return new Texture({ source: new CanvasSource({ resource: canvas }) });
 }
 
 export function createMining(): Mining {
   const container = new Container();
-  const texture = createChunkTexture();
+  const textures = Array.from({ length: CHUNK_TEXTURE_VARIANTS }, (_, variant) =>
+    createChunkTexture(variant),
+  );
   const chunks: Chunk[] = [];
   for (let index = 0; index < CHUNK_POOL_SIZE; index += 1) {
-    const sprite = new Sprite({ texture, anchor: 0.5 });
-    sprite.blendMode = 'add';
+    const sprite = new Sprite({
+      texture: textures[index % textures.length]!,
+      anchor: 0.5,
+    });
+    sprite.blendMode = 'normal';
     sprite.visible = false;
     container.addChild(sprite);
     chunks.push({
@@ -214,12 +266,14 @@ export function createMining(): Mining {
     chunk.life = CHUNK_LIFETIME;
     chunk.spin = randomRange(rng, -3, 3);
 
-    const size = CHUNK_SIZE_M * randomRange(rng, 0.75, 1.3) * PIXELS_PER_METER;
+    // The drawn shard fills roughly half its texture, so oversize the sprite
+    // to keep the metal itself around CHUNK_SIZE_M across.
+    const size = CHUNK_SIZE_M * randomRange(rng, 0.75, 1.3) * PIXELS_PER_METER * 1.6;
     chunk.sprite.width = size;
     chunk.sprite.height = size;
     chunk.sprite.rotation = randomRange(rng, 0, Math.PI * 2);
     chunk.sprite.alpha = 1;
-    chunk.sprite.tint = METAL_COLOR;
+    chunk.sprite.tint = 0xffffff;
     chunk.sprite.position.set(chunk.x * PIXELS_PER_METER, chunk.y * PIXELS_PER_METER);
     chunk.sprite.visible = true;
   };
@@ -481,7 +535,7 @@ export function createMining(): Mining {
     },
     destroy(): void {
       container.destroy({ children: true });
-      texture.destroy(true);
+      for (const texture of textures) texture.destroy(true);
     },
   };
 }

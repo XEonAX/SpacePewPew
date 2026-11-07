@@ -80,8 +80,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/weapon-mode.ts` — the two weapon systems (`guns`, `mining`), Tab toggling, the gun
   aiming modes 1/2, the turret aim resolver and the control hint. Unit-tested.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders.
-- `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers, molten metal
-  chunks that leave along the laser's reflection angle and cool/slow as they drift, six
+- `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers, polygonal metal
+  shards (solid body + molten core + baked glow, 8 texture variants) that leave along the
+  laser's reflection angle and cool/slow as they drift, six
   autonomous green tractor beams (5 m reach, max six carried chunks, grips are sticky and never
   stolen, free beams claim the most external chunk first, barrels swing fully round to face
   their chunk with extra slew, beams only render once aimed within 13 deg, cargo that would
