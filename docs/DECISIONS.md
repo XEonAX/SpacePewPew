@@ -322,13 +322,16 @@ Mining rules:
   beam's **reflection** about the local surface normal (`reflectDirection`), with scatter so
   repeat hits do not stack.
 - The six middle/rear barrels = **green tractor beams** with a 5 m reach, measured from the
-  barrel. Each beam grips at most one chunk (nearest in reach) and they are autonomous while the
-  rig is equipped. A chunk can be gripped by several beams at once; their carry speeds stack
-  (1.8 m/s per beam, capped at 9 m/s).
+  barrel. They are autonomous while the rig is equipped, and each barrel **rotates fully** (no
+  cone clamp) to point at the chunk it holds, so the beam visibly follows its cargo.
+- Assignment is **one beam per chunk, external chunks first**: each beam claims the free chunk
+  furthest from the hull within reach (the freshest metal, likeliest to drift off), then reels
+  it in. Spare beams idle instead of stacking onto one object.
 - Carrying is **deliberately faked**: a gripped chunk is translated straight toward the hatch at
   a speed that also eases off with the remaining distance (`carryToward`). The step is clamped to
-  the remaining distance, so a chunk can never overshoot the intake or be flung past it. This
-  replaced a physics force law that could miss at high speed.
+  the remaining distance, so a chunk can never overshoot the intake or be flung past it. The
+  carry step is applied **in the ship's frame** (ship velocity is added first), so cargo keeps up
+  with a flying ship instead of falling behind.
 - If every beam loses the chunk (5 m reach) it is dropped and drifts freely again. Leaving mining
   mode drops all grips. Uncaptered metal cools and fades after ~8 s so it cannot starve the pool.
 - The intake is the **hull's own slatted hatch** between the two rearmost pairs (ship-texture

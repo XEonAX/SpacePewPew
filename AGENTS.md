@@ -82,9 +82,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders.
 - `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers, molten metal
   chunks that leave along the laser's reflection angle and cool/slow as they drift, six
-  autonomous green tractor beams
-  (5 m reach, one chunk per beam) that fake-carry metal into the hull's own slatted hatch,
-  faster with more beams and easing in so it cannot overshoot. Beams drop a chunk that leaves
+  autonomous green tractor beams (5 m reach, one chunk per beam, external chunks claimed first,
+  barrels swing fully round to face their chunk) that fake-carry metal in the ship's frame into
+  the hull's own slatted hatch, easing in so it cannot overshoot. Beams drop a chunk that leaves
   their reach; uncaptured metal cools and fades. Object-pooled chunks (256); no audio yet.
 - `src/app/mining-model.ts` — pure reflection, ray/circle laser-hit, beam-carry and
   rotated-rect intake math, unit-tested.

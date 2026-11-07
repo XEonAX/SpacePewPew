@@ -339,6 +339,15 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const shipScreenY = (shipWorldY - dust.y * height) * dust.zoom + height / 2;
     shipScreen.x = shipScreenX;
     shipScreen.y = shipScreenY;
+    // Mining targets arrive in world metres; turret aiming works in screen px.
+    const tractorTargets = mining.getTractorTargets().map((target) =>
+      target
+        ? {
+            x: (target.x * PIXELS_PER_METER - dust.x * width) * dust.zoom + width / 2,
+            y: (target.y * PIXELS_PER_METER - dust.y * height) * dust.zoom + height / 2,
+          }
+        : null,
+    );
     turrets.update({
       shipScreenX,
       shipScreenY,
@@ -348,6 +357,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       mouseY: pointer.y,
       mouseActive: pointer.active,
       mode: turretAimMode(weaponMode, aimMode),
+      tractorTargets,
       dt: deltaSeconds,
       now: lighting.time,
     });
@@ -433,6 +443,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
         x: flight.x,
         y: flight.y,
         rotation: flight.rotation,
+        vx: flight.vx,
+        vy: flight.vy,
         metresPerShipPixel: shipBaseScale / PIXELS_PER_METER,
       },
       asteroid: {

@@ -113,6 +113,11 @@ interface TurretFrame {
    * the pointer with the front pair only and parks the six tractor barrels.
    */
   mode: TurretAimMode;
+  /**
+   * World position of the chunk each tractor barrel is holding, so mining
+   * barrels can swing fully round to point at what they carry.
+   */
+  tractorTargets?: readonly ({ x: number; y: number } | null)[];
   dt: number;
   now: number;
 }
@@ -188,14 +193,30 @@ export function createTurrets(texture: Texture): Turrets {
         const forwardOnly = frame.mode === 'forward' || (frame.mode === 'mining' && index >= 2);
         const mouseTracked = frame.mode === 'mouse' || (frame.mode === 'mining' && index < 2);
         if (forwardOnly) {
-          // Aim as close to straight ahead as this mount's cone allows; all
-          // pairs are hot so the keyboard can fire the whole battery.
-          stepTurretAim(
-            aim,
-            forwardAimInArc(config.aimCenter, config.aimHalfAngle),
-            frame.dt,
-            config.turnScale,
-          );
+          const tractorTarget =
+            frame.mode === 'mining' ? (frame.tractorTargets?.[index] ?? null) : null;
+          if (tractorTarget) {
+            // Tractor barrels rotate fully — no cone clamp — to face the chunk
+            // they are gripping.
+            const localX = config.x * frame.shipScale;
+            const localY = config.y * frame.shipScale;
+            const mountScreenX = frame.shipScreenX + localX * shipCos - localY * shipSin;
+            const mountScreenY = frame.shipScreenY + localX * shipSin + localY * shipCos;
+            const rawTarget = wrapAngle(
+              Math.atan2(tractorTarget.x - mountScreenX, -(tractorTarget.y - mountScreenY)) -
+                frame.rotation,
+            );
+            stepTurretAim(aim, rawTarget, frame.dt, config.turnScale);
+          } else {
+            // Aim as close to straight ahead as this mount's cone allows; all
+            // pairs are hot so the keyboard can fire the whole battery.
+            stepTurretAim(
+              aim,
+              forwardAimInArc(config.aimCenter, config.aimHalfAngle),
+              frame.dt,
+              config.turnScale,
+            );
+          }
           // Mining tractors are not gun pairs: they never mark a pair hot.
           inArc = frame.mode === 'forward';
         } else if (!mouseTracked || !frame.mouseActive) {
