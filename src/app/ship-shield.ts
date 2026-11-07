@@ -1,6 +1,7 @@
 import { CanvasSource, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { offsetPolygon } from './asteroid-collision';
 import type { ShipHull, Vec2 } from './asteroid-collision';
+import { BREATH_AMPLITUDE, decayAfterglow, shieldAlpha } from './shield-glow';
 
 export interface ShieldFrame {
   /** Ship position on screen, px. */
@@ -25,8 +26,6 @@ export interface ShipShield {
 
 const SHIELD_COLOR = 0x7fdcff;
 const SHIELD_EDGE_COLOR = 0xdaf7ff;
-/** Resting glow strength of the boundary; always visible, clearly a surface. */
-const IDLE_ALPHA = 0.58;
 const IMPACT_DECAY_PER_SECOND = 3.4;
 /** Impact speed (m/s) that saturates the highlight. */
 const FULL_FLASH_IMPACT = 6;
@@ -129,6 +128,8 @@ export function createShipShield(hull: ShipHull): ShipShield {
   impact.mask = mask;
 
   let flash = 0;
+  /** 1 right after a hit, eased to 0: drives the dim → bright → dim glow. */
+  let afterglow = 0;
   let hitX = 0;
   let hitY = 0;
   let time = 0;
@@ -139,18 +140,22 @@ export function createShipShield(hull: ShipHull): ShipShield {
       time += frame.dt;
       if (frame.impact > 0) {
         flash = Math.max(flash, Math.min(1, frame.impact / FULL_FLASH_IMPACT));
+        // A recent hit brings the whole bubble up to its old brightness.
+        afterglow = 1;
         hitX = frame.impactX;
         hitY = frame.impactY;
       }
       flash = Math.max(0, flash - frame.dt * IMPACT_DECAY_PER_SECOND);
+      afterglow = decayAfterglow(afterglow, frame.dt);
 
       container.position.set(frame.x, frame.y);
       container.rotation = frame.rotation;
       // A small swell on impact sells the hit without moving the collider.
       container.scale.set(frame.scale * (1 + flash * 0.03));
 
-      const breath = Math.sin(time * BREATH_RATE) * 0.05;
-      glow.alpha = Math.max(0.4, IDLE_ALPHA + breath) + flash * 0.3;
+      // Breathing only reads while the bubble is lit by a recent hit.
+      const breath = Math.sin(time * BREATH_RATE) * BREATH_AMPLITUDE * (0.3 + 0.7 * afterglow);
+      glow.alpha = shieldAlpha(afterglow, breath, flash);
 
       const extent = Math.max(
         ...hull.points.map((point) => Math.max(Math.abs(point.x), Math.abs(point.y))),

@@ -874,3 +874,28 @@ Rules:
 punchy and scale with the same energy that drives camera shake and shield flash. New one-shots
 need a `SoundName`/`LoopName` entry in `src/audio/audio.ts` and an asset under `public/audio/`;
 new beds should follow the loop rules rather than scheduling repeated clips.
+
+## ADR-032 — Shield glow reflects recent impacts, not a permanent light
+
+**Status:** accepted (2026-11-07).
+
+The shield is the ship's collision surface and always visible, but a constant bright boundary
+read as a permanently powered dome and competed with the hull art.
+
+Rules:
+
+- **Dim at rest.** The bubble sits at `DIM_ALPHA = 0.2`, enough to read the surface without
+  drawing attention.
+- **A hit lifts it to the old brightness.** Any contact sets an afterglow to 1 and the whole
+  bubble reaches `HIT_ALPHA = 0.58` (the previous resting level), then decays at
+  `0.45 /s` — a little over 2 s to rest.
+- **Flash and breathing stack on top.** The contact-patch bloom keeps its own faster flash decay
+  (3.4 /s), and the slow breathing ripple is weighted toward the lit state so the idle shield
+  stays still.
+- **Pure curve, tested.** `src/app/shield-glow.ts` owns the alpha math and is unit-tested so the
+  dim/bright/decayed levels are pinned without touching PixiJS.
+
+**Consequences:** impacts visibly charge the shield, and the resting ship is quieter on screen.
+Grazes and scrapes that resolve without inward speed do not trigger the afterglow; only a real
+contact does. If continuous scraping should also keep it lit, feed the slide speed into
+`afterglow` in `ship-shield.ts` rather than changing the curve.

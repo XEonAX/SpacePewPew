@@ -150,7 +150,11 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   vertex-budget fitter that turns the traced silhouette into a low-poly collider; unit-tested.
 - `src/app/ship-shield.ts` — the hull-shaped energy shield, drawn in ship-texture px so it
   inherits the ship transform; its boundary glows and fades inward, and impacts light up the
-  contact patch (masked to the bubble). It draws the same hull used for collision.
+  contact patch (masked to the bubble). It draws the same hull used for collision. The bubble
+  rests **dim** and a recent hit lifts it to full brightness (then eases back over ~2 s), with
+  the curve isolated in `src/app/shield-glow.ts` and unit-tested.
+- `src/app/shield-glow.ts` — pure shield brightness curve: resting α, hit α, afterglow decay,
+  breathing and flash clamping, unit-tested in `tests/shield-glow.test.ts`.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.
