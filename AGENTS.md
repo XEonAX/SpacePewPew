@@ -55,7 +55,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   input. Places both objects with `Background.getDustTransform()` on the near dust layer. The
   flight state lives at the ship's **centre of mass** (orange panel just behind the cargo
   hatch): `shipCentre()` derives the texture-centre pose used for rendering, turrets, mining and
-  the shield, and the camera tracks the centre of mass so turns pivot there.
+  the shield, and the camera tracks the centre of mass so turns pivot there. Holds the collision
+  tuning (mass, shield restitution/friction, impact spin damping, camera shake).
 - `src/app/ship-flight.ts` — pure ramped arcade flight model in metres (0.3 s input ramp,
   thrust, drag; both axes damp while any input is active; terminal speed emerges from
   thrust/drag). Unit-tested in `tests/ship-flight.test.ts`.
@@ -106,8 +107,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
 - `src/app/asteroid-collision.ts` — solid circle collider for the asteroid (radius fitted to the
   roughly circular art) and the ship's **hull bubble** collider: a convex hull outline inflated
-  by a bubble radius (capsule segments with rounded joins), push-out plus restitution bounce,
-  plus a swept segment/circle test for tracers. Pure and unit-tested.
+  by a bubble radius (capsule segments with rounded joins), plus an **impulse response** with
+  ship mass/inertia, shield restitution and Coulomb friction (off-centre hits spin the hull), and
+  a swept segment/circle test for tracers. Pure and unit-tested.
 - `src/app/ship-shield.ts` — the hull-shaped energy shield, drawn in ship-texture px so it
   inherits the ship transform; its boundary glows and fades inward, and impacts light up the
   contact patch (masked to the bubble). It draws the same hull used for collision.

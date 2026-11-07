@@ -65,8 +65,18 @@ const LOOKAHEAD_BASE_OFFSET = 0.07;
 const LOOKAHEAD_MAX_OFFSET = 0.11;
 const LOOKAHEAD_ZOOM_BOOST = 1.5;
 
-/** Fraction of the inward speed returned to the ship when it hits the rock. */
-const SHIP_IMPACT_RESTITUTION = 0.35;
+/** Ship mass, kg. Gives impacts weight: flare and shake scale with hit energy. */
+const SHIP_MASS_KG = 24_000;
+/** Shield surface: how much of the hit bounces back, and its tangential grip. */
+const SHIELD_RESTITUTION = 0.22;
+const SHIELD_FRICTION = 0.5;
+/** Collision spin bleeds off separately from the flight model's input turn. */
+const IMPACT_SPIN_DAMPING = 1.2;
+const IMPACT_SPIN_LIMIT = 1.2;
+/** Camera shake: hit energy that saturates it, peak offset, and decay. */
+const SHAKE_ENERGY_REFERENCE_J = 90_000;
+const SHAKE_PEAK_PIXELS = 9;
+const SHAKE_DECAY_PER_SECOND = 4.5;
 /**
  * The ship's rotation pivot (its physics centre of mass) is the orange panel
  * just aft of the cargo hatch, in ship-texture px from the texture centre.
@@ -281,6 +291,12 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   let asteroidBaseScale = 1;
   /** Hull bubble in metres, refreshed on layout; drawn by the shield too. */
   let shipCollider: ShipHull = { points: [], radius: 0 };
+  /** Moment of inertia about the centre of mass, kg·m². */
+  let shipInertia = 1;
+  /** Spin added by collisions, bled off separately from player turning. */
+  let impactSpin = 0;
+  /** 0..1 camera shake from the last impact. */
+  let impactShake = 0;
   /** The asteroid as a solid circle in world metres; a single circle fits the art. */
   const asteroidCollider: Circle = { x: 0, y: 0, radius: 0 };
   /** Impact speed and contact point handed to the shield, cleared each frame. */
@@ -333,6 +349,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       points: hull.points.map((point) => ({ x: point.x * hullScale, y: point.y * hullScale })),
       radius: hull.radius * hullScale,
     };
+    // Uniform-ish hull: radius of gyration ≈ 0.3 × length.
+    const hullLength = (shipColor.height * shipScale) / PIXELS_PER_METER;
+    shipInertia = SHIP_MASS_KG * (0.3 * hullLength) ** 2;
     hint.position.set(centerX, height - 28);
   };
 
@@ -505,6 +524,12 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     lighting.time += deltaSeconds;
 
     stepFlight(flight, controls, deltaSeconds, tuning);
+    // Collision spin is not player input: bleed it off so a hit cannot leave
+    // the ship turning forever (the flight model only damps while input is on).
+    const spinDecay = Math.exp(-IMPACT_SPIN_DAMPING * deltaSeconds);
+    const spinRemaining = impactSpin * spinDecay;
+    flight.angularVelocity -= impactSpin - spinRemaining;
+    impactSpin = spinRemaining;
     asteroid.mesh.rotation -= deltaSeconds * 0.22;
 
     layout();
@@ -513,20 +538,45 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     // the part of its velocity heading inward, so it cannot fly through.
     if (shipCollider.points.length > 0) {
       const centre = shipCentre();
+      const pivotAft = (SHIP_COM_AFT_PX * shipBaseScale) / PIXELS_PER_METER;
       const collision = resolveShipCollision(
-        { x: centre.x, y: centre.y, vx: flight.vx, vy: flight.vy, rotation: flight.rotation },
+        {
+          x: centre.x,
+          y: centre.y,
+          vx: flight.vx,
+          vy: flight.vy,
+          rotation: flight.rotation,
+          angularVelocity: flight.angularVelocity,
+        },
         shipCollider,
         asteroidCollider,
-        SHIP_IMPACT_RESTITUTION,
+        {
+          mass: SHIP_MASS_KG,
+          inertia: shipInertia,
+          restitution: SHIELD_RESTITUTION,
+          friction: SHIELD_FRICTION,
+          pivotX: 0,
+          pivotY: pivotAft,
+        },
       );
       if (collision.hit) {
         // The collider resolves the hull's centre; write the result back to the
         // centre of mass the flight model integrates.
-        const aft = (SHIP_COM_AFT_PX * shipBaseScale) / PIXELS_PER_METER;
-        flight.x = collision.x - aft * Math.sin(flight.rotation);
-        flight.y = collision.y + aft * Math.cos(flight.rotation);
+        const previousAngular = flight.angularVelocity;
+        flight.x = collision.x - pivotAft * Math.sin(flight.rotation);
+        flight.y = collision.y + pivotAft * Math.cos(flight.rotation);
         flight.vx = collision.vx;
         flight.vy = collision.vy;
+        flight.angularVelocity = collision.angularVelocity;
+        impactSpin = clamp(
+          impactSpin + (collision.angularVelocity - previousAngular),
+          -IMPACT_SPIN_LIMIT,
+          IMPACT_SPIN_LIMIT,
+        );
+        impactShake = Math.min(
+          1,
+          Math.max(impactShake, collision.hitEnergy / SHAKE_ENERGY_REFERENCE_J),
+        );
         shieldImpact = collision.impactSpeed;
         shieldImpactWorldX = collision.contactX;
         shieldImpactWorldY = collision.contactY;
@@ -585,6 +635,14 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     });
     turrets.setGlowLevels(glowLevels);
     updateLighting();
+
+    // Weighty hits: a short deterministic camera shake scaled by hit energy.
+    impactShake = Math.max(0, impactShake - deltaSeconds * SHAKE_DECAY_PER_SECOND);
+    const shakePixels = impactShake * SHAKE_PEAK_PIXELS;
+    content.position.set(
+      Math.sin(lighting.time * 73) * shakePixels,
+      Math.cos(lighting.time * 59) * shakePixels * 0.7,
+    );
   };
 
   const onKeyDown = (event: KeyboardEvent): void => {

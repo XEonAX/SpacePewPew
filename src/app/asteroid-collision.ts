@@ -137,6 +137,7 @@ export interface ShipPose {
   vx: number;
   vy: number;
   rotation: number;
+  angularVelocity: number;
 }
 
 export interface Circle {
@@ -145,14 +146,34 @@ export interface Circle {
   radius: number;
 }
 
+/** Physical properties the collision response needs, all in SI units. */
+export interface ShipBody {
+  /** Mass, kg. */
+  mass: number;
+  /** Moment of inertia about the centre of mass, kg·m². */
+  inertia: number;
+  /** Bounce: 0 = the shield eats the hit, 1 = perfect bounce. */
+  restitution: number;
+  /** Coulomb friction coefficient of the shield surface. */
+  friction: number;
+  /** Centre of mass offset from the pose origin, local metres (y down). */
+  pivotX: number;
+  pivotY: number;
+}
+
 export interface ShipCollision {
   x: number;
   y: number;
   vx: number;
   vy: number;
+  angularVelocity: number;
   hit: boolean;
-  /** Inward speed along the contact normal at the deepest impact, m/s. */
+  /** Inward speed along the contact normal, m/s. */
   impactSpeed: number;
+  /** Normal impulse magnitude, N·s. */
+  impulse: number;
+  /** Kinetic energy dissipated at the contact, J. */
+  hitEnergy: number;
   /** Shield-surface contact point in world metres (ship position when no hit). */
   contactX: number;
   contactY: number;
@@ -163,22 +184,29 @@ const noHit = (ship: ShipPose): ShipCollision => ({
   y: ship.y,
   vx: ship.vx,
   vy: ship.vy,
+  angularVelocity: ship.angularVelocity,
   hit: false,
   impactSpeed: 0,
+  impulse: 0,
+  hitEnergy: 0,
   contactX: ship.x,
   contactY: ship.y,
 });
 
 /**
- * Push the ship's hull bubble out of a static circle and bounce the component
- * of its velocity heading into it. Tangential velocity is unaffected, so
- * glancing hits slide along the rock instead of stopping dead.
+ * Impulse-based collision of the ship's hull bubble with a static circle.
+ *
+ * The shield is the contact surface: restitution controls bounce, friction the
+ * tangential grip, and the ship's mass and inertia give the hit weight — an
+ * off-centre hit spins the hull about its centre of mass instead of simply
+ * reversing it. The rock is scenery with effectively infinite mass, so the
+ * ship takes the whole impulse.
  */
 export function resolveShipCollision(
   ship: ShipPose,
   hull: ShipHull,
   circle: Circle,
-  restitution: number,
+  body: ShipBody,
 ): ShipCollision {
   const cos = Math.cos(ship.rotation);
   const sin = Math.sin(ship.rotation);
@@ -200,35 +228,81 @@ export function resolveShipCollision(
   const ny = length > 1e-6 ? toRockY / length : 0;
   const penetration = reach - closest.distance;
 
-  // The same displacement applies to the hull's origin, pushing the whole ship
-  // away from the rock (the normal points toward the rock, so subtract).
+  // Separate first: the same displacement moves the whole hull.
   const worldNormalX = nx * cos - ny * sin;
   const worldNormalY = nx * sin + ny * cos;
   const x = ship.x - worldNormalX * penetration;
   const y = ship.y - worldNormalY * penetration;
 
-  const inward = ship.vx * worldNormalX + ship.vy * worldNormalY;
-  let vx = ship.vx;
-  let vy = ship.vy;
-  if (inward > 0) {
-    vx -= (1 + restitution) * inward * worldNormalX;
-    vy -= (1 + restitution) * inward * worldNormalY;
-  }
-
-  // Where the shield surface sits on the rock side of the hull.
+  // Contact patch on the shield, and the hull's centre of mass.
   const contactLocalX = closest.x + nx * hull.radius;
   const contactLocalY = closest.y + ny * hull.radius;
+  const contactX = x + contactLocalX * cos - contactLocalY * sin;
+  const contactY = y + contactLocalX * sin + contactLocalY * cos;
+  const comX = x + body.pivotX * cos - body.pivotY * sin;
+  const comY = y + body.pivotX * sin + body.pivotY * cos;
+  // Lever arm from the centre of mass to the contact patch.
+  const rx = contactX - comX;
+  const ry = contactY - comY;
+
+  // Velocity of the contact patch (rigid body: v + ω × r, y down).
+  const contactVx = ship.vx - ship.angularVelocity * ry;
+  const contactVy = ship.vy + ship.angularVelocity * rx;
+  const inward = contactVx * worldNormalX + contactVy * worldNormalY;
+
+  let vx = ship.vx;
+  let vy = ship.vy;
+  let angularVelocity = ship.angularVelocity;
+  let impulse = 0;
+  let hitEnergy = 0;
+
+  if (inward > 0) {
+    const inverseMass = 1 / body.mass;
+    const normalLever = rx * worldNormalY - ry * worldNormalX;
+    const normalDenominator = inverseMass + (normalLever * normalLever) / body.inertia;
+    impulse = ((1 + body.restitution) * inward) / normalDenominator;
+    const normalImpulseX = -impulse * worldNormalX;
+    const normalImpulseY = -impulse * worldNormalY;
+    vx += normalImpulseX * inverseMass;
+    vy += normalImpulseY * inverseMass;
+    angularVelocity += (rx * normalImpulseY - ry * normalImpulseX) / body.inertia;
+
+    // Coulomb friction opposes the sliding at the contact patch.
+    const tangentX = contactVx - inward * worldNormalX;
+    const tangentY = contactVy - inward * worldNormalY;
+    const tangentSpeed = Math.hypot(tangentX, tangentY);
+    if (tangentSpeed > 1e-6 && body.friction > 0) {
+      const slideX = tangentX / tangentSpeed;
+      const slideY = tangentY / tangentSpeed;
+      const tangentLever = rx * slideY - ry * slideX;
+      const tangentDenominator = inverseMass + (tangentLever * tangentLever) / body.inertia;
+      const maxFriction = body.friction * impulse;
+      const frictionImpulse = Math.max(
+        -maxFriction,
+        Math.min(maxFriction, -tangentSpeed / tangentDenominator),
+      );
+      const frictionX = frictionImpulse * slideX;
+      const frictionY = frictionImpulse * slideY;
+      vx += frictionX * inverseMass;
+      vy += frictionY * inverseMass;
+      angularVelocity += (rx * frictionY - ry * frictionX) / body.inertia;
+    }
+
+    hitEnergy = 0.5 * body.mass * inward * inward;
+  }
 
   return {
     x,
     y,
     vx,
     vy,
+    angularVelocity,
     hit: true,
     impactSpeed: inward > 0 ? inward : 0,
-    // Contact from the resolved position, so the highlight lands on the rock.
-    contactX: x + contactLocalX * cos - contactLocalY * sin,
-    contactY: y + contactLocalX * sin + contactLocalY * cos,
+    impulse,
+    hitEnergy,
+    contactX,
+    contactY,
   };
 }
 

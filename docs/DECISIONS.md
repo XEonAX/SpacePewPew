@@ -461,3 +461,41 @@ Rules:
 using `flight.x/y` directly for rendering or muzzle origins would double-count the pivot offset.
 The hull bubble remains pure and unit-tested in `asteroid-collision.ts`; the shield only draws the
 same shape.
+
+## ADR-020 — Impulse collisions: mass, restitution and shield friction
+
+**Status:** accepted (2026-11-07).
+
+Bumps against the asteroid felt like a wall sliding the ship: the response only reflected the
+normal component and ignored how the hull is a heavy object being stopped at a lever arm. The fix
+is a proper impulse response against the static rock, still without a physics engine: one rigid
+body, one static circle, ~40 lines of deterministic math.
+
+Parameters (in `lighting-scene.ts` unless noted):
+
+- **Ship mass `SHIP_MASS_KG = 24 000`.** Mass sets the hit's energy (`½mv²`), which drives the
+  shield flare, the camera shake and the spin the hull picks up. Inertia is derived from the
+  hull: `I = m (0.3 × length)²` (radius of gyration ≈ 0.3 × hull length).
+- **Shield restitution `SHIELD_RESTITUTION = 0.22`.** The shield absorbs most of the hit and
+  returns a fifth: a 10 m/s ram leaves ~2.2 m/s of separation, so the ship thuds off the rock
+  instead of pinging away.
+- **Shield friction `SHIELD_FRICTION = 0.5`.** Coulomb-friction impulse clamped to `μ ×` the
+  normal impulse, applied at the contact patch along the sliding direction. Glancing hits scrape
+  and slow the ship and add spin; head-on hits have no tangential slide and no friction.
+- **Off-centre hits spin the hull.** The impulse is applied at the contact point with a lever arm
+  from the centre of mass (`SHIP_COM_AFT_PX`), so a hit on the nose or a wing rotates the ship
+  about its pivot. Collision spin is tracked separately (`impactSpin`) and bled off at
+  `IMPACT_SPIN_DAMPING = 1.2 /s`, clamped to 1.2 rad/s: the flight model only damps angular
+  motion while input is held, so without this a hit would leave the ship spinning forever.
+- **Weight is felt as motion + feedback.** Camera shake peaks at `SHAKE_PEAK_PIXELS = 9` and is
+  scaled by hit energy (`SHAKE_ENERGY_REFERENCE_J = 90 kJ` saturates it), decaying at 4.5 /s.
+  The shield's contact bloom already scales with impact speed.
+- **No physics engine.** The rock is static scenery with effectively infinite mass; there is no
+  broadphase, stacking, or constraint to solve. An engine would add a dependency, its own
+  timestep/units and its own body state that would have to be reconciled with the metric flight
+  model and camera pan every frame. It becomes worth it only with many dynamic bodies (debris
+  fields, tumbling rocks, chained collisions), which this demo does not have.
+
+**Consequences:** the impulse response stays pure in `asteroid-collision.ts`
+(`resolveShipCollision(ship, hull, circle, body)`) and is unit-tested for bounce, friction, spin,
+energy and separation. Everything physical is SI: mass in kg, inertia in kg·m², impulses in N·s.
