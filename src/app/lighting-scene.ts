@@ -83,8 +83,10 @@ const SHAKE_DECAY_PER_SECOND = 4.5;
  * just aft of the cargo hatch, in ship-texture px from the texture centre.
  */
 const SHIP_COM_AFT_PX = 171.5;
-/** The asteroid starts this many metres dead ahead of the ship's nose. */
+/** The second asteroid starts this many metres dead ahead of the ship's nose. */
 const ASTEROID_AHEAD_METERS = 20;
+/** The new rock is a big one: this many times the base rock diameter. */
+const ASTEROID_AHEAD_SCALE = 3;
 
 /** World-space lighting shared by the lit meshes. */
 const lighting: LightingState = {
@@ -352,7 +354,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       asteroidField.add(
         (shipScreenX - width / 2) / PIXELS_PER_METER,
         padCentreY - ASTEROID_AHEAD_METERS,
-        rockDiameter,
+        rockDiameter * ASTEROID_AHEAD_SCALE,
         1,
       );
       shipPlaced = true;

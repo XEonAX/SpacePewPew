@@ -42,8 +42,11 @@ export interface AsteroidField {
   setLighting(state: LightingState): void;
   /** Solid circles in world metres, for ship collision and tracers. */
   getColliders(): readonly Circle[];
-  /** The same rocks as mining targets (radius = fitted solid circle). */
-  getMiningTargets(): readonly { x: number; y: number; radius: number }[];
+  /**
+   * The same rocks as mining targets, with their current spin so melted decals
+   * can be attached to the rotating surface.
+   */
+  getMiningTargets(): readonly { x: number; y: number; radius: number; rotation: number }[];
   destroy(): void;
 }
 
@@ -58,7 +61,7 @@ export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField
   const container = new Container();
   const asteroids: Asteroid[] = [];
   const colliders: Circle[] = [];
-  const miningTargets: { x: number; y: number; radius: number }[] = [];
+  const miningTargets: { x: number; y: number; radius: number; rotation: number }[] = [];
 
   return {
     container,
@@ -78,12 +81,15 @@ export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField
       const radius = diameter * ASTEROID_RADIUS_OF_WIDTH;
       const collider = { x, y, radius };
       colliders.push(collider);
-      miningTargets.push(collider);
+      miningTargets.push({ x, y, radius, rotation: 0 });
       return asteroid;
     },
     update(frame: AsteroidFieldFrame): void {
-      for (const asteroid of asteroids) {
+      for (let index = 0; index < asteroids.length; index += 1) {
+        const asteroid = asteroids[index]!;
         asteroid.mesh.mesh.rotation += asteroid.spin * frame.dt;
+        const target = miningTargets[index]!;
+        target.rotation = asteroid.mesh.mesh.rotation;
         asteroid.mesh.mesh.scale.set(
           ((asteroid.diameter * PIXELS_PER_METER) / asteroid.art.color.width) * frame.zoom,
         );
@@ -101,7 +107,7 @@ export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField
     getColliders(): readonly Circle[] {
       return colliders;
     },
-    getMiningTargets(): readonly { x: number; y: number; radius: number }[] {
+    getMiningTargets(): readonly { x: number; y: number; radius: number; rotation: number }[] {
       return miningTargets;
     },
     destroy(): void {

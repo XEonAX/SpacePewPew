@@ -31,8 +31,17 @@ const CHUNK_LIFETIME = 8;
 const CHUNK_FADE_SECONDS = 3;
 const CHUNK_CULL_RADIUS_M = 700;
 const LASER_RANGE_M = 220;
-const LASER_SPAWN_INTERVAL = 0.1;
 const LASER_BARRELS = 2;
+/** Seconds the laser must dwell on one spot before a chunk melts off. */
+const MELT_SECONDS = 1.1;
+/** Aim drift tolerated while the beam is still heating the same spot (metres). */
+const MELT_DWELL_RADIUS_M = 0.6;
+/** Melted regions glowing on the rock, and how long a finished one cools off. */
+const MELT_COOL_SECONDS = 2.2;
+const MELT_RADIUS_M = 0.26;
+const MELT_DECAL_POOL = 24;
+const MELT_COLOR = 0xff8a3c;
+const MELT_CORE_COLOR = 0xffe0b0;
 const TRACTOR_FIRST_BARREL = 2;
 /** Tractor reach, measured from the barrel that captured the chunk. */
 const TRACTOR_RANGE_M = 5;
@@ -143,6 +152,8 @@ export interface MiningAsteroid {
   x: number;
   y: number;
   radius: number;
+  /** Current spin of the rock, so decals can stick to its surface. */
+  rotation: number;
 }
 
 export interface MiningFrame {
@@ -187,10 +198,10 @@ function createChunkTexture(variant: number): Texture {
   if (ctx) {
     const half = size / 2;
 
-    // Light glow so the shard still reads as hot metal.
+    // Cool blue-grey metal, not molten orange: the shard has already set.
     const halo = ctx.createRadialGradient(half, half, half * 0.35, half, half, half);
-    halo.addColorStop(0, 'rgba(255, 138, 60, 0.45)');
-    halo.addColorStop(1, 'rgba(255, 90, 30, 0)');
+    halo.addColorStop(0, 'rgba(150, 200, 255, 0.35)');
+    halo.addColorStop(1, 'rgba(120, 170, 230, 0)');
     ctx.fillStyle = halo;
     ctx.fillRect(0, 0, size, size);
 
@@ -214,12 +225,12 @@ function createChunkTexture(variant: number): Texture {
     ctx.translate(half, half);
 
     // Flat solid body: no gradient, cheap and readable at this size.
-    ctx.fillStyle = variant === 1 ? '#ff9d45' : '#ffb15a';
+    ctx.fillStyle = variant === 1 ? '#8a9cb0' : '#9fb2c6';
     ctx.fill(path);
 
     // Thin dark rim keeps the silhouette crisp against the glow.
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = 'rgba(122, 58, 22, 0.9)';
+    ctx.strokeStyle = 'rgba(42, 58, 76, 0.9)';
     ctx.stroke(path);
     ctx.restore();
   }
@@ -264,6 +275,12 @@ export function createMining(): Mining {
   beams.blendMode = 'add';
   container.addChild(beams);
 
+  // Melted patches on the rock use normal blending so the orange reads as
+  // orange instead of washing out against the brightly lit asteroid.
+  const melt = new Graphics();
+  melt.blendMode = 'normal';
+  container.addChildAt(melt, 1);
+
   // Intake waves sit under the beams and chunks, centred on the hull's hatch.
   const intakePulse = new Container();
   intakePulse.visible = false;
@@ -275,7 +292,19 @@ export function createMining(): Mining {
   container.addChildAt(intakePulse, 0);
 
   const rng = createRng(0x0d1f_7a3b);
-  const laserTimers = new Array<number>(LASER_BARRELS).fill(0);
+  /** Seconds of dwell per laser barrel, and the spot each beam is heating. */
+  const meltHeat = new Array<number>(LASER_BARRELS).fill(0);
+  const meltSpot = new Array<{ x: number; y: number } | null>(LASER_BARRELS).fill(null);
+  const meltRock = new Array<MiningAsteroid | null>(LASER_BARRELS).fill(null);
+  // Orange melt regions on the rock: they mark where metal was melted and cool
+  // off over a couple of seconds. Each finished melt also spawns a chunk.
+  const meltRegions = Array.from({ length: MELT_DECAL_POOL }, () => ({
+    localX: 0,
+    localY: 0,
+    rock: null as MiningAsteroid | null,
+    life: 0,
+    active: false,
+  }));
   const tractorTargets: ({ x: number; y: number } | null)[] = new Array(8).fill(null);
   const beamActivity: boolean[] = new Array(8).fill(false);
   // Sticky per-beam grips: a beam keeps its chunk until it is delivered/lost,
@@ -355,6 +384,7 @@ export function createMining(): Mining {
       const hatchY = ship.y + hatchLocalX * sin + hatchLocalY * cos;
 
       beams.clear();
+      melt.clear();
       beamActivity.fill(false);
 
       // Front pair: red mining lasers. Each barrel that bites the asteroid
@@ -385,6 +415,68 @@ export function createMining(): Mining {
 
         if (frame.laserFiring) {
           beamActivity[barrel] = true;
+          if (hit && hitRock) {
+            // Melting takes dwell time on one spot: sweeping the beam across
+            // the rock resets the charge instead of spraying chunks.
+            const previous = meltSpot[barrel] ?? null;
+            const sameSpot =
+              previous !== null &&
+              meltRock[barrel] === hitRock &&
+              Math.hypot(hit.x - previous.x, hit.y - previous.y) <= MELT_DWELL_RADIUS_M;
+            if (!sameSpot) {
+              meltSpot[barrel] = { x: hit.x, y: hit.y };
+              meltRock[barrel] = hitRock;
+              meltHeat[barrel] = 0;
+            }
+            meltHeat[barrel] = Math.min(MELT_SECONDS, meltHeat[barrel]! + frame.dt);
+
+            // The beam keeps boring at one world point (that is where the
+            // barrels point); the scar it leaves behind is attached to the
+            // rock's spinning surface, so it turns away with the art.
+            const normalX = (hit.x - hitRock.x) / Math.max(hitRock.radius, 1e-3);
+            const normalY = (hit.y - hitRock.y) / Math.max(hitRock.radius, 1e-3);
+            const heat = meltHeat[barrel]! / MELT_SECONDS;
+            const heatRadius = (0.08 + 0.22 * heat) * PIXELS_PER_METER;
+            const heatX = (hit.x - normalX * 0.1) * PIXELS_PER_METER;
+            const heatY = (hit.y - normalY * 0.1) * PIXELS_PER_METER;
+            melt.circle(heatX, heatY, heatRadius).fill({
+              color: MELT_COLOR,
+              alpha: 0.35 + 0.5 * heat,
+            });
+            melt.circle(heatX, heatY, heatRadius * 0.55).fill({
+              color: MELT_CORE_COLOR,
+              alpha: 0.4 + 0.5 * heat,
+            });
+            beams.circle(heatX, heatY, 0.05 * PIXELS_PER_METER).fill({
+              color: 0xfff4e6,
+              alpha: 0.5 + 0.5 * heat,
+            });
+
+            if (meltHeat[barrel]! >= MELT_SECONDS) {
+              // The melted region lets go of a chunk.
+              spawnChunk(hit, direction, hitRock);
+              meltHeat[barrel] = 0;
+              const region =
+                meltRegions.find((candidate) => !candidate.active) ??
+                meltRegions.reduce((oldest, candidate) =>
+                  candidate.life < oldest.life ? candidate : oldest,
+                );
+              const offsetX = hit.x - hitRock.x;
+              const offsetY = hit.y - hitRock.y;
+              const cosRock = Math.cos(hitRock.rotation);
+              const sinRock = Math.sin(hitRock.rotation);
+              region.active = true;
+              region.life = MELT_COOL_SECONDS;
+              region.rock = hitRock;
+              region.localX = offsetX * cosRock + offsetY * sinRock;
+              region.localY = -offsetX * sinRock + offsetY * cosRock;
+            }
+          } else {
+            meltHeat[barrel] = 0;
+            meltSpot[barrel] = null;
+            meltRock[barrel] = null;
+          }
+
           beams
             .moveTo(pose.x * PIXELS_PER_METER, pose.y * PIXELS_PER_METER)
             .lineTo(end.x * PIXELS_PER_METER, end.y * PIXELS_PER_METER)
@@ -393,15 +485,38 @@ export function createMining(): Mining {
             .moveTo(pose.x * PIXELS_PER_METER, pose.y * PIXELS_PER_METER)
             .lineTo(end.x * PIXELS_PER_METER, end.y * PIXELS_PER_METER)
             .stroke({ color: LASER_CORE_COLOR, width: 1.6, alpha: 0.95 });
-
-          laserTimers[barrel] = (laserTimers[barrel] ?? 0) + frame.dt;
-          if (hit && hitRock && laserTimers[barrel]! >= LASER_SPAWN_INTERVAL) {
-            laserTimers[barrel] = laserTimers[barrel]! - LASER_SPAWN_INTERVAL;
-            spawnChunk(hit, direction, hitRock);
-          }
         } else {
-          laserTimers[barrel] = 0;
+          meltHeat[barrel] = 0;
+          meltSpot[barrel] = null;
+          meltRock[barrel] = null;
         }
+      }
+
+      // Cooling melt regions, drawn on the rock before beams and chunks.
+      for (const region of meltRegions) {
+        if (!region.active) continue;
+        region.life -= frame.dt;
+        if (region.life <= 0) {
+          region.active = false;
+          continue;
+        }
+        const rock = region.rock;
+        if (!rock) continue;
+        const cosRock = Math.cos(rock.rotation);
+        const sinRock = Math.sin(rock.rotation);
+        const x = rock.x + region.localX * cosRock - region.localY * sinRock;
+        const y = rock.y + region.localX * sinRock + region.localY * cosRock;
+        const fade = region.life / MELT_COOL_SECONDS;
+        melt
+          .circle(x * PIXELS_PER_METER, y * PIXELS_PER_METER, MELT_RADIUS_M * PIXELS_PER_METER)
+          .fill({ color: MELT_COLOR, alpha: 0.75 * fade });
+        melt
+          .circle(
+            x * PIXELS_PER_METER,
+            y * PIXELS_PER_METER,
+            MELT_RADIUS_M * 0.55 * PIXELS_PER_METER,
+          )
+          .fill({ color: MELT_CORE_COLOR, alpha: 0.8 * fade });
       }
 
       for (const chunk of chunks) {

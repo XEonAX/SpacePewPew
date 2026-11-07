@@ -565,3 +565,39 @@ The supplied sources live in `docs/reference/asteroid2-*.webp`; runtime copies a
 **Consequences:** adding an asteroid is now "supply art, process it with the documented pass,
 append it to the field's art array, pick its variant index". Keep processed textures out of the
 source tree and the pipeline one-off.
+
+## ADR-023 — Melting takes dwell time; melt regions stick to the spinning rock
+
+**Status:** accepted (2026-11-07).
+
+Mining previously sprayed a chunk every 0.1 s wherever the laser happened to be, and the chunks
+were orange. Both were wrong: metal should take time and heat to melt, the visual should show
+_where_ the rock is being melted, and the debris should look like cooled metal, not fire.
+
+Rules:
+
+- **Dwell to melt.** Each laser barrel keeps its own heat (`meltHeat`) and a world-space aim
+  point. While the beam bites the rock and the hit point stays within `MELT_DWELL_RADIUS_M`
+  (0.6 m) of that point, heat accumulates; at `MELT_SECONDS` (1.1 s) one chunk melts off and the
+  heat resets. Sweeping the beam to a different spot resets the charge, so the laser drills one
+  spot instead of painting chunks across the rock. Two front barrels melt independently.
+- **Orange melt patches mark the region.** The heating spot is drawn in an orange layer
+  (`melt`, normal blending so the colour reads against the brightly lit rock) growing from
+  0.08 m to 0.30 m with heat, with a pale core and a small white-hot beam pinpoint on top. When a
+  chunk is released, the patch **stays on the rock** as a cooling melt region for
+  `MELT_COOL_SECONDS` (4 s), fading out; a small pool (24) means old scars recycle.
+- **Melt regions spin with the asteroid.** The rock art rotates, so the collider is a circle and
+  the melt decal must not be anchored in world space. The spot is stored in the rock's local
+  frame (offset from its centre rotated by `-rotation` at spawn) and drawn back through the
+  rock's **current** rotation, using the spin exposed by `getMiningTargets()`. The beam still
+  ends on the live ray hit (where the barrels point); the scar it leaves rotates away with the
+  surface — which is what a spinning rock does.
+- **Chunks are grey-blue metal**, not molten orange: flat fills `#9fb2c6` / `#8a9cb0`, a dark
+  blue-grey rim and a faint cool halo. They still leave along the reflected laser direction.
+- **The second asteroid is 3× the base diameter** (`ASTEROID_AHEAD_SCALE`), i.e. ~18.7 m across,
+  so the rock ahead reads as a landmark and gives the dwell-time mining something to chew on.
+
+**Consequences:** chunk cadence is now `MELT_SECONDS` per barrel while a beam is held steady;
+aiming accuracy and dwell matter more than rate. Melt decals are pure rendering state in
+`mining.ts` (no entities), and the rock's spin is part of its mining target, so any future
+rotating bodies get the same treatment for free.
