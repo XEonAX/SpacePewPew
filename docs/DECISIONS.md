@@ -259,3 +259,27 @@ ramping; `setListenerGain` skips sub-0.001 updates.
 **Consequences:** new audio automatically respects zoom as long as it goes through
 `AudioManager`; if per-voice distance tweaks are ever needed, apply them _on top of_ the master
 listener gain, not instead of it.
+
+## ADR-015 — Shots are committed at trigger time, not at spawn time
+
+**Status:** accepted (2026-11-07).
+
+Turret pairs fire only while the mouse is inside their aiming cone, and each weapon sound
+starts immediately while its projectile waits out the clip's charge delay (`WEAPON_SHOT_DELAYS`,
+~0.28 s for the rear pairs). Bullets used to read the live muzzle list when the charge finished,
+so pulling the trigger inside a cone and then moving the mouse out played the charge and shot
+audio but spawned nothing — a visible/non-audible mismatch.
+
+`fireWeapon` now commits the shot when it is triggered: `muzzlesForPair()` selects the tracking
+barrels, `commitShot()` freezes their poses into the pending queue, and `advanceShots()` spawns
+from that snapshot. Only the ship transform is read live (position, rotation, velocity), so the
+tracer leaves the muzzle in the direction it was aimed at the trigger pull. If no barrel is
+tracking the pair, `commitShot` refuses the shot, so a sound can never play without a projectile.
+
+The turret charge glow latches per barrel (`latchedBarrels` in `turrets.ts`): a barrel that was
+tracking while its pair charged keeps its glow after the mouse leaves the arc, while the pair's
+other barrels stay at rest. The latch clears when the pair's glow level returns to rest.
+
+**Consequences:** keep charge timing in `weapons.ts` and freeze any pose-dependent state there —
+do not resolve live turret state inside the spawn callback; that is exactly the bug this ADR
+removes. Barrels that were never in the arc must never glow or fire from a committed shot.

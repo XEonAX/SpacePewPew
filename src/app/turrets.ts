@@ -152,6 +152,9 @@ export function createTurrets(texture: Texture): Turrets {
   let muzzles: TurretMuzzle[] = [];
   let glowLevels: readonly number[] = [1, 1, 1, 1];
   const glowAlphas = configs.map(() => 1);
+  // Barrels that fired this charge, so they keep glowing after the mouse
+  // leaves their arc; the shot is already committed.
+  const latchedBarrels = configs.map(() => false);
 
   return {
     container,
@@ -200,8 +203,15 @@ export function createTurrets(texture: Texture): Turrets {
         const muzzleY = config.y - Math.cos(aim.angle) * muzzleLength;
 
         const glow = glowSprites[index]!;
-        // Charge/fire state only belongs to barrels currently tracking the mouse.
-        const level = inArc ? (glowLevels[pairIndex] ?? 1) : 1;
+        // A pair charging a committed shot keeps its firing barrels lit even
+        // once the mouse leaves their arc.
+        const charging = (glowLevels[pairIndex] ?? 1) > 1;
+        if (!charging) {
+          latchedBarrels[index] = false;
+        } else if (inArc) {
+          latchedBarrels[index] = true;
+        }
+        const level = inArc || latchedBarrels[index] ? (glowLevels[pairIndex] ?? 1) : 1;
         const charge = Math.max(0, level - 1);
         const flicker = Math.sin(frame.now * 5 + index * 1.7);
         const targetAlpha =

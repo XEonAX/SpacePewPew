@@ -24,7 +24,16 @@ import { listenerGainForZoom } from '../audio/listener-gain';
 import { createTurrets } from './turrets';
 import { createBullets } from './bullets';
 import { BULLET_SPEED_METERS_PER_SECOND } from './bullet-math';
-import { WEAPON_PAIRS, WEAPON_SHOT_DELAYS, nextPairVariant } from './weapons';
+import {
+  WEAPON_PAIRS,
+  WEAPON_SHOT_DELAYS,
+  advanceShots,
+  commitShot,
+  muzzleWorldPose,
+  muzzlesForPair,
+  nextPairVariant,
+} from './weapons';
+import type { MuzzleAim, PendingShot } from './weapons';
 import { createWeaponTuner } from './weapon-tuner';
 
 export interface Scene {
@@ -109,25 +118,20 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const pairCooldowns = [0, 0, 0, 0];
   const weaponCooldowns = WEAPON_PAIRS.map((pair) => pair.cooldown);
   const pairCursors = [0, 0, 0, 0];
-  const pendingShots: Array<{ pairIndex: number; remaining: number; total: number }> = [];
+  const pendingShots: PendingShot[] = [];
 
-  const spawnBullets = (pairIndex: number): void => {
-    const shipCos = Math.cos(flight.rotation);
-    const shipSin = Math.sin(flight.rotation);
+  const spawnBullets = (muzzles: readonly MuzzleAim[]): void => {
+    // Muzzle poses were captured when the trigger was pulled; only the ship
+    // transform is read live, so a shot that left the arc still flies.
     const localToMeters = shipBaseScale / PIXELS_PER_METER;
-    for (const muzzle of turrets.getMuzzles()) {
-      if (muzzle.pairIndex !== pairIndex) continue;
-      const localX = muzzle.x * localToMeters;
-      const localY = muzzle.y * localToMeters;
-      const x = flight.x + localX * shipCos - localY * shipSin;
-      const y = flight.y + localX * shipSin + localY * shipCos;
-      const angle = flight.rotation + muzzle.angle;
+    for (const muzzle of muzzles) {
+      const pose = muzzleWorldPose(muzzle, flight.x, flight.y, flight.rotation, localToMeters);
       bullets.spawn(
-        x,
-        y,
-        flight.vx + Math.sin(angle) * BULLET_SPEED_METERS_PER_SECOND,
-        flight.vy - Math.cos(angle) * BULLET_SPEED_METERS_PER_SECOND,
-        angle - Math.PI / 2,
+        pose.x,
+        pose.y,
+        flight.vx + Math.sin(pose.angle) * BULLET_SPEED_METERS_PER_SECOND,
+        flight.vy - Math.cos(pose.angle) * BULLET_SPEED_METERS_PER_SECOND,
+        pose.angle - Math.PI / 2,
       );
     }
   };
@@ -136,13 +140,12 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const pair = WEAPON_PAIRS[pairIndex];
     if (!pair) return;
     const next = nextPairVariant(pair, pairCursors[pairIndex] ?? 0);
-    pairCursors[pairIndex] = next.cursor;
     const delay = WEAPON_SHOT_DELAYS[next.sound] ?? 0;
-    pendingShots.push({
-      pairIndex,
-      remaining: delay,
-      total: delay,
-    });
+    const muzzles = muzzlesForPair(turrets.getMuzzles(), pairIndex);
+    // Commit the shot before the mouse can leave the cone: the charge sound
+    // and its projectile belong to the same trigger pull.
+    if (!commitShot(pendingShots, pairIndex, muzzles, delay)) return;
+    pairCursors[pairIndex] = next.cursor;
 
     const pan = clamp((pointer.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7);
     const volume = pair.volume * (0.92 + Math.random() * 0.16);
@@ -167,13 +170,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   };
 
   const updateWeapons = (dt: number): void => {
-    for (let index = pendingShots.length - 1; index >= 0; index -= 1) {
-      const pending = pendingShots[index]!;
-      pending.remaining -= dt;
-      if (pending.remaining > 0) continue;
-      spawnBullets(pending.pairIndex);
-      pendingShots.splice(index, 1);
-    }
+    advanceShots(pendingShots, dt, (shot) => spawnBullets(shot.muzzles));
 
     const active = turrets.getActivePairs();
     for (let index = 0; index < WEAPON_PAIRS.length; index += 1) {

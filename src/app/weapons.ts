@@ -38,3 +38,96 @@ export function nextPairVariant(
     cursor: (index + 1) % pair.sounds.length,
   };
 }
+
+/** A barrel pose in ship-texture pixels, relative to the ship centre. */
+export interface MuzzleAim {
+  x: number;
+  y: number;
+  angle: number;
+}
+
+/** A muzzle tagged with the turret pair that owns it. */
+export interface PairMuzzle extends MuzzleAim {
+  pairIndex: number;
+}
+
+export interface MuzzleWorldPose {
+  x: number;
+  y: number;
+  angle: number;
+}
+
+/**
+ * A shot committed at trigger time. It carries its own barrel snapshot, so it
+ * still spawns after the mouse leaves the pair's aiming arc — the live turrets
+ * are never consulted again for this shot.
+ */
+export interface PendingShot {
+  pairIndex: number;
+  muzzles: readonly MuzzleAim[];
+  /** Seconds of charge left before the projectile leaves the barrel. */
+  remaining: number;
+  total: number;
+}
+
+export function muzzlesForPair(muzzles: readonly PairMuzzle[], pairIndex: number): PairMuzzle[] {
+  return muzzles.filter((muzzle) => muzzle.pairIndex === pairIndex);
+}
+
+/** Ship-local barrel pose (texture px) to a world pose in metres. */
+export function muzzleWorldPose(
+  muzzle: MuzzleAim,
+  shipX: number,
+  shipY: number,
+  rotation: number,
+  metresPerTexturePixel: number,
+): MuzzleWorldPose {
+  const localX = muzzle.x * metresPerTexturePixel;
+  const localY = muzzle.y * metresPerTexturePixel;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  return {
+    x: shipX + localX * cos - localY * sin,
+    y: shipY + localX * sin + localY * cos,
+    angle: rotation + muzzle.angle,
+  };
+}
+
+/**
+ * Freezes the trigger-time barrel poses into the pending queue. Returns
+ * `undefined` when no barrel is tracking the pair, so a shot is never charged
+ * (and never sounds) without a projectile behind it.
+ */
+export function commitShot(
+  pending: PendingShot[],
+  pairIndex: number,
+  muzzles: readonly PairMuzzle[],
+  delay: number,
+): PendingShot | undefined {
+  if (muzzles.length === 0) return undefined;
+
+  const charge = Math.max(0, delay);
+  const shot: PendingShot = {
+    pairIndex,
+    muzzles: muzzles.map((muzzle) => ({ x: muzzle.x, y: muzzle.y, angle: muzzle.angle })),
+    remaining: charge,
+    total: charge,
+  };
+  pending.push(shot);
+  return shot;
+}
+
+/** Ticks committed shots and fires each one exactly once. */
+export function advanceShots(
+  pending: PendingShot[],
+  dt: number,
+  onFire: (shot: PendingShot) => void,
+): void {
+  for (let index = pending.length - 1; index >= 0; index -= 1) {
+    const shot = pending[index]!;
+    shot.remaining -= dt;
+    if (shot.remaining > 0) continue;
+    pending.splice(index, 1);
+    onFire(shot);
+  }
+}
