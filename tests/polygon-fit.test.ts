@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { fitClosedPolygon, maxDeviation, simplifyClosedPolygon } from '../src/app/polygon-fit';
+import {
+  fitClosedPolygon,
+  maxDeviation,
+  maxSymmetricDeviation,
+  simplifyClosedPolygon,
+} from '../src/app/polygon-fit';
 import type { Vec2 } from '../src/app/polygon-fit';
 
 const square: Vec2[] = [
@@ -45,6 +50,7 @@ describe('closed polygon simplification', () => {
 
   it('reports zero deviation when nothing is removed', () => {
     expect(maxDeviation(square, square)).toBeCloseTo(0);
+    expect(maxSymmetricDeviation(square, square)).toBeCloseTo(0);
   });
 });
 
@@ -59,6 +65,7 @@ describe('fitting to a vertex budget', () => {
     expect(fitted.points.length).toBeGreaterThanOrEqual(3);
     // A 16-gon on a 10 m circle falls short by R(1 - cos(pi/16)) ≈ 0.19 m.
     expect(maxDeviation(circle, fitted.points)).toBeLessThan(0.3);
+    expect(maxSymmetricDeviation(circle, fitted.points)).toBeLessThan(0.3);
   });
 
   it('does not simplify below a triangle', () => {

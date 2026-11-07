@@ -272,27 +272,116 @@ interface FanTriangle {
   radius: number;
 }
 
-/** Cached fan decompositions, keyed by the collider's stable points array. */
-const fanCache = new WeakMap<readonly Vec2[], FanTriangle[]>();
+function makeTriangle(a: Vec2, b: Vec2, c: Vec2): FanTriangle {
+  const centre = { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 };
+  let radius = Math.hypot(a.x - centre.x, a.y - centre.y);
+  radius = Math.max(radius, Math.hypot(b.x - centre.x, b.y - centre.y));
+  radius = Math.max(radius, Math.hypot(c.x - centre.x, c.y - centre.y));
+  return { points: [{ ...a }, { ...b }, { ...c }], centre, radius };
+}
 
 /**
- * Fan triangles around the outline's centre. The silhouette polygon is
- * radially star-shaped, so the fan is a valid compound decomposition: together
- * the triangles cover the real concave shape, unlike one convex hull. The
- * decomposition only depends on the local outline, so it is cached per rock.
+ * Is `point` inside the polygon's kernel — i.e. does it see the whole boundary?
+ * This is the condition for the fan decomposition from that point to be a valid
+ * partition. O(n) cross products, all on the interior side of every edge.
  */
-export function fanTriangles(points: readonly Vec2[]): FanTriangle[] {
-  const cached = fanCache.get(points);
-  if (cached) return cached;
+export function pointInKernel(points: readonly Vec2[], point: Vec2): boolean {
+  if (points.length < 3) return false;
+  const clockwise = signedArea(points) > 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const a = points[index]!;
+    const b = points[(index + 1) % points.length]!;
+    const cross = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
+    if (clockwise ? cross < 0 : cross > 0) return false;
+  }
+  return true;
+}
+
+function pointInTriangle(point: Vec2, a: Vec2, b: Vec2, c: Vec2): boolean {
+  const d1 = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
+  const d2 = (c.x - b.x) * (point.y - b.y) - (c.y - b.y) * (point.x - b.x);
+  const d3 = (a.x - c.x) * (point.y - c.y) - (a.y - c.y) * (point.x - c.x);
+  const negative = d1 < 0 || d2 < 0 || d3 < 0;
+  const positive = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(negative && positive);
+}
+
+function polygonArea(points: readonly Vec2[]): number {
+  return Math.abs(signedArea(points));
+}
+
+/**
+ * Ear-clipping triangulation for a simple polygon that is not star-shaped from
+ * its centre. Returns null if no ear can be found (numerically degenerate); the
+ * caller then falls back to the fan.
+ */
+function buildEarClip(points: readonly Vec2[]): FanTriangle[] | null {
+  const orientation = Math.sign(signedArea(points)) || 1;
+  const indices = points.map((_, index) => index);
+  const triangles: FanTriangle[] = [];
+  let guard = 0;
+  while (indices.length > 3 && guard < 512) {
+    guard += 1;
+    let clipped = false;
+    for (let cursor = 0; cursor < indices.length; cursor += 1) {
+      const previous = indices[(cursor - 1 + indices.length) % indices.length]!;
+      const current = indices[cursor]!;
+      const next = indices[(cursor + 1) % indices.length]!;
+      const a = points[previous]!;
+      const b = points[current]!;
+      const c = points[next]!;
+      const cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+      if (cross * orientation <= 1e-9) continue; // reflex or collinear
+      let blocked = false;
+      for (const index of indices) {
+        if (index === previous || index === current || index === next) continue;
+        if (pointInTriangle(points[index]!, a, b, c)) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) continue;
+      triangles.push(makeTriangle(a, b, c));
+      indices.splice(cursor, 1);
+      clipped = true;
+      break;
+    }
+    if (!clipped) return null;
+  }
+  if (indices.length === 3) {
+    triangles.push(makeTriangle(points[indices[0]!]!, points[indices[1]!]!, points[indices[2]!]!));
+  }
+  if (triangles.length !== points.length - 2) return null;
+  let area = 0;
+  for (const triangle of triangles) area += Math.abs(signedArea(triangle.points));
+  return Math.abs(area - polygonArea(points)) <= polygonArea(points) * 1e-6 ? triangles : null;
+}
+
+function buildFan(points: readonly Vec2[]): FanTriangle[] {
   const triangles: FanTriangle[] = [];
   for (let index = 0; index < points.length; index += 1) {
     const a = points[index]!;
     const b = points[(index + 1) % points.length]!;
-    const centre = { x: (a.x + b.x) / 3, y: (a.y + b.y) / 3 };
-    let radius = Math.hypot(centre.x, centre.y);
-    radius = Math.max(radius, Math.hypot(a.x - centre.x, a.y - centre.y));
-    radius = Math.max(radius, Math.hypot(b.x - centre.x, b.y - centre.y));
-    triangles.push({ points: [{ x: 0, y: 0 }, a, b], centre, radius });
+    triangles.push(makeTriangle({ x: 0, y: 0 }, a, b));
+  }
+  return triangles;
+}
+
+/** Cached fan decompositions, keyed by the collider's stable points array. */
+const fanCache = new WeakMap<readonly Vec2[], FanTriangle[]>();
+
+/**
+ * Convex pieces covering the outline. The silhouette is traced radially, so a
+ * fan from its centre is normally exact; a cheap kernel check catches the case
+ * where simplification moved the centre out of the kernel, in which case an
+ * ear-clipped triangulation is used instead. Cached per rock outline.
+ */
+export function fanTriangles(points: readonly Vec2[]): FanTriangle[] {
+  const cached = fanCache.get(points);
+  if (cached) return cached;
+  let triangles = buildFan(points);
+  if (!pointInKernel(points, { x: 0, y: 0 })) {
+    triangles = buildEarClip(points) ?? triangles;
   }
   fanCache.set(points, triangles);
   return triangles;

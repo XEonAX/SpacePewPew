@@ -1,89 +1,145 @@
-# Low-poly collider fitting for faceted asteroid art
+# Polygon collider simplification
 
-Research note behind ADR-028. Question: how should a 2D game fit a collision polygon to a
-faceted rock silhouette efficiently? Findings are quoted from primary engine documentation,
-reference implementations and the algorithm literature.
+Research note (2026-11-07) behind the low-poly replacement of the 128-ray silhouette collider in
+`src/app/asteroid-field.ts`. Vertex counts below are measured on the two shipped asteroid textures
+(`public/assets/lighting/asteroid-color.png` and `asteroid2-color.png`) by tracing 128 subpixel
+alpha rays from the texture centre, exactly as the game does, then running closed-polygon RDP over
+that contour.
 
-## 1. What real 2D engines allow
+## 1. What production 2D engines limit, and why
 
-- **Box2D** caps a convex polygon at **8 vertices** (`b2_maxPolygonVertices = 8`) and explicitly
-  says you cannot raise it much because the block allocator has a maximum object size
-  ([b2_settings.h](https://box2d.org/doc_version_2_4/b2__settings_8h.html)). Static, free-form
-  scenery is instead given a **chain shape** — a sequence of line segments with one-sided
-  collision, not limited to 8 points
-  ([b2ChainShape](https://box2d.org/doc_version_2_4/classb2_chain_shape.html)).
-- **Chipmunk2D** polygon shapes require **convex vertices in counter-clockwise winding**; the
-  high-level `cpPolyShapeNew`/`cpPolyShapeInit` compute a **convex hull** from the vertices you
-  pass, and only the `Raw` variants let you assert convexity yourself
-  ([cpPolyShape.h](https://raw.githubusercontent.com/slembcke/Chipmunk2D/master/include/chipmunk/cpPolyShape.h)).
-- **Unity Physics2D** exposes `Physics2D.MaxPolygonShapeVertices` as a compile-time maximum per
-  convex polygon. Its docs explain the trade-off: a polygon's **edges are all iterated to
-  calculate collisions or perform queries**, so "a value too large results in a lot of time
-  discounting polygons. A value too small reduces the number of useful polygon shapes"
-  ([MaxPolygonShapeVertices](https://docs.unity3d.com/6000.2/Documentation/ScriptReference/Physics2D.MaxPolygonShapeVertices.html)).
-- **Godot**'s `CollisionPolygon2D` accepts an arbitrary polygon and decomposes it into convex
-  shapes internally; the authored outline is not itself the runtime collider
-  ([CollisionPolygon2D](https://docs.godotengine.org/en/4.2/classes/class_collisionpolygon2d.html)).
+| Engine                       | Limit / approach                                                                                                                                                                                                       | Stated reason                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Box2D 2.4                    | `b2_maxPolygonVertices` = **8** per convex polygon.                                                                                                                                                                    | "You cannot increase this too much because `b2BlockAllocator` has a maximum object size." ([b2_settings.h](https://github.com/erincatto/box2d/blob/v2.4.1/include/box2d/b2_settings.h#L51-L53))                                                                                                                               |
+| Box2D 3.x                    | Still **8**; "If you have more complex shapes, I recommend using multiple polygons."                                                                                                                                   | Polygons must be convex and solid; compound bodies are the escape hatch. ([collision.md](https://github.com/erincatto/box2d/blob/main/docs/collision.md))                                                                                                                                                                     |
+| Chipmunk2D                   | No documented hard cap (plane storage grows past an inline cache), but `cpPolyShapeNew` **computes a convex hull** from the input, so concave input is silently hulled.                                                | Convexity is a shape invariant: "The vertexes must be convex with a counter-clockwise winding." ([cpPolyShape.h](https://github.com/slembcke/Chipmunk2D/blob/master/include/chipmunk/cpPolyShape.h), [cpPolyShape.c](https://github.com/slembcke/Chipmunk2D/blob/master/src/cpPolyShape.c))                                   |
+| Unity `Physics2D`            | A compile-time cap per **convex** polygon (`Physics2D.MaxPolygonShapeVertices`), not per authored outline.                                                                                                             | "All of its edges need to iterated to calculate collisions or perform queries. A value too large results in a lot of time … A value too small reduces the number of useful polygon shapes." ([MaxPolygonShapeVertices](https://docs.unity3d.com/6000.2/Documentation/ScriptReference/Physics2D.MaxPolygonShapeVertices.html)) |
+| Unity `PolygonCollider2D`    | Freeform closed outline; optional "Use Delaunay Mesh" triangulates it into collision shapes.                                                                                                                           | Concave input is decomposed; the extra step "can improve collision shapes for complex shapes, but can reduce performance." ([manual](https://docs.unity3d.com/6000.0/Documentation/Manual/class-PolygonCollider2D.html))                                                                                                      |
+| Godot `CollisionPolygon2D`   | "The polygon can be concave or convex"; `BUILD_SOLIDS` behaves as "several `ConvexPolygonShape2D` nodes, one for each convex shape in the convex decomposition".                                                       | Concave input is decomposed internally (`Geometry2D::decompose_polygon_in_convex`). ([docs](https://docs.godotengine.org/en/stable/classes/class_collisionpolygon2d.html), [source](https://github.com/godotengine/godot/blob/master/scene/2d/physics/collision_polygon_2d.cpp))                                              |
+| Godot `ConvexPolygonShape2D` | Faster than `ConcavePolygonShape2D`, slower than primitives; "use should generally be limited to medium-sized objects".                                                                                                | Convexity enables the fast path. ([docs](https://docs.godotengine.org/en/stable/classes/class_convexpolygonshape2d.html))                                                                                                                                                                                                     |
+| Rapier                       | Convex only. `convexHull` silently computes the hull; `convexPolyline` "assumes it is already convex … if the input mesh isn't actually convex, the collision-detection for that shape will give an incorrect result." | Non-convex dynamic bodies need "a convex decomposition with a compound shape". ([colliders guide](https://rapier.rs/docs/user_guides/javascript/colliders/))                                                                                                                                                                  |
+| planck.js                    | `Settings.maxPolygonVertices` = **12**; "In most cases you should not need many vertices for a convex polygon."                                                                                                        | Box2D lineage, same allocator argument. ([Settings.ts](https://github.com/shakiba/planck.js/blob/master/src/Settings.ts#L33-L36), [PolygonShape.ts](https://github.com/shakiba/planck.js/blob/master/src/collision/shape/PolygonShape.ts#L39-L44))                                                                            |
 
-Takeaway: engines either cap vertices hard, use chains for static geometry, or decompose a
-richer outline. The common constraint is **few vertices per convex piece**, because collision and
-queries are per-edge.
+The caps are **per convex piece, not per object**: Box2D's 8 is an allocator constraint, Box2D and
+Rapier point at compound shapes for richer outlines, and Unity and Godot decompose concave input
+on the way in. Nothing suggests a silhouette needs more than a few dozen vertices.
 
-## 2. Simplifying a closed silhouette
+## 2. Line / polygon simplification for a closed silhouette
 
-- **Ramer–Douglas–Peucker** "decimates a curve composed of line segments to a similar curve with
-  fewer points" by recursively keeping the point farthest from the current chord unless it is
-  within **ε**; it "produces the most accurate generalization, but is also more time-consuming"
-  ([RDP](https://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm)). The
-  page also warns that with an insufficiently fine tolerance the simplified curve can
-  **self-intersect**, and that worst-case complexity is O(n²).
-- For a **closed** outline the loop has no endpoints, so it is split into two open polylines (for
-  example at the vertex farthest from the first point), each is simplified, and the seams are
-  joined without duplicate points.
-- Alternatives include **Visvalingam–Whyatt** (repeatedly remove the point that contributes the
-  least triangle area) and other cartographic simplification schemes; RDP is preferred here
-  because its ε has a direct geometric meaning (maximum deviation) and the art is already
-  piecewise linear
-  ([Visvalingam–Whyatt](https://en.wikipedia.org/wiki/Visvalingam%E2%80%93Whyatt_algorithm)).
+**Ramer–Douglas–Peucker (RDP).** Recursively keeps the point farthest from the chord until every
+input vertex is within ε; ε is a perpendicular distance in the input's units, and the output is a
+subsequence of the input. Worst case O(n²), best Ω(n log n)
+([Wikipedia](https://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm);
+[Douglas & Peucker 1973](https://doi.org/10.3138/FM57-6770-U75U-7727)). Two caveats matter here:
+the bound applies to **input vertices**, not to points along input segments, and RDP "can
+self-intersect if the accepted approximation is not sufficiently fine."
 
-## 3. Why convex pieces, and when a fan is valid
+A closed ring needs explicit handling because its first and last points coincide. JTS turns off
+endpoint preservation for `LinearRing` and repairs or drops degenerate rings
+([simplifier](https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/simplify/DouglasPeuckerSimplifier.java),
+[line simplifier](https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/simplify/DouglasPeuckerLineSimplifier.java)).
+SpacePewPew instead splits the ring at the vertex farthest from the first into two open chains
+(`simplifyClosedPolygon` in `src/app/polygon-fit.ts`), avoiding the degenerate chord.
 
-- Separating-axis tests are only exact for **convex** shapes, which is why engines demand convex
-  polygons and why concave outlines are decomposed
-  ([Chipmunk polygon constraint](https://raw.githubusercontent.com/slembcke/Chipmunk2D/master/include/chipmunk/cpPolyShape.h)).
-- A **fan** (one vertex joined to every edge) decomposes a polygon into triangles without
-  clipping. It is valid when the polygon is **star-shaped** with respect to the fan's centre: a
-  polygon is star-shaped when there is a kernel point from which the whole boundary is visible
-  ([Star-shaped polygon](https://en.wikipedia.org/wiki/Star-shaped_polygon)). A radial
-  ray-traced silhouette around its centre satisfies this by construction.
-- **Ear clipping** triangulates any simple polygon into `n − 2` triangles, so it is the fallback
-  if the outline is not star-shaped
-  ([Polygon triangulation](https://en.wikipedia.org/wiki/Polygon_triangulation)).
+**Visvalingam–Whyatt (VW).** Repeatedly removes the point whose triangle with its two neighbours
+has the smallest area, via a priority queue; closed rings need no special case because it only
+looks at immediate neighbours
+([Wikipedia](https://en.wikipedia.org/wiki/Visvalingam%E2%80%93Whyatt_algorithm);
+[Visvalingam & Whyatt 1993](https://doi.org/10.1179/000870493786962263)). But it "does not
+differentiate between sharp spikes and shallow features" and erodes fine detail — exactly the
+faceted corners a rock needs.
 
-## 4. Choosing ε and the vertex budget
+**Keep facet corners (dominant points).** Threshold the turn angle and keep only corners
+([dominant-point detection](http://eprints.nottingham.ac.uk/47521/)); cheapest and matched to
+faceted art, but the threshold is shape-dependent and there is no error bound.
 
-Engine guidance is explicit that the correct vertex count is a **performance/flexibility
-trade-off**, not a fixed rule (Unity docs above; Box2D's 8-vertex cap). For a **static** body
-(the rocks never move dynamically), there is no solver stability reason to stay near 8 — a
-chain/fan of a few dozen segments is cheap. Practical rule applied here:
+**Fit for faceted art:** RDP. A faceted silhouette is piecewise linear, so its real corners are
+precisely the points with large perpendicular deviation, which RDP keeps. VW's area criterion
+deletes thin spikes; a pure corner detector cannot bound error. RDP keeps vertex order, so the
+ring stays simple in practice (verified below).
 
-- express the tolerance as a fraction of the shape radius, so the same budget works for every
-  rock size — **1 % of radius as the starting ε**, grown until the budget is met;
-- cap the outline at a **32-vertex budget** (one triangle per edge in the fan);
-- verify with **maximum deviation** from the untraced contour, not by eye.
+## 3. Convex decomposition
 
-For the two 620 px faceted rock textures this yields **24 and 28 vertices** with **≤ ~2 % of
-radius deviation** (≈ 0.2 m on the 9.7 m rock), which is below the shield stroke width at normal
-zoom. The 128-sample contour was accurate but overkill: most of its vertices describe
-anti-aliased scallops that no gameplay interaction can feel.
+SAT's correctness rests on the hyperplane separation theorem: disjoint **convex** sets admit a
+separating axis on which their projections are disjoint
+([Wikipedia](https://en.wikipedia.org/wiki/Hyperplane_separation_theorem)). For a concave shape a
+single projection overlap can be a false positive, which is why the engines above decompose or
+refuse concave input (Rapier: "incorrect result"; Godot: convex decomposition).
 
-## Recommendation for SpacePewPew
+- **Fan from the trace centre** — n triangles `(centre, v_i, v_i+1)`. Valid exactly when the
+  centre lies in the polygon's **kernel**, i.e. the polygon is star-shaped about it
+  ([star-shaped polygon](https://en.wikipedia.org/wiki/Star-shaped_polygon)). A contour traced by
+  rays from a point is a visibility polygon from that point, hence star-shaped about it _before_
+  simplification. Cheapest decomposition: no new vertices, n pieces.
+- **Ear clipping** — any simple polygon triangulates into n−2 triangles; O(n²) implementations are
+  standard ([polypartition](https://github.com/ivanfratric/polypartition/blob/master/src/polypartition.h),
+  [Wikipedia](https://en.wikipedia.org/wiki/Polygon_triangulation)). Always valid after
+  simplification, but more pieces than a fan.
+- **Bayazit** — recursive decomposition into convex **polygons** rather than triangles, O(n·r) for
+  r reflex vertices, no holes
+  ([reference implementation](https://github.com/tainicom/Aether.Physics2D/blob/master/Physics2D/Common/Decomposition/BayazitDecomposer.cs)).
+  Useful when feeding an engine with an 8-vertex convex cap; unnecessary for a custom fan.
+- **Hertel–Mehlhorn** — merges ear-clipped triangles into convex parts, at most 4× optimal, O(n²)
+  ([polypartition](https://github.com/ivanfratric/polypartition/blob/master/src/polypartition.h)).
+- **V-HACD** — 3D volumetric approximate decomposition; exact convex decomposition is NP-hard and
+  approximate methods trade concavity against hull count
+  ([README](https://github.com/kmammou/v-hacd)). Overkill for a 2D rock.
 
-1. Trace the silhouette with subpixel ray/alpha crossings (integer sampling makes RDP chase
-   pixel staircase noise and keep almost every point).
-2. Simplify the closed loop with RDP, starting at 1 % of radius and growing ε until the outline
-   fits **32 vertices**.
-3. Keep the **fan** decomposition: the radial trace is star-shaped around the centre, and the
-   vertex budget directly caps the number of SAT pieces and ray clips.
-4. Cache the fan per rock and reject pieces by bounding circle before SAT; the collider is
-   static apart from its rotation.
+**When the fan stays valid after simplification:** check that the centre is on the interior side
+of every edge — O(n) cross products, all the same sign. If that fails, fall back to ear clipping
+(n ≤ 32 makes the O(n²) cost irrelevant). This is implemented: `pointInKernel` guards the cached
+`fanTriangles` decomposition, and `buildEarClip` triangulates and verifies that the piece areas sum
+to the polygon area; a U-shaped outline in the tests exercises the fallback.
+
+## 4. Choosing and verifying a tolerance
+
+ε is in the same units as the points, so the useful form is **ε as a fraction of the shape's
+radius**, which is scale-invariant. Box2D supplies a first-party sense of "small enough to be
+visually insignificant": `b2_linearSlop` is 0.005 m and the polygon skin is twice that
+([b2_common.h](https://github.com/erincatto/box2d/blob/v2.4.1/include/box2d/b2_common.h#L63-L74)).
+At this repo's 64 px/m, a 620 px rock is ≈ 9.7 m across, so 2 % of its radius is ≈ 6.4 px ≈ 9.7 cm
+— about 1 % of the rock's diameter.
+
+Verify with the **Hausdorff distance** — "the greatest of all the distances from a point in one
+set to the closest point in the other set"
+([Wikipedia](https://en.wikipedia.org/wiki/Hausdorff_distance)) — measured in **both** directions,
+because RDP only guarantees source→simplified. Because RDP bounds position, not normals, also
+compare edge normals: a median error around 5° is invisible, while a single edge near 30° is the
+acceptable worst case for a removed notch.
+
+Measured on the shipped art (128-ray contour, closed RDP, no vertex cap):
+
+| ε (% of radius) | asteroid verts | asteroid2 verts | max deviation (both ways) |
+| --------------- | -------------- | --------------- | ------------------------- |
+| 1 %             | 47             | 54              | 0.76–1.00 %               |
+| **2 %**         | **29**         | **32**          | 1.73–1.98 %               |
+| 3 %             | 22             | 17              | 2.38–2.83 %               |
+| 5 %             | 18             | 15              | 3.9–4.6 %                 |
+
+At 2 % the edge-normal error was median 4.8°/4.7°, p90 14.5°/15.6°, max 28.4°/21.5°. The fan from
+the origin was an exact partition at every tolerance tested: all triangle windings agreed and
+Σ triangle areas equalled the polygon area (ratio 1.0000), i.e. the centre stayed in the kernel
+after RDP.
+
+## 5. Recommendation for SpacePewPew
+
+1. **Use closed RDP with ε = 2 % of the rock's max radius and a hard cap of 32 vertices.** For the
+   620 px faceted rock that is ≈ 6.4 px and yields **29–32 vertices** (measured), a 4–4.5×
+   reduction from the 128-ray outline. The shipped fitter seeds at 1 % and grows until it meets
+   the 32 cap, which lands at an effective ε ≈ 2.25 % and **24–28 vertices** — slightly fewer
+   pieces at a marginally larger error (~2.0–2.2 %). Seeding at 2 % would instead stop at
+   29–32 vertices in one pass; both are within the same visual budget, the shipped choice just
+   trades ~2 cm more error for ~4 fewer SAT pieces per rock.
+2. **Target max silhouette error ≈ 2 % of radius** (≈ 6.4 px, ≈ 9.7 cm at 64 px/m) in both
+   directions. Do not chase 1 %; it costs 47–54 vertices and ~1.6–1.7× the SAT/ray work for an
+   invisible gain.
+3. **Keep the fan; it remains valid after simplification** for both rocks (measured exact
+   partition). The O(n) star-shape assertion and ear-clipping fallback are now in
+   `src/app/asteroid-collision.ts`, so future art cannot silently produce an invalid fan.
+4. **Do not use VW** (it deletes the thin spikes that define facets). Bayazit / Hertel–Mehlhorn
+   only matter if the collider moves to a stock engine with an 8-vertex convex cap; V-HACD is
+   unnecessary in 2D.
+5. **Verify in a unit test**: symmetric Hausdorff ≤ ε, Σ triangle areas == polygon area, and a
+   normal-error p90 (≈ 15° here) rather than only the max. The repo now tests symmetric deviation
+   (`maxSymmetricDeviation`) and fan/ear-clip area partition; normal-error p90 is documented here
+   but not yet asserted in CI.

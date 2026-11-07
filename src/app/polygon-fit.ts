@@ -85,6 +85,14 @@ export function maxDeviation(points: readonly Vec2[], simplified: readonly Vec2[
   return worst;
 }
 
+/** Largest deviation in both directions between the outline and the fit. */
+export function maxSymmetricDeviation(
+  points: readonly Vec2[],
+  simplified: readonly Vec2[],
+): number {
+  return Math.max(maxDeviation(points, simplified), maxDeviation(simplified, points));
+}
+
 export interface FitClosedPolygonOptions {
   /** Hard vertex budget for the collider outline. */
   maxVertices: number;

@@ -3,6 +3,7 @@ import {
   colliderWorldPoints,
   offsetPolygon,
   fanTriangles,
+  pointInKernel,
   pointInPolygon,
   polygonHitNormal,
   rayPolygonHit,
@@ -247,5 +248,48 @@ describe('concave silhouette', () => {
     expect(segmentPolygonHit({ x: 1.256, y: 0.336 }, { x: 0.336, y: 1.256 }, NOTCHY)).toBe(false);
     // Straight through the rock, though, they hit.
     expect(segmentPolygonHit({ x: -2.5, y: 0 }, { x: 2.5, y: 0 }, NOTCHY)).toBe(true);
+  });
+});
+
+describe('convex decomposition validity', () => {
+  /** U shape: the origin sits in the notch, so it is not in the kernel. */
+  const U_SHAPE = [
+    { x: -3, y: -3 },
+    { x: 3, y: -3 },
+    { x: 3, y: 3 },
+    { x: 1, y: 3 },
+    { x: 1, y: -1 },
+    { x: -1, y: -1 },
+    { x: -1, y: 3 },
+    { x: -3, y: 3 },
+  ];
+
+  it('detects whether the fan centre is in the kernel', () => {
+    expect(pointInKernel(ROCK.points, { x: 0, y: 0 })).toBe(true);
+    expect(pointInKernel(U_SHAPE, { x: 0, y: 0 })).toBe(false);
+  });
+
+  it('falls back to ear clipping when the centre is outside the kernel', () => {
+    const triangles = fanTriangles(U_SHAPE);
+    expect(triangles).toHaveLength(U_SHAPE.length - 2);
+    // Pieces must partition the polygon exactly: no overlap, no gap.
+    const area = (points: readonly { x: number; y: number }[]): number => {
+      let sum = 0;
+      for (let index = 0; index < points.length; index += 1) {
+        const a = points[index]!;
+        const b = points[(index + 1) % points.length]!;
+        sum += a.x * b.y - b.x * a.y;
+      }
+      return Math.abs(sum / 2);
+    };
+    let covered = 0;
+    for (const triangle of triangles) covered += area(triangle.points);
+    expect(covered).toBeCloseTo(area(U_SHAPE), 6);
+  });
+
+  it('keeps using the fan for star-shaped outlines', () => {
+    const triangles = fanTriangles(ROCK.points);
+    expect(triangles).toHaveLength(ROCK.points.length);
+    expect(triangles[0]!.points[0]).toEqual({ x: 0, y: 0 });
   });
 });

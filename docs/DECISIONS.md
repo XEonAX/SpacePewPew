@@ -763,5 +763,11 @@ Rules:
 triangles each rather than 128. The collider is now visibly low-poly in the F2 gizmo, which is
 the point: it matches the faceted art rather than the anti-aliased alpha fringe. If distant-rock
 cost ever matters, the same budget can drop with distance without touching the physics contract.
-See `docs/research/polygon-collider-simplification.md` for engine limits and simplification
-references.
+
+The fan decomposition is guarded by a cheap kernel test (`pointInKernel`, measuring deviation in
+both directions): both shipped outlines stay star-shaped after simplification, so the fan is used;
+if future art does not, `buildEarClip` triangulates instead and verifies that the pieces sum to the
+polygon area. Tests cover a U-shaped outline where the centre is outside the kernel.
+
+See `docs/research/polygon-collider-simplification.md` for engine limits, algorithm comparisons,
+and the measured vertex/error table behind these constants.
