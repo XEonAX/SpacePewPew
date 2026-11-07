@@ -28,6 +28,11 @@ export function clampAngleToArc(
   return wrapAngle(centerAngle + clamped);
 }
 
+/** The mount's forward-most legal aim: straight ahead clamped into its arc. */
+export function forwardAimInArc(centerAngle: number, halfAngle: number): number {
+  return clampAngleToArc(0, centerAngle, halfAngle);
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }

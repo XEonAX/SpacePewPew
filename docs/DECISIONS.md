@@ -283,3 +283,24 @@ other barrels stay at rest. The latch clears when the pair's glow level returns 
 **Consequences:** keep charge timing in `weapons.ts` and freeze any pose-dependent state there —
 do not resolve live turret state inside the spawn callback; that is exactly the bug this ADR
 removes. Barrels that were never in the arc must never glow or fire from a committed shot.
+
+## ADR-016 — Two aiming modes: mouse tracking and all-forward
+
+**Status:** accepted (2026-11-07).
+
+Mouse aiming is precise but leaves half the battery idle unless the player waves the cursor
+across the ship. Keyboard flight also wants a fire control that does not depend on the pointer.
+**1** keeps the existing mouse tracking; **2** puts every mount at the forward-most aim its own
+cone permits (`forwardAimInArc` clamps 0 into the arc): front turrets point dead ahead, the
+middle four sit 45° off the nose, and the rear pair ends up broadside, because that is as far
+forward as their side-to-rear cones reach. All four pairs are hot in this mode, and **Space**
+fires the whole battery while held; each pair still respects its rate of fire.
+
+Mode is scene state, not turret state: `TurretFrame.mode` tells the turrets which aim resolver to
+use, and the scene picks the fire input (`fireHeld()` = click in mouse mode, Space in forward
+mode). Space is deliberately inert in mouse mode, and the crosshair is irrelevant in forward
+mode so keyboard-panned shots are centred (`pan = 0`).
+
+**Consequences:** keep mode-dependent aim/fire decisions in `weapon-mode.ts` and the scene; a
+mount's forward aim must always be clamped into its cone, never assumed to be 0. Fire input and
+aim mode are separate: adding a third mode means a new resolver, not new turret state.

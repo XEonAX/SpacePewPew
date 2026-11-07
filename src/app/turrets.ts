@@ -1,6 +1,7 @@
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
-import { stepTurretAimInArc, wrapAngle } from './turret-aim';
+import { forwardAimInArc, stepTurretAim, stepTurretAimInArc, wrapAngle } from './turret-aim';
 import type { TurretAimState } from './turret-aim';
+import type { WeaponMode } from './weapon-mode';
 
 const NATIVE_WIDTH = 41;
 const NATIVE_HEIGHT = 52;
@@ -107,6 +108,8 @@ interface TurretFrame {
   mouseX: number;
   mouseY: number;
   mouseActive: boolean;
+  /** `forward` parks every mount at its forward-most legal aim. */
+  mode: WeaponMode;
   dt: number;
   now: number;
 }
@@ -175,7 +178,17 @@ export function createTurrets(texture: Texture): Turrets {
         const pairIndex = Math.floor(index / 2);
 
         let inArc = false;
-        if (!frame.mouseActive) {
+        if (frame.mode === 'forward') {
+          // Aim as close to straight ahead as this mount's cone allows; all
+          // pairs are hot so the keyboard can fire the whole battery.
+          stepTurretAim(
+            aim,
+            forwardAimInArc(config.aimCenter, config.aimHalfAngle),
+            frame.dt,
+            config.turnScale,
+          );
+          inArc = true;
+        } else if (!frame.mouseActive) {
           aim.angle = wrapAngle(config.restAngle);
           aim.angularVelocity = 0;
         } else {

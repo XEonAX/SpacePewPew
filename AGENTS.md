@@ -77,6 +77,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/weapons.ts` — clean turret-pair sound pools, cadence, per-sound tracer delays, and
   committed shots: a trigger pulled inside the cone snapshots every tracking barrel, so the
   projectile still leaves the muzzle after the mouse moves out of the arc. Unit-tested.
+- `src/app/weapon-mode.ts` — `mouse` (click to fire) vs `forward` (all mounts clamped to their
+  forward-most legal aim, hold Space to fire the whole battery), key mapping 1/2 and the control
+  hint. Unit-tested.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 100 m range and 50 m fade.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.

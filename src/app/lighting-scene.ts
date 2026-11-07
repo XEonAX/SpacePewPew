@@ -35,6 +35,13 @@ import {
 } from './weapons';
 import type { MuzzleAim, PendingShot } from './weapons';
 import { createWeaponTuner } from './weapon-tuner';
+import {
+  DEFAULT_WEAPON_MODE,
+  WEAPON_MODE_KEY_CODES,
+  weaponHint,
+  weaponModeForKey,
+} from './weapon-mode';
+import type { WeaponMode } from './weapon-mode';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -114,7 +121,12 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   };
   const onPointerMove = (event: PointerEvent): void => updatePointer(event);
 
-  let firing = false;
+  // Mouse aim fires on click; all-forward fires the whole battery on Space.
+  let weaponMode: WeaponMode = DEFAULT_WEAPON_MODE;
+  let pointerDown = false;
+  let spaceDown = false;
+  let soundMuted = false;
+  const fireHeld = (): boolean => (weaponMode === 'mouse' ? pointerDown : spaceDown);
   const pairCooldowns = [0, 0, 0, 0];
   const weaponCooldowns = WEAPON_PAIRS.map((pair) => pair.cooldown);
   const pairCursors = [0, 0, 0, 0];
@@ -147,7 +159,11 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     if (!commitShot(pendingShots, pairIndex, muzzles, delay)) return;
     pairCursors[pairIndex] = next.cursor;
 
-    const pan = clamp((pointer.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7);
+    // Keyboard fire has no crosshair; keep those shots centred.
+    const pan =
+      weaponMode === 'mouse'
+        ? clamp((pointer.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7)
+        : 0;
     const volume = pair.volume * (0.92 + Math.random() * 0.16);
 
     if (pairIndex === 0) {
@@ -175,7 +191,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const active = turrets.getActivePairs();
     for (let index = 0; index < WEAPON_PAIRS.length; index += 1) {
       pairCooldowns[index] = Math.max(0, (pairCooldowns[index] ?? 0) - dt);
-      if (!firing || !active[index] || (pairCooldowns[index] ?? 0) > 0) continue;
+      if (!fireHeld() || !active[index] || (pairCooldowns[index] ?? 0) > 0) continue;
       fireWeapon(index);
       const cooldown = weaponCooldowns[index] ?? 1;
       pairCooldowns[index] = cooldown * (0.94 + Math.random() * 0.12);
@@ -185,15 +201,15 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const onPointerDown = (event: PointerEvent): void => {
     if (event.button !== 0) return;
     updatePointer(event);
-    firing = true;
+    pointerDown = true;
     void audio.enable();
   };
   const stopFiring = (): void => {
-    firing = false;
+    pointerDown = false;
   };
 
   const hint = new Text({
-    text: 'W/S thrust · A/D turn · click: fire · M: mute',
+    text: weaponHint(DEFAULT_WEAPON_MODE, false),
     style: {
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       fontSize: 12,
@@ -202,6 +218,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   });
   hint.anchor.set(0.5);
   app.stage.addChild(hint);
+  const updateHint = (): void => {
+    hint.text = weaponHint(weaponMode, soundMuted);
+  };
 
   const flight = createFlightState();
   const tuning = { ...DEFAULT_FLIGHT_TUNING };
@@ -310,6 +329,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       mouseX: pointer.x,
       mouseY: pointer.y,
       mouseActive: pointer.active,
+      mode: weaponMode,
       dt: deltaSeconds,
       now: lighting.time,
     });
@@ -402,6 +422,24 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+    if (WEAPON_MODE_KEY_CODES.has(event.code)) {
+      event.preventDefault();
+      const mode = weaponModeForKey(event.code);
+      if (mode) {
+        weaponMode = mode;
+        updateHint();
+      }
+      return;
+    }
+
+    if (event.code === 'Space') {
+      event.preventDefault();
+      spaceDown = true;
+      void audio.enable();
+      return;
+    }
+
     if (!CONTROL_CODES.has(event.code)) return;
 
     event.preventDefault();
@@ -412,6 +450,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   };
 
   const onKeyUp = (event: KeyboardEvent): void => {
+    if (event.code === 'Space') spaceDown = false;
     if (event.code === 'KeyW') controls.forward = false;
     if (event.code === 'KeyS') controls.reverse = false;
     if (event.code === 'KeyA') controls.turnLeft = false;
@@ -423,7 +462,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     controls.reverse = false;
     controls.turnLeft = false;
     controls.turnRight = false;
-    firing = false;
+    pointerDown = false;
+    spaceDown = false;
   };
 
   const flightTuner = createFlightTuner(tuning);
@@ -451,9 +491,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   return {
     setMuted(muted: boolean): void {
-      hint.text = muted
-        ? 'W/S thrust · A/D turn · click: fire · sound muted'
-        : 'W/S thrust · A/D turn · click: fire · M: mute';
+      soundMuted = muted;
+      updateHint();
     },
     destroy(): void {
       app.ticker.remove(tick);

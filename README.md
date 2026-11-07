@@ -126,12 +126,13 @@ docs/                     Architecture decisions, reference art and agent workfl
   current velocity, angular velocity, and ramped inputs (all linear units in metres). The
   bottom-left **RATE OF FIRE** panel tunes the cooldown of each weapon pair, clamped to the
   pair's charge duration.
-- Eight turrets track the mouse with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
+- Eight turrets with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
+- **1 / 2** switch the aiming mode. **1** (default) tracks the mouse. **2** parks every mount at the forward-most aim its own cone permits — front turrets dead ahead, middle pairs 45° off the nose, rear pairs broadside — so the whole battery points as far forward as the hull allows.
 - **Scroll** zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out).
   Camera dragging and click-to-reset are intentionally disabled. Audio is tied to the shot: 1× is
   full volume and the 50× zoom-out limit fades everything to about 20% (≈ −14 dB), so pulling
   the camera back feels farther away.
-- **Click / hold** to fire the turret pair(s) aimed at the mouse: front pair uses the beam, rear pairs alternate blast variants with randomized pitch, volume, and stereo pan. Rounds are 1 m glowing tracers aligned with the barrel that inherit ship momentum, travel 100 m, and fade over the last 50 m. Clicking starts the weapon's charge sound; the tracer is scheduled for the measured blast impact, so the visual shot lands with the audio. Rear-pair barrel tips glow cyan when charged, intensify while their charge sound plays, then extinguish at the shot until that pair recharges. The front beam keeps the normal charged/empty state. **M** mutes/unmutes.
+- **Mouse mode (1): click / hold** fires the pair(s) aimed at the mouse. **Forward mode (2): hold Space** fires all four pairs from every barrel. Each pair still respects its own rate of fire. The front pair uses the beam, rear pairs alternate blast variants with randomized pitch, volume, and stereo pan (keyboard shots stay centred). Rounds are 1 m glowing tracers aligned with the barrel that inherit ship momentum, travel 100 m, and fade over the last 50 m. Firing starts the weapon's charge sound; the tracer is scheduled for the measured blast impact, so the visual shot lands with the audio, and a shot committed inside a cone still leaves the barrel if the mouse leaves before the charge ends. Rear-pair barrel tips glow cyan when charged, intensify while their charge sound plays, then extinguish at the shot until that pair recharges. The front beam keeps the normal charged/empty state. **M** mutes/unmutes.
 
 ## Lighting
 

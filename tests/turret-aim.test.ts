@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   TURRET_MAX_ANGULAR_SPEED,
   clampAngleToArc,
+  forwardAimInArc,
   stepTurretAim,
   stepTurretAimInArc,
   wrapAngle,
@@ -103,5 +104,41 @@ describe('turret aim', () => {
 
     expect(Math.abs(state.angle)).toBeLessThan(Math.PI / 2);
     expect(Math.abs(state.angularVelocity)).toBeGreaterThan(0);
+  });
+});
+
+describe('forward aim', () => {
+  it('aims straight ahead when the arc covers forward', () => {
+    // Front mounts: forward sits inside a narrow arc.
+    expect(forwardAimInArc(-0.43, 0.62)).toBeCloseTo(0, 6);
+    expect(forwardAimInArc(0.43, 0.62)).toBeCloseTo(0, 6);
+  });
+
+  it('stops at the forward-most edge of sideways arcs', () => {
+    // Middle mounts: sideways arcs reach 45 degrees forward.
+    expect(forwardAimInArc(-Math.PI / 2, Math.PI / 4)).toBeCloseTo(-Math.PI / 4, 6);
+    expect(forwardAimInArc(Math.PI / 2, Math.PI / 4)).toBeCloseTo(Math.PI / 4, 6);
+  });
+
+  it('stops at straight sideways for rear arcs', () => {
+    // Rear mounts: 140.25 deg centre +/- 50.25 deg ends exactly at sideways.
+    const rearCenter = (140.25 * Math.PI) / 180;
+    const rearHalf = (50.25 * Math.PI) / 180;
+    expect(forwardAimInArc(-rearCenter, rearHalf)).toBeCloseTo(-Math.PI / 2, 6);
+    expect(forwardAimInArc(rearCenter, rearHalf)).toBeCloseTo(Math.PI / 2, 6);
+  });
+
+  it('always returns an aim inside the arc', () => {
+    const arcs = [
+      [-Math.PI / 2, Math.PI / 4],
+      [Math.PI / 2, Math.PI / 4],
+      [-2.45, 0.88],
+      [2.45, 0.88],
+      [0.4, 0.2],
+    ] as const;
+    for (const [center, half] of arcs) {
+      const aim = forwardAimInArc(center, half);
+      expect(Math.abs(wrapAngle(aim - center))).toBeLessThanOrEqual(half + 1e-6);
+    }
   });
 });
