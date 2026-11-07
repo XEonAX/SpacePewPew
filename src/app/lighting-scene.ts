@@ -237,7 +237,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   hint.anchor.set(0.5);
   app.stage.addChild(hint);
   const updateHint = (): void => {
-    hint.text = weaponHint(weaponMode, aimMode, soundMuted, cargo);
+    hint.text = weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode());
   };
 
   const flight = createFlightState();
@@ -501,6 +501,13 @@ export async function createScene(app: Application, audio: AudioManager): Promis
         aimMode = mode;
         updateHint();
       }
+      return;
+    }
+
+    if (event.code === 'KeyP' && weaponMode === 'mining') {
+      event.preventDefault();
+      mining.toggleCarryMode();
+      updateHint();
       return;
     }
 

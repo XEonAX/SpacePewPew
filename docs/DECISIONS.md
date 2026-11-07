@@ -324,14 +324,20 @@ Mining rules:
 - The six middle/rear barrels = **green tractor beams** with a 5 m reach, measured from the
   barrel. They are autonomous while the rig is equipped, and each barrel **rotates fully** (no
   cone clamp) to point at the chunk it holds, so the beam visibly follows its cargo.
-- Assignment is **one beam per chunk, external chunks first**: each beam claims the free chunk
-  furthest from the hull within reach (the freshest metal, likeliest to drift off), then reels
-  it in. Spare beams idle instead of stacking onto one object.
-- Carrying is **deliberately faked**: a gripped chunk is translated straight toward the hatch at
-  a speed that also eases off with the remaining distance (`carryToward`). The step is clamped to
-  the remaining distance, so a chunk can never overshoot the intake or be flung past it. The
-  carry step is applied **in the ship's frame** (ship velocity is added first), so cargo keeps up
-  with a flying ship instead of falling behind.
+- Assignment is **one beam per chunk**, so at most six chunks are carried at once. Grips are
+  **sticky**: a beam keeps its chunk until it is delivered or lost, and an earlier barrel always
+  keeps a contested chunk (a later beam never steals it). Only a _free_ beam hunts, claiming the
+  chunk furthest from the hull within reach — the freshest metal, likeliest to drift off. Spare
+  beams idle instead of stacking onto one object.
+- Two carry models live side by side, switched in game with **P** and shown in the hint:
+  - `physics` (default): `steerToward` treats the chunk as a mass — bounded acceleration, real
+    momentum, arrival steering — so it eases in naturally and can genuinely miss if the ship
+    flies off.
+  - `fake`: `carryToward` slides it straight at the hatch at full speed, with a short final
+    ease (0.2 m window, 0.7 speed floor) so delivery stays snappy instead of crawling in.
+    Both apply the step **in the ship's frame** (ship velocity is added first), so cargo keeps up
+    with a flying ship instead of falling behind. Neither can overshoot: the final step is clamped
+    to the remaining distance.
 - If every beam loses the chunk (5 m reach) it is dropped and drifts freely again. Leaving mining
   mode drops all grips. Uncaptered metal cools and fades after ~8 s so it cannot starve the pool.
 - The intake is the **hull's own slatted hatch** between the two rearmost pairs (ship-texture

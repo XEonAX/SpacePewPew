@@ -82,10 +82,12 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders.
 - `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers, molten metal
   chunks that leave along the laser's reflection angle and cool/slow as they drift, six
-  autonomous green tractor beams (5 m reach, one chunk per beam, external chunks claimed first,
-  barrels swing fully round to face their chunk) that fake-carry metal in the ship's frame into
-  the hull's own slatted hatch, easing in so it cannot overshoot. Beams drop a chunk that leaves
-  their reach; uncaptured metal cools and fades. Object-pooled chunks (256); no audio yet.
+  autonomous green tractor beams (5 m reach, max six carried chunks, grips are sticky and never
+  stolen, free beams claim the most external chunk first, barrels swing fully round to face
+  their chunk) that carry metal in the ship's frame into the hull's own slatted hatch. Carry is
+  switchable in game with **P**: `physics` (bounded acceleration, default) or `fake` (straight
+  slide with a short final ease). Beams drop a chunk that leaves their reach; uncaptured metal
+  cools and fades. Object-pooled chunks (256); no audio yet.
 - `src/app/mining-model.ts` — pure reflection, ray/circle laser-hit, beam-carry and
   rotated-rect intake math, unit-tested.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade.

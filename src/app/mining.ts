@@ -8,6 +8,7 @@ import {
   pointInRotatedRect,
   rayCircleHit,
   reflectDirection,
+  steerToward,
 } from './mining-model';
 import type { Vec2 } from './mining-model';
 import { muzzleWorldPose } from './weapons';
@@ -32,11 +33,18 @@ const LASER_BARRELS = 2;
 const TRACTOR_FIRST_BARREL = 2;
 /** Tractor reach, measured from the barrel that captured the chunk. */
 const TRACTOR_RANGE_M = 5;
-// Carrying is deliberately faked: grip the chunk, slide it at the hatch, slow
-// near the intake. More beams on one chunk drag it in faster.
+// Carrying is deliberately faked: grip the chunk and slide it at the hatch at
+// full speed, easing only over the last short stretch so delivery stays snappy.
 const PULL_SPEED_PER_BEAM_MPS = 2.5;
 const PULL_MAX_SPEED_MPS = 9;
-const PULL_ARRIVAL_SECONDS = 0.9;
+const PULL_EASE_DISTANCE_M = 0.2;
+const PULL_EASE_FLOOR = 0.7;
+
+// Physics-flavoured carry (P toggles in game for an A/B feel test).
+export type CarryMode = 'physics' | 'fake';
+const PHYSICS_ACCEL_MPS2 = 6;
+const PHYSICS_MAX_SPEED_MPS = 8;
+const PHYSICS_ARRIVAL_SECONDS = 0.7;
 const CHUNK_TEXTURE_SIZE = 32;
 
 // The grill is part of the hull texture: the slatted hatch between the two
@@ -105,6 +113,9 @@ export interface Mining {
   container: Container;
   update(frame: MiningFrame): void;
   getCargo(): number;
+  /** Physics (real acceleration) or fake (line slide) tractor carry. */
+  getCarryMode(): CarryMode;
+  toggleCarryMode(): CarryMode;
   /** World position of the chunk each barrel holds (front barrels are null). */
   getTractorTargets(): readonly ({ x: number; y: number } | null)[];
   destroy(): void;
@@ -159,6 +170,10 @@ export function createMining(): Mining {
   const rng = createRng(0x0d1f_7a3b);
   const laserTimers = new Array<number>(LASER_BARRELS).fill(0);
   const tractorTargets: ({ x: number; y: number } | null)[] = new Array(8).fill(null);
+  // Sticky per-beam grips: a beam keeps its chunk until it is delivered/lost,
+  // only hunting for a new (external-first) chunk when free.
+  const barrelTargets = new Array<Chunk | null>(8).fill(null);
+  let carryMode: CarryMode = 'physics';
   let cargo = 0;
 
   const spawnChunk = (hit: Vec2, direction: Vec2, asteroid: MiningAsteroid): void => {
@@ -264,15 +279,36 @@ export function createMining(): Mining {
       }
       tractorTargets.fill(null);
 
-      // One beam per chunk: a beam takes the most external free chunk in its
-      // reach (furthest from the hull = freshest/likeliest to drift off), then
-      // reels it in. Spare beams stay idle rather than piling onto one chunk.
+      // One beam per chunk. A beam sticks with the chunk it already holds
+      // (so cargo is reeled all the way in); a free beam claims the most
+      // external chunk in reach — the freshest metal, likeliest to drift off.
       if (frame.tractorsActive) {
+        // Pass 1: every beam keeps the chunk it already grips. Earlier barrels
+        // win any impossible collision, so a grip is never stolen mid-delivery.
         const claimed = new Set<Chunk>();
         for (let barrel = TRACTOR_FIRST_BARREL; barrel < poses.length; barrel += 1) {
           const pose = poses[barrel];
+          const held = barrelTargets[barrel] ?? null;
+          if (
+            !pose ||
+            !held ||
+            !held.active ||
+            claimed.has(held) ||
+            Math.hypot(pose.x - held.x, pose.y - held.y) > TRACTOR_RANGE_M
+          ) {
+            barrelTargets[barrel] = null;
+            continue;
+          }
+          claimed.add(held);
+        }
+
+        // Pass 2: free beams claim the most external chunk in reach — the
+        // freshest metal, likeliest to drift away.
+        for (let barrel = TRACTOR_FIRST_BARREL; barrel < poses.length; barrel += 1) {
+          if (barrelTargets[barrel]) continue;
+          const pose = poses[barrel];
           if (!pose) continue;
-          let target: Chunk | null = null;
+          let bestChunk: Chunk | null = null;
           let bestExternality = -1;
           for (const chunk of chunks) {
             if (!chunk.active || claimed.has(chunk)) continue;
@@ -280,41 +316,69 @@ export function createMining(): Mining {
             const externality = Math.hypot(chunk.x - ship.x, chunk.y - ship.y);
             if (externality > bestExternality) {
               bestExternality = externality;
-              target = chunk;
+              bestChunk = chunk;
             }
           }
-          if (!target) continue;
-          claimed.add(target);
-          target.tracted = true;
-          target.barrels.push(barrel);
-          tractorTargets[barrel] = { x: target.x, y: target.y };
+          if (!bestChunk) continue;
+          barrelTargets[barrel] = bestChunk;
+          claimed.add(bestChunk);
         }
+
+        for (let barrel = TRACTOR_FIRST_BARREL; barrel < poses.length; barrel += 1) {
+          const held = barrelTargets[barrel];
+          if (!held) continue;
+          held.tracted = true;
+          held.barrels.push(barrel);
+          tractorTargets[barrel] = { x: held.x, y: held.y };
+        }
+      } else {
+        barrelTargets.fill(null);
       }
 
       for (const chunk of chunks) {
         if (!chunk.active) continue;
 
         if (chunk.tracted) {
-          // Fake carry in the ship's frame: the chunk is dragged along with the
-          // ship as well as toward the hatch, so a flying ship never outruns it.
-          // Speed scales per beam and is capped by the remaining distance, so it
-          // cannot overshoot the intake.
-          const carried = carryToward(
-            { x: chunk.x + ship.vx * frame.dt, y: chunk.y + ship.vy * frame.dt },
-            { x: grillX, y: grillY },
-            frame.dt,
-            chunk.barrels.length,
-            {
-              speedPerBeam: PULL_SPEED_PER_BEAM_MPS,
-              maxSpeed: PULL_MAX_SPEED_MPS,
-              arrivalSeconds: PULL_ARRIVAL_SECONDS,
-            },
-          );
-          chunk.x = carried.x;
-          chunk.y = carried.y;
-          // Released metal keeps the ship's motion instead of hanging in space.
-          chunk.vx = ship.vx;
-          chunk.vy = ship.vy;
+          if (carryMode === 'physics') {
+            // Real-ish tractor: steer the chunk's velocity in the ship's frame
+            // with a bounded acceleration, then integrate its momentum.
+            const steered = steerToward(
+              { x: chunk.x, y: chunk.y },
+              { x: grillX, y: grillY },
+              { x: chunk.vx - ship.vx, y: chunk.vy - ship.vy },
+              frame.dt,
+              {
+                maxAccel: PHYSICS_ACCEL_MPS2,
+                maxSpeed: PHYSICS_MAX_SPEED_MPS,
+                arrivalSeconds: PHYSICS_ARRIVAL_SECONDS,
+              },
+            );
+            chunk.vx = ship.vx + steered.x;
+            chunk.vy = ship.vy + steered.y;
+            chunk.x += chunk.vx * frame.dt;
+            chunk.y += chunk.vy * frame.dt;
+          } else {
+            // Fake carry in the ship's frame: the chunk is dragged along with
+            // the ship as well as toward the hatch, so a flying ship never
+            // outruns it. Speed scales per beam, capped by remaining distance.
+            const carried = carryToward(
+              { x: chunk.x + ship.vx * frame.dt, y: chunk.y + ship.vy * frame.dt },
+              { x: grillX, y: grillY },
+              frame.dt,
+              chunk.barrels.length,
+              {
+                speedPerBeam: PULL_SPEED_PER_BEAM_MPS,
+                maxSpeed: PULL_MAX_SPEED_MPS,
+                easeDistance: PULL_EASE_DISTANCE_M,
+                easeFloor: PULL_EASE_FLOOR,
+              },
+            );
+            chunk.x = carried.x;
+            chunk.y = carried.y;
+            // Released metal keeps the ship's motion instead of hanging.
+            chunk.vx = ship.vx;
+            chunk.vy = ship.vy;
+          }
         } else {
           const damped = dampVelocity(
             { x: chunk.vx, y: chunk.vy },
@@ -369,6 +433,13 @@ export function createMining(): Mining {
     },
     getCargo(): number {
       return cargo;
+    },
+    getCarryMode(): CarryMode {
+      return carryMode;
+    },
+    toggleCarryMode(): CarryMode {
+      carryMode = carryMode === 'physics' ? 'fake' : 'physics';
+      return carryMode;
     },
     getTractorTargets(): readonly ({ x: number; y: number } | null)[] {
       return tractorTargets;

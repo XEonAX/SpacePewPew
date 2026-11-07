@@ -40,10 +40,11 @@ export function weaponHint(
   aimMode: AimMode,
   muted: boolean,
   cargo = 0,
+  carryMode: 'physics' | 'fake' = 'physics',
 ): string {
   const controls =
     weaponMode === 'mining'
-      ? `W/S thrust · A/D turn · Tab guns · hold click: mining laser · tractors auto · cargo: ${cargo}`
+      ? `W/S thrust · A/D turn · Tab guns · hold click: mining laser · tractors auto · cargo: ${cargo} · carry: ${carryMode}`
       : aimMode === 'mouse'
         ? 'W/S thrust · A/D turn · 1 mouse / 2 forward · Tab mining · hold click: fire'
         : 'W/S thrust · A/D turn · 1 mouse / 2 forward · Tab mining · hold Space: fire all weapons';

@@ -52,6 +52,8 @@ describe('weapon modes', () => {
     expect(mining).toContain('mining laser');
     expect(mining).toContain('tractors auto');
     expect(mining).toContain('cargo: 7');
+    expect(mining).toContain('carry: physics');
+    expect(weaponHint('mining', 'mouse', false, 7, 'fake')).toContain('carry: fake');
 
     expect(weaponHint('guns', 'mouse', true)).toContain('sound muted');
     expect(weaponHint('guns', 'mouse', true)).not.toContain('M: mute');

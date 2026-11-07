@@ -66,8 +66,10 @@ export interface CarryOptions {
   speedPerBeam: number;
   /** Hard cap on the carried speed, however many beams are on the chunk. */
   maxSpeed: number;
-  /** Seconds the tractor uses for the remaining distance as it eases in. */
-  arrivalSeconds: number;
+  /** Final-approach easing distance in metres (0 = no easing at all). */
+  easeDistance?: number;
+  /** Fraction of carry speed kept right at the hatch (1 = no slowdown). */
+  easeFloor?: number;
 }
 
 export interface CarryResult {
@@ -76,12 +78,53 @@ export interface CarryResult {
   arrived: boolean;
 }
 
+export interface SteerOptions {
+  /** Cap on how hard the tractor can push or brake, in m/s². */
+  maxAccel: number;
+  /** Cap on the chunk's speed relative to the ship, in m/s. */
+  maxSpeed: number;
+  /** Seconds the tractor aims to need for the remaining distance. */
+  arrivalSeconds: number;
+}
+
+/**
+ * Physics-flavoured alternative to `carryToward`: treat the chunk as a real
+ * mass and steer it with a bounded acceleration, so it eases in under its own
+ * momentum instead of being snapped along a line.
+ */
+export function steerToward(
+  position: Vec2,
+  target: Vec2,
+  velocity: Vec2,
+  dt: number,
+  options: SteerOptions,
+): Vec2 {
+  const dx = target.x - position.x;
+  const dy = target.y - position.y;
+  const dist = Math.hypot(dx, dy);
+  const arrival = Math.max(options.arrivalSeconds, 1e-3);
+  const desiredSpeed = Math.min(options.maxSpeed, dist / arrival);
+  const dirX = dist > 0 ? dx / dist : 0;
+  const dirY = dist > 0 ? dy / dist : 0;
+
+  let dvx = dirX * desiredSpeed - velocity.x;
+  let dvy = dirY * desiredSpeed - velocity.y;
+  const change = Math.hypot(dvx, dvy);
+  const maxChange = Math.max(0, options.maxAccel) * Math.max(0, dt);
+  if (change > maxChange && change > 0) {
+    const scale = maxChange / change;
+    dvx *= scale;
+    dvy *= scale;
+  }
+  return { x: velocity.x + dvx, y: velocity.y + dvy };
+}
+
 /**
  * Fake tractor carry: slide a gripped chunk straight at the hatch. It is not a
- * physics force — the chunk is simply translated toward the target, at a speed
- * that grows with the number of beams holding it and eases off near the hatch.
- * Because the step never exceeds the remaining distance, the chunk cannot
- * overshoot or be flung past the intake.
+ * physics force — the chunk is translated toward the target at full carry speed
+ * and only eases over the last short stretch, so delivery stays snappy instead
+ * of crawling in. The step never exceeds the remaining distance, so a chunk
+ * cannot overshoot or be flung past the intake.
  */
 export function carryToward(
   position: Vec2,
@@ -95,10 +138,14 @@ export function carryToward(
   const dist = Math.hypot(dx, dy);
   if (dist === 0) return { x: target.x, y: target.y, arrived: true };
 
-  const arrival = Math.max(options.arrivalSeconds, 1e-3);
   const beamSpeed = Math.min(options.maxSpeed, Math.max(0, beams) * options.speedPerBeam);
-  const speed = Math.min(beamSpeed, dist / arrival);
-  const step = Math.min(dist, speed * Math.max(0, dt));
+  const easeDistance = Math.max(0, options.easeDistance ?? 0);
+  const easeFloor = Math.min(1, Math.max(0, options.easeFloor ?? 1));
+  const ease =
+    easeDistance > 0 && dist < easeDistance
+      ? easeFloor + (1 - easeFloor) * (dist / easeDistance)
+      : 1;
+  const step = Math.min(dist, beamSpeed * ease * Math.max(0, dt));
   return {
     x: position.x + (dx / dist) * step,
     y: position.y + (dy / dist) * step,
