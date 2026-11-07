@@ -1,4 +1,4 @@
-export const BULLET_RANGE_METERS = 300;
+export const BULLET_RANGE_METERS = 200;
 export const BULLET_FADE_METERS = 50;
 export const BULLET_SPEED_METERS_PER_SECOND = 55;
 

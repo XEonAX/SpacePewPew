@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { BULLET_FADE_METERS, BULLET_RANGE_METERS, bulletAlpha } from '../src/app/bullet-math';
 
 describe('bullet fade', () => {
-  it('keeps 300 m of travel before expiring', () => {
-    expect(BULLET_RANGE_METERS).toBe(300);
+  it('keeps 200 m of travel before expiring', () => {
+    expect(BULLET_RANGE_METERS).toBe(200);
     expect(BULLET_FADE_METERS).toBe(50);
   });
 

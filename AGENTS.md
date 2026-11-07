@@ -81,7 +81,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   forward-most legal aim, hold Space to fire the whole battery), key mapping 1/2 and the control
   hint. Unit-tested.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders.
-- `src/app/bullets.ts` — pooled 1 m glowing tracers with 300 m range and 50 m fade.
+- `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
