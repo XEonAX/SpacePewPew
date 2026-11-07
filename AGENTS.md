@@ -108,10 +108,11 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
-  mesh plus a **two-stage collider** — a bounding circle and a **contour-traced silhouette
-  polygon** (128 rays marched outward from the texture centre to the real alpha edge, so it
-  follows faceted edges instead of bin approximations; concavities kept, fan triangles used by
-  the collision pass), scaled to the rock and **rotated with its spin**. The field exposes collider/mining lists (same objects, so melt decals and lasers share
+  mesh plus a **two-stage collider** — a bounding circle and a **low-poly silhouette fit**. The
+  contour is traced with 128 subpixel rays from the texture centre to the alpha edge, then
+  reduced with closed-polygon Ramer–Douglas–Peucker to a **32-vertex budget** (typically 24–28
+  points per rock, ~1–2 % of radius deviation). Concavities are kept; the collision pass fans
+  the outline into triangles. The fit scales to the rock and **rotates with its spin**. The field exposes collider/mining lists (same objects, so melt decals and lasers share
   the spin). Rocks tumble slowly (0.02–0.06 rad/s, seeded). `add(x, y, diameter, variant?)`
   places one, picking an art variant. The field is seeded with the demo rock beside the pad and
   the **second supplied asteroid** 20 m dead ahead of the nose at **3× the base diameter**
@@ -120,11 +121,13 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   test stops them on every asteroid's polygon collider (circle fast pass inside) via `blockers`.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
 - `src/app/asteroid-collision.ts` — polygon collision math: `AsteroidCollider` (rotating outline
-  - bounding radius), **fan-triangle compound decomposition** so concave silhouettes are honoured,
-    separating-axis collision between the ship's **hull bubble** and each rock piece with an
-    **impulse response** (mass/inertia, shield restitution, Coulomb friction, off-centre hits spin
-    the hull), plus concave point-in-polygon, ray and swept-segment tests for mining lasers and
-    tracers. Pure and unit-tested.
+  - bounding radius), **cached fan-triangle compound decomposition** so concave silhouettes are
+    honoured (with a cheap per-piece distance reject), separating-axis collision between the ship's
+    **hull bubble** and each rock piece with an **impulse response** (mass/inertia, shield
+    restitution, Coulomb friction, off-centre hits spin the hull), plus concave point-in-polygon,
+    ray and swept-segment tests for mining lasers and tracers. Pure and unit-tested.
+- `src/app/polygon-fit.ts` — pure closed-polygon simplification (Ramer–Douglas–Peucker) and a
+  vertex-budget fitter that turns the traced silhouette into a low-poly collider; unit-tested.
 - `src/app/ship-shield.ts` — the hull-shaped energy shield, drawn in ship-texture px so it
   inherits the ship transform; its boundary glows and fades inward, and impacts light up the
   contact patch (masked to the bubble). It draws the same hull used for collision.

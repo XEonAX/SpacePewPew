@@ -1,6 +1,7 @@
 import { Container } from 'pixi.js';
 import type { Texture } from 'pixi.js';
 import type { AsteroidCollider, Vec2 } from './asteroid-collision';
+import { fitClosedPolygon } from './polygon-fit';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
 import { createRng, randomRange } from '../utils/random';
@@ -50,26 +51,57 @@ export interface AsteroidField {
   destroy(): void;
 }
 
-/** Angular samples used to trace the silhouette polygon (more = tighter fit). */
+/** Angular samples used to trace the silhouette contour. */
 const SILHOUETTE_SAMPLES = 128;
 /** Pixels below this alpha don't contribute to the silhouette. */
 const SILHOUETTE_ALPHA = 128;
+/**
+ * Vertex budget for the physical outline. The art is faceted, so a low-poly fit
+ * is enough; fewer vertices means fewer SAT pieces and ray clips per query.
+ */
+const COLLIDER_MAX_VERTICES = 32;
+/** Starting Douglas–Peucker tolerance as a fraction of the rock radius. */
+const COLLIDER_FIT_TOLERANCE = 0.01;
+
+/** Bilinear alpha lookup, 0–1. */
+function sampleAlpha(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): number {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const fx = x - x0;
+  const fy = y - y0;
+  const alpha = (ix: number, iy: number): number => {
+    const cx = Math.min(Math.max(ix, 0), width - 1);
+    const cy = Math.min(Math.max(iy, 0), height - 1);
+    return pixels[(cy * width + cx) * 4 + 3]! / 255;
+  };
+  return (
+    alpha(x0, y0) * (1 - fx) * (1 - fy) +
+    alpha(x0 + 1, y0) * fx * (1 - fy) +
+    alpha(x0, y0 + 1) * (1 - fx) * fy +
+    alpha(x0 + 1, y0 + 1) * fx * fy
+  );
+}
 
 /**
  * Trace the rock's outline by marching a ray outward at each sample angle and
- * keeping the outermost opaque point. Sampling the real contour per ray (rather
- * than a max radius per angular bin placed at the bin centre) keeps the polygon
- * hugging faceted edges instead of cutting corners.
+ * interpolating the alpha crossing, so the contour is subpixel-accurate and the
+ * simplifier sees real facets instead of pixel steps.
  */
-function silhouettePolygon(color: Texture): Vec2[] {
+function silhouetteContour(color: Texture): Vec2[] {
   const source = color.source.resource as CanvasImageSource | undefined;
   const width = color.width;
   const height = color.height;
+  const points: Vec2[] = [];
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext('2d', { willReadFrequently: true });
-  const points: Vec2[] = [];
   if (!context || !source) return points;
 
   context.drawImage(source, 0, 0, width, height);
@@ -77,6 +109,8 @@ function silhouettePolygon(color: Texture): Vec2[] {
   const centreX = width / 2;
   const centreY = height / 2;
   const maxRadius = Math.hypot(width, height) / 2;
+  const threshold = SILHOUETTE_ALPHA / 255;
+  let fallback = 0;
 
   for (let index = 0; index < SILHOUETTE_SAMPLES; index += 1) {
     const angle = (index / SILHOUETTE_SAMPLES) * Math.PI * 2;
@@ -84,12 +118,40 @@ function silhouettePolygon(color: Texture): Vec2[] {
     const dirY = Math.sin(angle);
     let lastInside = 0;
     for (let radius = 1; radius <= maxRadius; radius += 1) {
-      const x = Math.round(centreX + dirX * radius);
-      const y = Math.round(centreY + dirY * radius);
+      const x = centreX + dirX * radius;
+      const y = centreY + dirY * radius;
       if (x < 0 || y < 0 || x >= width || y >= height) break;
-      if (pixels[(y * width + x) * 4 + 3]! > SILHOUETTE_ALPHA) lastInside = radius;
+      if (sampleAlpha(pixels, width, height, x, y) > threshold) {
+        lastInside = radius;
+      } else if (lastInside > 0) {
+        break;
+      }
     }
-    points.push({ x: dirX * lastInside, y: dirY * lastInside });
+    let radius = fallback;
+    if (lastInside > 0) {
+      const inside = sampleAlpha(
+        pixels,
+        width,
+        height,
+        centreX + dirX * lastInside,
+        centreY + dirY * lastInside,
+      );
+      const outside = sampleAlpha(
+        pixels,
+        width,
+        height,
+        centreX + dirX * (lastInside + 1),
+        centreY + dirY * (lastInside + 1),
+      );
+      const t =
+        inside === outside
+          ? 0.5
+          : Math.max(0, Math.min(1, (threshold - inside) / (outside - inside)));
+      radius = lastInside + t;
+    }
+    if (radius <= 0) radius = fallback;
+    fallback = radius;
+    points.push({ x: dirX * radius, y: dirY * radius });
   }
   return points;
 }
@@ -106,8 +168,16 @@ export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField
   const spinRng = createRng(0x51a7_2f3d);
   const asteroids: Asteroid[] = [];
   const colliders: AsteroidCollider[] = [];
-  // Trace each art variant once; colliders scale the template to the rock size.
-  const silhouetteTemplates = arts.map((art) => silhouettePolygon(art.color));
+  // Trace and low-poly fit each art variant once; colliders scale the template.
+  const silhouetteTemplates = arts.map((art) => {
+    const contour = silhouetteContour(art.color);
+    let maxRadius = 0;
+    for (const point of contour) maxRadius = Math.max(maxRadius, Math.hypot(point.x, point.y));
+    return fitClosedPolygon(contour, {
+      maxVertices: COLLIDER_MAX_VERTICES,
+      tolerance: COLLIDER_FIT_TOLERANCE * maxRadius,
+    }).points;
+  });
 
   return {
     container,

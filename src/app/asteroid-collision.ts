@@ -268,23 +268,33 @@ export function pointInPolygon(points: readonly Vec2[], point: Vec2): boolean {
 interface FanTriangle {
   points: Vec2[];
   centre: Vec2;
+  /** Distance from the triangle centre to its farthest point. */
+  radius: number;
 }
+
+/** Cached fan decompositions, keyed by the collider's stable points array. */
+const fanCache = new WeakMap<readonly Vec2[], FanTriangle[]>();
 
 /**
  * Fan triangles around the outline's centre. The silhouette polygon is
  * radially star-shaped, so the fan is a valid compound decomposition: together
- * the triangles cover the real concave shape, unlike one convex hull.
+ * the triangles cover the real concave shape, unlike one convex hull. The
+ * decomposition only depends on the local outline, so it is cached per rock.
  */
 export function fanTriangles(points: readonly Vec2[]): FanTriangle[] {
+  const cached = fanCache.get(points);
+  if (cached) return cached;
   const triangles: FanTriangle[] = [];
   for (let index = 0; index < points.length; index += 1) {
     const a = points[index]!;
     const b = points[(index + 1) % points.length]!;
-    triangles.push({
-      points: [{ x: 0, y: 0 }, a, b],
-      centre: { x: (a.x + b.x) / 3, y: (a.y + b.y) / 3 },
-    });
+    const centre = { x: (a.x + b.x) / 3, y: (a.y + b.y) / 3 };
+    let radius = Math.hypot(centre.x, centre.y);
+    radius = Math.max(radius, Math.hypot(a.x - centre.x, a.y - centre.y));
+    radius = Math.max(radius, Math.hypot(b.x - centre.x, b.y - centre.y));
+    triangles.push({ points: [{ x: 0, y: 0 }, a, b], centre, radius });
   }
+  fanCache.set(points, triangles);
   return triangles;
 }
 
@@ -292,16 +302,20 @@ export function fanTriangles(points: readonly Vec2[]): FanTriangle[] {
 function worldFan(rock: AsteroidCollider): FanTriangle[] {
   const cos = Math.cos(rock.rotation);
   const sin = Math.sin(rock.rotation);
-  return fanTriangles(rock.points).map((triangle) => ({
-    points: triangle.points.map((point) => ({
-      x: rock.x + point.x * cos - point.y * sin,
-      y: rock.y + point.x * sin + point.y * cos,
-    })),
-    centre: {
+  return fanTriangles(rock.points).map((triangle) => {
+    const centre = {
       x: rock.x + triangle.centre.x * cos - triangle.centre.y * sin,
       y: rock.y + triangle.centre.x * sin + triangle.centre.y * cos,
-    },
-  }));
+    };
+    return {
+      points: triangle.points.map((point) => ({
+        x: rock.x + point.x * cos - point.y * sin,
+        y: rock.y + point.x * sin + point.y * cos,
+      })),
+      centre,
+      radius: triangle.radius,
+    };
+  });
 }
 
 /**
