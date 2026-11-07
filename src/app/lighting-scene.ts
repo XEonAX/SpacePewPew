@@ -1,5 +1,5 @@
 import type { Application, Ticker } from 'pixi.js';
-import { Assets, Container, Text } from 'pixi.js';
+import { Assets, Container, Graphics, Text } from 'pixi.js';
 import type { Texture } from 'pixi.js';
 import { joinBaseUrl } from '../utils/paths';
 import { CAMERA_FOLLOW_RATE, createBackground } from './background';
@@ -47,8 +47,8 @@ import {
 } from './weapon-mode';
 import type { AimMode, WeaponMode } from './weapon-mode';
 import { createMining } from './mining';
-import { resolveShipCollision, shipHull } from './asteroid-collision';
-import type { ShipHull } from './asteroid-collision';
+import { colliderWorldPoints, resolveShipCollision, shipHull } from './asteroid-collision';
+import type { ShipHull, Vec2 } from './asteroid-collision';
 import { createAsteroidField } from './asteroid-field';
 import { createShipShield } from './ship-shield';
 
@@ -149,6 +149,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const mining = createMining();
   // The shield is the ship's collider, so it wraps the hull and turrets.
   const shield = createShipShield(shipHull(shipColor.width, shipColor.height));
+  // Debug gizmo: outlines the real collision shapes (F2 toggles).
+  const colliderGizmo = new Graphics();
   content.addChild(
     ship.mesh,
     turrets.container,
@@ -157,11 +159,14 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     bullets.container,
     asteroidField.container,
     mining.container,
+    colliderGizmo,
   );
 
   const canvas = app.canvas as HTMLCanvasElement;
   const pointer = { x: app.screen.width / 2, y: app.screen.height / 2, active: false };
   const shipScreen = { x: 0, y: 0 };
+  /** Collider debug gizmo, on by default while the shapes are being tuned. */
+  let showColliders = true;
   const updatePointer = (event: PointerEvent): void => {
     const bounds = canvas.getBoundingClientRect();
     pointer.x = ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * app.screen.width;
@@ -274,7 +279,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   hint.anchor.set(0.5);
   app.stage.addChild(hint);
   const updateHint = (): void => {
-    hint.text = weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode());
+    hint.text =
+      weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode()) +
+      (showColliders ? ' · F2 hide colliders' : ' · F2 colliders');
   };
 
   const flight = createFlightState();
@@ -640,6 +647,60 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       }
     }
 
+    // Collider gizmo: the dust-world outline the physics actually uses.
+    colliderGizmo.visible = showColliders;
+    if (showColliders) {
+      colliderGizmo.position.set(
+        -dust.x * width * dust.zoom + width / 2,
+        -dust.y * height * dust.zoom + height / 2,
+      );
+      colliderGizmo.scale.set(dust.zoom);
+      colliderGizmo.clear();
+      const line = 1.6 / dust.zoom;
+      for (const rock of asteroidField.getColliders()) {
+        const world = colliderWorldPoints(rock);
+        const flat: number[] = [];
+        for (const point of world)
+          flat.push(point.x * PIXELS_PER_METER, point.y * PIXELS_PER_METER);
+        colliderGizmo.poly(flat).stroke({ color: 0x66ff99, width: line, alpha: 0.95 });
+        colliderGizmo
+          .circle(
+            rock.x * PIXELS_PER_METER,
+            rock.y * PIXELS_PER_METER,
+            rock.radius * PIXELS_PER_METER,
+          )
+          .stroke({ color: 0x66ff99, width: line * 0.7, alpha: 0.3 });
+        for (const point of world) {
+          colliderGizmo
+            .circle(point.x * PIXELS_PER_METER, point.y * PIXELS_PER_METER, line * 2)
+            .fill({ color: 0xbaffd0, alpha: 0.9 });
+        }
+      }
+
+      // Ship hull bubble: outline plus the bubble radius at each hull vertex.
+      const centre = shipCentre();
+      const cosRotation = Math.cos(flight.rotation);
+      const sinRotation = Math.sin(flight.rotation);
+      const hullWorld: Vec2[] = shipCollider.points.map((point) => ({
+        x: centre.x + point.x * cosRotation - point.y * sinRotation,
+        y: centre.y + point.x * sinRotation + point.y * cosRotation,
+      }));
+      const hullFlat: number[] = [];
+      for (const point of hullWorld) {
+        hullFlat.push(point.x * PIXELS_PER_METER, point.y * PIXELS_PER_METER);
+      }
+      colliderGizmo.poly(hullFlat).stroke({ color: 0x7fdcff, width: line, alpha: 0.9 });
+      for (const point of hullWorld) {
+        colliderGizmo
+          .circle(
+            point.x * PIXELS_PER_METER,
+            point.y * PIXELS_PER_METER,
+            shipCollider.radius * PIXELS_PER_METER,
+          )
+          .stroke({ color: 0x7fdcff, width: line * 0.6, alpha: 0.22 });
+      }
+    }
+
     const glowLevels = pairCooldowns.map((cooldown, pairIndex) => {
       // Only the three rear/charge pairs ramp their glow; the front beam pair
       // keeps the normal charged/empty state.
@@ -665,6 +726,13 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+    if (event.code === 'F2') {
+      event.preventDefault();
+      showColliders = !showColliders;
+      updateHint();
+      return;
+    }
 
     if (event.code === WEAPON_MODE_KEY_CODE) {
       event.preventDefault();

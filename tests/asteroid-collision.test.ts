@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   colliderWorldPoints,
-  convexHull,
   offsetPolygon,
-  pointInConvex,
+  fanTriangles,
+  pointInPolygon,
   polygonHitNormal,
   rayPolygonHit,
   resolveShipCollision,
@@ -57,18 +57,6 @@ describe('ship hull bubble', () => {
 });
 
 describe('polygon helpers', () => {
-  it('takes the convex hull of arbitrary points', () => {
-    const hull = convexHull([
-      { x: -1, y: -1 },
-      { x: 1, y: -1 },
-      { x: 1, y: 1 },
-      { x: -1, y: 1 },
-      { x: 0, y: 0 },
-    ]);
-    expect(hull).toHaveLength(4);
-    expect(hull.some((point) => point.x === 0 && point.y === 0)).toBe(false);
-  });
-
   it('offsets a convex polygon outward and inward', () => {
     const grown = offsetPolygon(ROCK.points, 0.5);
     expect(Math.max(...grown.map((point) => Math.abs(point.x)))).toBeCloseTo(1.5);
@@ -81,9 +69,15 @@ describe('polygon helpers', () => {
     expect(turned.some((point) => Math.abs(point.y - 1) < 1e-6)).toBe(true);
   });
 
+  it('decomposes the outline into fan triangles', () => {
+    const triangles = fanTriangles(ROCK.points);
+    expect(triangles).toHaveLength(ROCK.points.length);
+    expect(triangles[0]!.points[0]).toEqual({ x: 0, y: 0 });
+  });
+
   it('knows inside points and surface normals', () => {
-    expect(pointInConvex(ROCK.points, { x: 0, y: 0 })).toBe(true);
-    expect(pointInConvex(ROCK.points, { x: 2, y: 0 })).toBe(false);
+    expect(pointInPolygon(ROCK.points, { x: 0, y: 0 })).toBe(true);
+    expect(pointInPolygon(ROCK.points, { x: 2, y: 0 })).toBe(false);
     const normal = polygonHitNormal(ROCK, { x: 2, y: 0.2 });
     expect(normal.x).toBeCloseTo(1);
     expect(normal.y).toBeCloseTo(0);
@@ -200,5 +194,58 @@ describe('tracers vs asteroid polygon', () => {
 
   it('counts a tracer that stops inside it', () => {
     expect(segmentPolygonHit({ x: -3, y: 0 }, { x: 0.5, y: 0 }, ROCK)).toBe(true);
+  });
+});
+
+describe('concave silhouette', () => {
+  /** Four-point star: outer radius 2, inner notch radius 0.5. */
+  const star = Array.from({ length: 8 }, (_, index) => {
+    const angle = (index / 8) * Math.PI * 2;
+    const radius = index % 2 === 0 ? 2 : 0.5;
+    return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+  });
+  const NOTCHY: AsteroidCollider = { x: 0, y: 0, rotation: 0, points: star, radius: 2 };
+  const SMALL_HULL = {
+    points: [
+      { x: 0, y: -0.5 },
+      { x: 0.5, y: 0 },
+      { x: 0, y: 0.5 },
+      { x: -0.5, y: 0 },
+    ],
+    radius: 0.2,
+  };
+  const angle = Math.PI / 8; // between two star points, inside the notch
+  const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+
+  it('does not collide inside a concave notch', () => {
+    // The convex hull reaches ~1.9 here; the real silhouette only ~1.05.
+    const ship = {
+      x: direction.x * 2.0,
+      y: direction.y * 2.0,
+      vx: -1,
+      vy: 0,
+      rotation: 0,
+      angularVelocity: 0,
+    };
+    expect(resolveShipCollision(ship, SMALL_HULL, NOTCHY, BODY).hit).toBe(false);
+  });
+
+  it('still collides when it actually touches the rock', () => {
+    const ship = {
+      x: direction.x * 1.2,
+      y: direction.y * 1.2,
+      vx: -1,
+      vy: 0,
+      rotation: 0,
+      angularVelocity: 0,
+    };
+    expect(resolveShipCollision(ship, SMALL_HULL, NOTCHY, BODY).hit).toBe(true);
+  });
+
+  it('tracers pass through the open notch', () => {
+    // Chord across the notch: outside the real outline, inside the hull.
+    expect(segmentPolygonHit({ x: 1.256, y: 0.336 }, { x: 0.336, y: 1.256 }, NOTCHY)).toBe(false);
+    // Straight through the rock, though, they hit.
+    expect(segmentPolygonHit({ x: -2.5, y: 0 }, { x: 2.5, y: 0 }, NOTCHY)).toBe(true);
   });
 });

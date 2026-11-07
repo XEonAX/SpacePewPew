@@ -669,3 +669,35 @@ silhouettes drive collision. Cost stays small: a handful of rocks × ~28-edge SA
 with the circle rejecting most of it. Concave dents are hulled away — acceptable, since a rock's
 bites are shallow compared with its outline; add multiple convex pieces later only if a shape
 needs real concavity.
+
+## ADR-026 — Concave compound colliders, not a convex hull
+
+**Status:** accepted (2026-11-07), superseding the convex-hull note in ADR-025.
+
+The first polygon pass hulled the silhouette. On screen that reads as the collider _never going
+into the inner bites_: the hull bridges every dent, so bumps and laser hits stop on a smooth
+outline that isn't the rock. Convexity is only needed by the SAT stage, not by the data — so the
+rock became a **compound of convex pieces**.
+
+Rules:
+
+- **Silhouette stays concave.** The per-art outline is the radial sample polygon itself (48
+  angular slices, max radius per slice), in angular order. It is star-shaped around the texture
+  centre, so the natural decomposition is a **fan of triangles** (centre → each edge), which
+  together cover the real silhouette exactly.
+- **Ship collision is per triangle.** Fast circle reject, then each fan triangle does a
+  separating-axis test against the ship hull inflated by the shield bubble; the piece with the
+  deepest overlap produces the contact normal and depth. The impulse response is unchanged.
+  Concave notches are now empty space for the ship — the test suite proves a ship sitting in a
+  notch (inside the old hull) does not collide, while contact with an arm does.
+- **Lasers and tracers use the concave data.** Rays clip against each fan triangle and take the
+  nearest entry; tracers use an even-odd point-in-polygon test plus polygon edge crossings, so a
+  chord across a notch passes through instead of registering a false hit.
+- **The gizmo shows the truth.** F2 draws the actual sampled outline (green, with vertex dots),
+  the bounding circle and the ship's cyan hull bubble — the tool used to catch the convexity
+  problem. It is on by default while the colliders are being tuned.
+
+**Consequences:** cost is a handful of triangles per rock (48 × small SAT/clip tests) on top of
+the circle reject; still no physics engine, because this _is_ what an engine's compound collider
+would do — one rigid body against static scenery. The fan decomposition assumes radial
+star-shapedness from the silhouette centre, which the radial sampler guarantees.

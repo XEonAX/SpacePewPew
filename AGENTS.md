@@ -52,7 +52,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 
 - `src/app/create-app.ts` — creates and initialises the PixiJS `Application`.
 - `src/app/lighting-scene.ts` — the only scene: ship + asteroid layout, lighting state, WASD
-  input. Places both objects with `Background.getDustTransform()` on the near dust layer. The
+  input, and the collider debug gizmo (F2: green rock polygons + bounding circles, cyan ship
+  hull bubble) used to verify the physics shapes against the art. Places both objects with `Background.getDustTransform()` on the near dust layer. The
   flight state lives at the ship's **centre of mass** (orange panel just behind the cargo
   hatch): `shipCentre()` derives the texture-centre pose used for rendering, turrets, mining and
   the shield, and the camera tracks the centre of mass so turns pivot there. Holds the collision
@@ -107,9 +108,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
-  mesh plus a **two-stage collider** — a bounding circle and a convex silhouette polygon traced
-  once per art variant from the colour-map alpha, scaled to the rock and **rotated with its
-  spin**. The field exposes collider/mining lists (same objects, so melt decals and lasers share
+  mesh plus a **two-stage collider** — a bounding circle and a radially sampled silhouette
+  polygon traced once per art variant from the colour-map alpha (concavities kept, fan
+  triangles used by the collision pass), scaled to the rock and **rotated with its spin**. The field exposes collider/mining lists (same objects, so melt decals and lasers share
   the spin). Rocks tumble slowly (0.02–0.06 rad/s, seeded). `add(x, y, diameter, variant?)`
   places one, picking an art variant. The field is seeded with the demo rock beside the pad and
   the **second supplied asteroid** 20 m dead ahead of the nose at **3× the base diameter**
@@ -117,11 +118,12 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade; a swept
   test stops them on every asteroid's polygon collider (circle fast pass inside) via `blockers`.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
-- `src/app/asteroid-collision.ts` — polygon collision math: `AsteroidCollider` (rotating convex
-  outline + bounding radius), convex hull, separating-axis collision between the ship's **hull
-  bubble** and a rock polygon with an **impulse response** (mass/inertia, shield restitution,
-  Coulomb friction, off-centre hits spin the hull), plus polygon ray and swept-segment tests for
-  mining lasers and tracers. Pure and unit-tested.
+- `src/app/asteroid-collision.ts` — polygon collision math: `AsteroidCollider` (rotating outline
+  - bounding radius), **fan-triangle compound decomposition** so concave silhouettes are honoured,
+    separating-axis collision between the ship's **hull bubble** and each rock piece with an
+    **impulse response** (mass/inertia, shield restitution, Coulomb friction, off-centre hits spin
+    the hull), plus concave point-in-polygon, ray and swept-segment tests for mining lasers and
+    tracers. Pure and unit-tested.
 - `src/app/ship-shield.ts` — the hull-shaped energy shield, drawn in ship-texture px so it
   inherits the ship transform; its boundary glows and fades inward, and impacts light up the
   contact patch (masked to the bubble). It draws the same hull used for collision.

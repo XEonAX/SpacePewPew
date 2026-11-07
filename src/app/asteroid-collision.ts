@@ -101,38 +101,6 @@ export function offsetPolygon(points: readonly Vec2[], delta: number): Vec2[] {
   });
 }
 
-/** Convex hull (monotone chain) of arbitrary points. */
-export function convexHull(points: readonly Vec2[]): Vec2[] {
-  if (points.length < 3) return points.map((point) => ({ ...point }));
-  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
-  const cross = (origin: Vec2, a: Vec2, b: Vec2): number =>
-    (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
-  const lower: Vec2[] = [];
-  for (const point of sorted) {
-    while (
-      lower.length >= 2 &&
-      cross(lower[lower.length - 2]!, lower[lower.length - 1]!, point) <= 0
-    ) {
-      lower.pop();
-    }
-    lower.push(point);
-  }
-  const upper: Vec2[] = [];
-  for (let index = sorted.length - 1; index >= 0; index -= 1) {
-    const point = sorted[index]!;
-    while (
-      upper.length >= 2 &&
-      cross(upper[upper.length - 2]!, upper[upper.length - 1]!, point) <= 0
-    ) {
-      upper.pop();
-    }
-    upper.push(point);
-  }
-  lower.pop();
-  upper.pop();
-  return lower.concat(upper);
-}
-
 function rotatedPoint(point: Vec2, centre: Vec2, cos: number, sin: number): Vec2 {
   return {
     x: centre.x + point.x * cos - point.y * sin,
@@ -219,33 +187,21 @@ function projectPolygon(points: readonly Vec2[], axis: Vec2): Interval {
   return { min, max };
 }
 
-/**
- * Collide the ship's rounded hull polygon with an asteroid polygon.
- *
- * Fast pass: bounding circles. Accurate pass: separating-axis test between the
- * rock's convex outline and the ship hull inflated by its bubble radius. The
- * response is an impulse at the contact patch — restitution, Coulomb friction
- * and mass/inertia, so off-centre hits spin the hull.
- */
-export function resolveShipCollision(
-  ship: ShipPose,
-  hull: ShipHull,
-  rock: AsteroidCollider,
-  body: ShipBody,
-): ShipCollision {
-  // Fast pass: bounding circles reject almost everything.
-  const centreDistance = Math.hypot(rock.x - ship.x, rock.y - ship.y);
-  if (centreDistance > rock.radius + shipBoundingRadius(hull)) return noHit(ship);
+/** Separating-axis overlap between a convex piece and the rounded ship hull. */
+interface PieceHit {
+  penetration: number;
+  normal: Vec2;
+}
 
-  const cos = Math.cos(ship.rotation);
-  const sin = Math.sin(ship.rotation);
-  const shipPoints = hull.points.map((point) => rotatedPoint(point, ship, cos, sin));
-  const rockPoints = colliderWorldPoints(rock);
-
-  // The bubble rounds the hull, so its extent grows by `radius` on every axis.
-  const radius = hull.radius;
+function hullAgainstPiece(
+  piece: readonly Vec2[],
+  pieceCentre: Vec2,
+  shipPoints: readonly Vec2[],
+  shipCentre: Vec2,
+  radius: number,
+): PieceHit | null {
   const axes: Vec2[] = [];
-  const addAxes = (points: readonly Vec2[]): void => {
+  const collect = (points: readonly Vec2[]): void => {
     const clockwise = signedArea(points) > 0;
     for (let index = 0; index < points.length; index += 1) {
       const a = points[index]!;
@@ -253,38 +209,143 @@ export function resolveShipCollision(
       axes.push(edgeNormal(a, b, clockwise));
     }
   };
-  addAxes(shipPoints);
-  addAxes(rockPoints);
+  collect(piece);
+  collect(shipPoints);
 
-  let penetration = Infinity;
-  let normal: Vec2 = { x: 0, y: 0 };
+  let best: PieceHit | null = null;
   for (const axis of axes) {
+    const pieceInterval = projectPolygon(piece, axis);
     const shipInterval = projectPolygon(shipPoints, axis);
-    const rockInterval = projectPolygon(rockPoints, axis);
     const overlap = Math.min(
-      rockInterval.max - (shipInterval.min - radius),
-      shipInterval.max + radius - rockInterval.min,
+      pieceInterval.max - (shipInterval.min - radius),
+      shipInterval.max + radius - pieceInterval.min,
     );
-    if (overlap <= 0) return noHit(ship);
-    if (overlap < penetration) {
-      penetration = overlap;
-      // Point the contact normal from the ship toward the rock.
-      const towardRock = (rock.x - ship.x) * axis.x + (rock.y - ship.y) * axis.y >= 0 ? 1 : -1;
-      normal = { x: axis.x * towardRock, y: axis.y * towardRock };
+    if (overlap <= 0) return null;
+    if (!best || overlap < best.penetration) {
+      const towardRock =
+        (pieceCentre.x - shipCentre.x) * axis.x + (pieceCentre.y - shipCentre.y) * axis.y >= 0
+          ? 1
+          : -1;
+      best = { penetration: overlap, normal: { x: axis.x * towardRock, y: axis.y * towardRock } };
     }
   }
+  return best;
+}
 
+function segmentCrosses(a: Vec2, b: Vec2, c: Vec2, d: Vec2): boolean {
+  const cross = (p: Vec2, q: Vec2, r: Vec2): number =>
+    (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  const d1 = cross(a, b, c);
+  const d2 = cross(a, b, d);
+  const d3 = cross(c, d, a);
+  const d4 = cross(c, d, b);
+  return (d1 > 0 !== d2 > 0 && d3 > 0 !== d4 > 0) || d1 === 0 || d2 === 0 || d3 === 0 || d4 === 0;
+}
+
+/**
+ * Point-in-polygon (even-odd), so concave silhouettes — notches, deep bites —
+ * are handled properly instead of being bridged.
+ */
+export function pointInPolygon(points: readonly Vec2[], point: Vec2): boolean {
+  let inside = false;
+  for (
+    let index = 0, previous = points.length - 1;
+    index < points.length;
+    previous = index, index += 1
+  ) {
+    const a = points[index]!;
+    const b = points[previous]!;
+    if (
+      a.y > point.y !== b.y > point.y &&
+      point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+interface FanTriangle {
+  points: Vec2[];
+  centre: Vec2;
+}
+
+/**
+ * Fan triangles around the outline's centre. The silhouette polygon is
+ * radially star-shaped, so the fan is a valid compound decomposition: together
+ * the triangles cover the real concave shape, unlike one convex hull.
+ */
+export function fanTriangles(points: readonly Vec2[]): FanTriangle[] {
+  const triangles: FanTriangle[] = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const a = points[index]!;
+    const b = points[(index + 1) % points.length]!;
+    triangles.push({
+      points: [{ x: 0, y: 0 }, a, b],
+      centre: { x: (a.x + b.x) / 3, y: (a.y + b.y) / 3 },
+    });
+  }
+  return triangles;
+}
+
+/** Local fan triangles of a collider, in world space. */
+function worldFan(rock: AsteroidCollider): FanTriangle[] {
+  const cos = Math.cos(rock.rotation);
+  const sin = Math.sin(rock.rotation);
+  return fanTriangles(rock.points).map((triangle) => ({
+    points: triangle.points.map((point) => ({
+      x: rock.x + point.x * cos - point.y * sin,
+      y: rock.y + point.x * sin + point.y * cos,
+    })),
+    centre: {
+      x: rock.x + triangle.centre.x * cos - triangle.centre.y * sin,
+      y: rock.y + triangle.centre.x * sin + triangle.centre.y * cos,
+    },
+  }));
+}
+
+/**
+ * Collide the ship's rounded hull polygon with an asteroid compound collider.
+ *
+ * Fast pass: bounding circles. Accurate pass: the silhouette is decomposed into
+ * fan triangles, so concave notches are respected; each triangle does a
+ * separating-axis test against the ship hull inflated by its bubble radius, and
+ * the deepest contact drives the impulse response (mass/inertia, restitution,
+ * Coulomb friction, off-centre spin).
+ */
+export function resolveShipCollision(
+  ship: ShipPose,
+  hull: ShipHull,
+  rock: AsteroidCollider,
+  body: ShipBody,
+): ShipCollision {
+  const centreDistance = Math.hypot(rock.x - ship.x, rock.y - ship.y);
+  if (centreDistance > rock.radius + shipBoundingRadius(hull)) return noHit(ship);
+
+  const cos = Math.cos(ship.rotation);
+  const sin = Math.sin(ship.rotation);
+  const shipPoints = hull.points.map((point) => rotatedPoint(point, ship, cos, sin));
+  const radius = hull.radius;
+
+  let best: PieceHit | null = null;
+  for (const triangle of worldFan(rock)) {
+    const hit = hullAgainstPiece(triangle.points, triangle.centre, shipPoints, ship, radius);
+    if (hit && (!best || hit.penetration > best.penetration)) best = hit;
+  }
+  if (!best) return noHit(ship);
+
+  const { penetration, normal } = best;
   // Separate: the normal points at the rock, so the ship moves the other way.
   const x = ship.x - normal.x * penetration;
   const y = ship.y - normal.y * penetration;
 
   // Contact patch: the hull point furthest toward the rock, plus the bubble.
-  let support: Vec2 = shipPoints[0]!;
-  let best = -Infinity;
+  let support = shipPoints[0]!;
+  let bestSupport = -Infinity;
   for (const point of shipPoints) {
     const value = point.x * normal.x + point.y * normal.y;
-    if (value > best) {
-      best = value;
+    if (value > bestSupport) {
+      bestSupport = value;
       support = point;
     }
   }
@@ -355,10 +416,42 @@ export function resolveShipCollision(
   };
 }
 
+/** Clip a ray against one convex piece; returns entry distance or null. */
+function clipConvex(
+  points: readonly Vec2[],
+  originX: number,
+  originY: number,
+  dirX: number,
+  dirY: number,
+  maxLength: number,
+): number | null {
+  const clockwise = signedArea(points) > 0;
+  let enter = 0;
+  let exit = maxLength;
+  for (let index = 0; index < points.length; index += 1) {
+    const a = points[index]!;
+    const b = points[(index + 1) % points.length]!;
+    const normal = edgeNormal(a, b, clockwise);
+    const offset = normal.x * (originX - a.x) + normal.y * (originY - a.y);
+    const denominator = normal.x * dirX + normal.y * dirY;
+    if (Math.abs(denominator) < 1e-9) {
+      if (offset > 0) return null;
+      continue;
+    }
+    const t = -offset / denominator;
+    if (denominator > 0) {
+      exit = Math.min(exit, t);
+    } else {
+      enter = Math.max(enter, t);
+    }
+    if (enter > exit) return null;
+  }
+  return enter >= 0 && enter <= maxLength ? enter : null;
+}
+
 /**
- * Nearest point where a ray enters a rotated convex collider, or null. Fast
- * pass uses the bounding circle; the accurate pass clips the ray against the
- * polygon's half-planes.
+ * Nearest point where a ray enters a rotated collider, or null. Fast pass uses
+ * the bounding circle; the accurate pass clips against the fan triangles.
  */
 export function rayPolygonHit(
   origin: Vec2,
@@ -381,33 +474,16 @@ export function rayPolygonHit(
   const localDirX = dirX * cos + dirY * sin;
   const localDirY = -dirX * sin + dirY * cos;
 
-  const clockwise = signedArea(rock.points) > 0;
-  let enter = 0;
-  let exit = maxLength;
-  for (let index = 0; index < rock.points.length; index += 1) {
-    const a = rock.points[index]!;
-    const b = rock.points[(index + 1) % rock.points.length]!;
-    const normal = edgeNormal(a, b, clockwise);
-    const offset = normal.x * (localX - a.x) + normal.y * (localY - a.y);
-    const denominator = normal.x * localDirX + normal.y * localDirY;
-    if (Math.abs(denominator) < 1e-9) {
-      if (offset > 0) return null;
-      continue;
-    }
-    const t = -offset / denominator;
-    if (denominator > 0) {
-      exit = Math.min(exit, t);
-    } else {
-      enter = Math.max(enter, t);
-    }
-    if (enter > exit) return null;
+  let best = Infinity;
+  for (const triangle of fanTriangles(rock.points)) {
+    const t = clipConvex(triangle.points, localX, localY, localDirX, localDirY, maxLength);
+    if (t !== null && t < best) best = t;
   }
-  if (enter < 0) return null;
-  if (enter > maxLength) return null;
-  return { x: origin.x + dirX * enter, y: origin.y + dirY * enter };
+  if (!Number.isFinite(best)) return null;
+  return { x: origin.x + dirX * best, y: origin.y + dirY * best };
 }
 
-/** Does the segment touch the rotated convex collider? Fast circle pass first. */
+/** Does the segment touch the rotated collider? Circle fast pass, then edges. */
 export function segmentPolygonHit(a: Vec2, b: Vec2, rock: AsteroidCollider): boolean {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -430,36 +506,14 @@ export function segmentPolygonHit(a: Vec2, b: Vec2, rock: AsteroidCollider): boo
   };
   const localA = toLocal(a);
   const localB = toLocal(b);
-  if (pointInConvex(rock.points, localA) || pointInConvex(rock.points, localB)) return true;
+  if (pointInPolygon(rock.points, localA) || pointInPolygon(rock.points, localB)) return true;
 
   for (let index = 0; index < rock.points.length; index += 1) {
     const p = rock.points[index]!;
     const q = rock.points[(index + 1) % rock.points.length]!;
-    if (segmentsIntersect(localA, localB, p, q)) return true;
+    if (segmentCrosses(localA, localB, p, q)) return true;
   }
   return false;
-}
-
-/** Point-in-convex-polygon test. */
-export function pointInConvex(points: readonly Vec2[], point: Vec2): boolean {
-  const clockwise = signedArea(points) > 0;
-  for (let index = 0; index < points.length; index += 1) {
-    const a = points[index]!;
-    const b = points[(index + 1) % points.length]!;
-    const cross = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
-    if (clockwise ? cross < 0 : cross > 0) return false;
-  }
-  return true;
-}
-
-function segmentsIntersect(a: Vec2, b: Vec2, c: Vec2, d: Vec2): boolean {
-  const cross = (p: Vec2, q: Vec2, r: Vec2): number =>
-    (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
-  const d1 = cross(a, b, c);
-  const d2 = cross(a, b, d);
-  const d3 = cross(c, d, a);
-  const d4 = cross(c, d, b);
-  return (d1 > 0 !== d2 > 0 && d3 > 0 !== d4 > 0) || d1 === 0 || d2 === 0 || d3 === 0 || d4 === 0;
 }
 
 /** Outward surface normal at (or nearest to) a world point on a collider. */

@@ -1,6 +1,5 @@
 import { Container } from 'pixi.js';
 import type { Texture } from 'pixi.js';
-import { convexHull } from './asteroid-collision';
 import type { AsteroidCollider, Vec2 } from './asteroid-collision';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
@@ -51,15 +50,14 @@ export interface AsteroidField {
   destroy(): void;
 }
 
-/** Angular samples used to trace the silhouette polygon. */
-const SILHOUETTE_SAMPLES = 28;
+/** Angular samples used to trace the silhouette polygon (more = tighter fit). */
+const SILHOUETTE_SAMPLES = 48;
 /** Pixels below this alpha don't contribute to the silhouette. */
 const SILHOUETTE_ALPHA = 128;
 
 /**
  * Trace the rock's outline from the colour map's alpha: the maximum radius in
- * each angular slice around the texture centre, finished with a convex hull so
- * it works as a separating-axis collider.
+ * each angular slice around the texture centre, in angle order.
  */
 function silhouettePolygon(color: Texture): Vec2[] {
   const source = color.source.resource as CanvasImageSource | undefined;
@@ -107,11 +105,12 @@ function silhouettePolygon(color: Texture): Vec2[] {
     bins[index] = ((bins[before] ?? 0) + (bins[after] ?? 0)) / 2;
   }
 
-  const points = bins.map((radius, index) => {
+  // Radial samples in angular order: star-shaped, so the fan decomposition in
+  // the collider covers the real (possibly concave) silhouette.
+  return bins.map((radius, index) => {
     const angle = ((index + 0.5) / SILHOUETTE_SAMPLES) * Math.PI * 2 - Math.PI;
     return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
   });
-  return convexHull(points);
 }
 
 /**
