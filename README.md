@@ -133,8 +133,10 @@ docs/                     Architecture decisions, reference art and agent workfl
   reverse engine's thrust, so turns stay pure even when the reverse engines are weaker — yaw
   authority then equals the weaker thruster pair (shown as terminal yaw).
 - The ship flies on the **near dust layer**; the camera smoothly pans with it. Lookahead grows
-  **quadratically with speed** (near zero at low speed, full near terminal) and increases when
-  zoomed out, so at speed the ship sits behind centre in its travel direction. The asteroid is
+  **quadratically with speed** (near zero at low speed, full near terminal) as a fixed
+  **world-space offset**, so at speed the ship sits behind centre in its travel direction. It is
+  deliberately independent of zoom: otherwise every wheel notch would move the camera and slide
+  the near dust/grid layer (the old parallax pan bug). The asteroid is
   fixed on that layer, and the layer is rigid.
 - A subtle cyan **ground grid** is fixed to that layer: minor cells are **1 m × 1 m** (64 world
   px per metre), major lines every 5 m. Ship movement and speed read against it.

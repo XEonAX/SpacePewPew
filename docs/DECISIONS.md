@@ -931,3 +931,28 @@ converging to under 0.25 m/s while drag finishes the rest). The heading can chan
 manoeuvre when it had to turn to face the burn — that is the cost of having no lateral
 thrusters. If the hull should hold its heading instead, the alternative is invisible RCS
 translation, which would break the force-from-nozzles rule.
+
+## ADR-034 — Camera lookahead is zoom-independent
+
+**Status:** accepted (2026-11-07).
+
+The near dust/grid layer, asteroids and ship share the same camera transform, so any camera move
+is also a world pan. The lookahead offset used to grow as the camera zoomed out, which meant a
+wheel notch changed the follow target: the near layer slid relative to the fixed sky, the same
+parallax artefact ADR for the integrated star pan fixed.
+
+Rules:
+
+- **Lookahead is metres, not screen pixels.** `followCamera()` computes the lookahead from the
+  `speed²` curve and the viewport's short edge, then converts to metres once. It never divides by
+  the current dust zoom.
+- **The screen offset scales with zoom naturally.** A fixed world offset appears smaller when
+  zoomed out, which is fine: the ship is already small and the exhaust has plenty of room. The
+  exhaust-room cap is evaluated in metres at the ship's layout scale, not in current screen px.
+- **Zoom only scales.** `background` still eases zoom toward `targetZoom`, and the panned star
+  layers still only scale about the viewport centre (ADR "stop zoom from translating the
+  parallax sky"); the near world now behaves the same way.
+
+**Consequences:** wheel zoom no longer changes the follow target, so the grid/asteroids/dust stay
+anchored to the ship and scale about it. The ship sits slightly closer to screen centre when
+zoomed out than it did with the boosted lookahead; that is the correct trade for a stable world.

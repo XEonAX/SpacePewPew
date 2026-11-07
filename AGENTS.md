@@ -238,10 +238,11 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   is `parallax × zoom` (the near dust/grid layer, parallax 1, is fastest) while wheel zoom only
   scales layers about the viewport centre. Never recompute pan from the absolute camera — after
   a long flight that translates every layer by `camera × parallax × Δzoom`. No independent drift.
-- **Camera lookahead is quadratic.** `followCamera()` applies a `speed²` curve (near-zero at
-  slow speed, max near terminal), boosts the offset as zoom decreases, and caps it so the
-  engine cone tips/smoke stay on screen. It cancels the follow camera's lag using
-  `CAMERA_FOLLOW_RATE`. Tune in `lighting-scene.ts`/`background.ts`.
+- **Camera lookahead is quadratic and zoom-independent.** `followCamera()` applies a `speed²`
+  curve (near-zero at slow speed, max near terminal) as a fixed **world-space offset** (metres,
+  not screen px), capped so the engine cones/smoke stay on screen, and cancels the follow
+  camera's lag with `CAMERA_FOLLOW_RATE`. Do not make the offset zoom-aware: that moves the
+  camera on every wheel notch and pans the near dust/grid layer relative to the sky.
 - **Zoom is depth-weighted.** Far stars/nebulas stay at a fixed scale; mid/near stars respond
   partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`1`
   (1× is the default and maximum zoom-in); only the wheel adjusts it.

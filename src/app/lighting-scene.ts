@@ -71,7 +71,6 @@ const MAX_DELTA_SECONDS = 0.05;
 // camera is zoomed out.
 const LOOKAHEAD_BASE_OFFSET = 0.07;
 const LOOKAHEAD_MAX_OFFSET = 0.11;
-const LOOKAHEAD_ZOOM_BOOST = 1.5;
 
 /** Shield surface: how much of the hit bounces back, and its tangential grip. */
 const SHIELD_RESTITUTION = 0.22;
@@ -401,16 +400,20 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const speedFraction = terminalW > 0 ? Math.min(1, speed / terminalW) : 0;
     const curve = speedFraction * speedFraction;
 
-    const dust = background.getDustTransform();
+    // The lookahead is a world-space offset, deliberately independent of zoom:
+    // if it grew when zoomed out, every wheel notch would move the camera and
+    // slide the near dust/grid layer (the old parallax pan bug). Scaling the
+    // screen offset down as the camera pulls back keeps the world still.
     const shortEdge = Math.min(width, height);
-    const baseOffsetPx = shortEdge * LOOKAHEAD_BASE_OFFSET;
-    const maxOffsetPx = shortEdge * LOOKAHEAD_MAX_OFFSET;
-    const zoomBoost = 1 + (1 - dust.zoom) * LOOKAHEAD_ZOOM_BOOST;
-    const shipHalf = (shipColor.height * shipBaseScale * dust.zoom) / 2;
-    const flameScreen = FLAME_LOCAL_LENGTH * shipBaseScale * dust.zoom;
-    const exhaustRoom = Math.max(0, height / 2 - shipHalf - flameScreen - 90);
-    const offsetPx = Math.min(maxOffsetPx, baseOffsetPx * curve * zoomBoost, exhaustRoom);
-    const offsetMeters = offsetPx / (PIXELS_PER_METER * dust.zoom);
+    const baseOffsetMeters = (shortEdge * LOOKAHEAD_BASE_OFFSET) / PIXELS_PER_METER;
+    const maxOffsetMeters = (shortEdge * LOOKAHEAD_MAX_OFFSET) / PIXELS_PER_METER;
+    const shipHalfMeters = (shipColor.height * shipBaseScale) / (2 * PIXELS_PER_METER);
+    const flameMeters = (FLAME_LOCAL_LENGTH * shipBaseScale) / PIXELS_PER_METER;
+    const exhaustRoomMeters = Math.max(
+      0,
+      height / (2 * PIXELS_PER_METER) - shipHalfMeters - flameMeters - 90 / PIXELS_PER_METER,
+    );
+    const offsetMeters = Math.min(maxOffsetMeters, baseOffsetMeters * curve, exhaustRoomMeters);
 
     // Cancel the follow camera's steady-state lag, then add the desired
     // lookahead offset. Moving up puts the target above the ship, so the ship
