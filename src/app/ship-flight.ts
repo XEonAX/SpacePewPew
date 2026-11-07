@@ -196,10 +196,12 @@ export function stepFlight(
   state.vy += (worldForceY / mass) * dt;
   state.angularVelocity += (wrench.torque / inertia) * dt;
 
-  // Drag applies to both axes whenever any input is active; with a positive
-  // drag the thrust/drag ratio sets finite terminal speeds. After key-up the
-  // input still takes inputRampSeconds to reach 0, so drag stays on for that
-  // whole tail; once all inputs hit zero the ship coasts on its momentum.
+  // Drag applies to BOTH axes whenever ANY input is active — thrust-only, turn
+  // only, or both. A W burn therefore bleeds residual spin, and a pure A/D
+  // manoeuvre bleeds residual drift. With a positive drag the thrust/drag ratio
+  // sets finite terminal speeds. After key-up the input still takes
+  // inputRampSeconds to reach 0, so drag stays on for that whole tail; once all
+  // inputs hit zero the ship coasts on its momentum.
   const anyInput = state.linearInput !== 0 || state.angularInput !== 0;
   if (anyInput) {
     const linearDrag = Math.exp(-tuning.linearDrag * dt);

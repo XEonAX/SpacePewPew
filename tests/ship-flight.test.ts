@@ -135,26 +135,30 @@ describe('ship flight', () => {
     expect(normal.angularVelocity).toBeGreaterThan(0);
   });
 
-  it('applies angular drag while any input is active', () => {
+  it('damps both axes while only linear input is active', () => {
     const state = createFlightState();
-    state.angularVelocity = 2;
+    state.vx = 100; // sideways drift, not along the thrust axis
+    state.angularVelocity = 2; // residual spin
 
     stepFlight(state, press({ forward: true }), 0.1, TUNING, GEOMETRY);
 
+    expect(state.linearInput).toBeGreaterThan(0);
     expect(state.angularInput).toBe(0);
-    expect(state.angularVelocity).toBeGreaterThan(0);
-    expect(state.angularVelocity).toBeLessThan(2);
+    expect(state.vx).toBeLessThan(100); // linear drag without turn input
+    expect(Math.abs(state.angularVelocity)).toBeLessThan(2); // angular drag without turn input
   });
 
-  it('applies linear drag while only angular input is active', () => {
+  it('damps both axes while only angular input is active', () => {
     const state = createFlightState();
     state.vx = 100;
+    state.angularVelocity = 2;
 
     stepFlight(state, press({ turnLeft: true }), 0.1, TUNING, GEOMETRY);
 
     expect(state.linearInput).toBe(0);
-    expect(state.vx).toBeGreaterThan(0);
-    expect(state.vx).toBeLessThan(100);
+    expect(state.angularInput).toBeLessThan(0);
+    expect(state.vx).toBeLessThan(100); // linear drag without thrust input
+    expect(Math.abs(state.angularVelocity)).toBeLessThan(2); // drag outruns the new turn torque
   });
 
   it('coasts without drag once input is zero', () => {
