@@ -343,9 +343,10 @@ Mining rules:
 - The intake is the **hull's own slatted hatch** between the two rearmost pairs (ship-texture
   pixels: centre `(-1, 123)`, half-extents `23 × 45`), so no grill graphic is drawn. Chunks whose
   centre enters that rotated rectangle are consumed and increment the cargo counter in the hint.
-- Chunks are drawn as **solid polygonal shards**, not glows: each carries a heat-shaded body,
-  a molten core and a soft baked halo on one of eight canvas texture variants, rendered with
-  normal blending. The old additive radial blob read as pure light with no metal in it.
+- Chunks are drawn as **simple solid shapes**, not glows: square, rectangle or triangle with a
+  heat-shaded body and a soft baked halo (eight canvas texture variants, normal blending). The
+  old additive radial blob read as pure light with no metal in it, and the first fix (irregular
+  polygons) was needless detail for this size of sprite.
 - Metal leaves the laser slowly (1.2–2.8 m/s along the reflection) and cools while drifting, an
   exponential `dampVelocity` of 0.55 /s, so a burst settles near the ship instead of sailing past
   and the short-reach beams can catch it.

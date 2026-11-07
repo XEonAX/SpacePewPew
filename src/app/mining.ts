@@ -133,19 +133,7 @@ export interface Mining {
   destroy(): void;
 }
 
-function chunkPolygon(rng: () => number): { x: number; y: number }[] {
-  const sides = 5 + Math.floor(rng() * 3);
-  const radius = 19 + rng() * 5;
-  const points: { x: number; y: number }[] = [];
-  for (let side = 0; side < sides; side += 1) {
-    const angle = (side / sides) * Math.PI * 2 + rng() * 0.4;
-    const reach = radius * (0.62 + rng() * 0.45);
-    points.push({ x: Math.cos(angle) * reach, y: Math.sin(angle) * reach });
-  }
-  return points;
-}
-
-/** An irregular solid metal shard with a hot core and a soft baked glow. */
+/** Simple solid chunks: square, rectangle or triangle, each with a glow. */
 function createChunkTexture(variant: number): Texture {
   const size = CHUNK_TEXTURE_SIZE;
   const canvas = document.createElement('canvas');
@@ -156,7 +144,7 @@ function createChunkTexture(variant: number): Texture {
   if (ctx) {
     const half = size / 2;
 
-    // Soft glow halo behind the shard.
+    // Soft glow halo behind the chunk.
     const halo = ctx.createRadialGradient(half, half, half * 0.3, half, half, half);
     halo.addColorStop(0, 'rgba(255, 146, 66, 0.5)');
     halo.addColorStop(0.55, 'rgba(255, 92, 30, 0.2)');
@@ -164,19 +152,27 @@ function createChunkTexture(variant: number): Texture {
     ctx.fillStyle = halo;
     ctx.fillRect(0, 0, size, size);
 
-    const polygon = chunkPolygon(rng);
+    const reach = 18 + rng() * 4;
+    const shape = variant % 3;
     const path = new Path2D();
-    polygon.forEach((point, index) => {
-      const x = half + point.x;
-      const y = half + point.y;
-      if (index === 0) path.moveTo(x, y);
-      else path.lineTo(x, y);
-    });
+    if (shape === 2) {
+      // Triangle.
+      path.moveTo(0, -reach);
+      path.lineTo(reach * 0.95, reach * 0.8);
+      path.lineTo(-reach * 0.95, reach * 0.8);
+    } else {
+      // Square or rectangle.
+      const halfWidth = shape === 1 ? reach * 1.25 : reach;
+      const halfHeight = shape === 1 ? reach * 0.72 : reach;
+      path.rect(-halfWidth, -halfHeight, halfWidth * 2, halfHeight * 2);
+    }
     path.closePath();
 
-    // Solid, heat-shaded body so the shard reads as real metal.
     ctx.save();
     ctx.translate(half, half);
+    ctx.rotate(rng() * Math.PI * 2);
+
+    // Solid, heat-shaded body so the chunk reads as real metal.
     const body = ctx.createLinearGradient(-20, -22, 22, 24);
     body.addColorStop(0, '#8a5a3c');
     body.addColorStop(0.45, '#e08a45');
@@ -185,16 +181,11 @@ function createChunkTexture(variant: number): Texture {
     ctx.fillStyle = body;
     ctx.fill(path);
 
-    // Molten core inside the shard.
-    ctx.scale(0.55, 0.55);
-    ctx.fillStyle = 'rgba(255, 246, 214, 0.92)';
-    ctx.fill(path);
-
     // Rim keeps the edge crisp against the halo.
-    ctx.restore();
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = 1.8;
     ctx.strokeStyle = 'rgba(255, 214, 150, 0.9)';
     ctx.stroke(path);
+    ctx.restore();
   }
   return new Texture({ source: new CanvasSource({ resource: canvas }) });
 }
