@@ -1,5 +1,7 @@
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 import { BULLET_RANGE_METERS, bulletAlpha } from './bullet-math';
+import { segmentCircleHit } from './asteroid-collision';
+import type { Circle } from './asteroid-collision';
 import { PIXELS_PER_METER } from './world-scale';
 
 const BULLET_TEXTURE_WIDTH = 128;
@@ -26,6 +28,8 @@ export interface BulletFrame {
   width: number;
   height: number;
   dt: number;
+  /** Solid circle (in metres) tracers stop on; typically the asteroid. */
+  blocker?: Circle | null;
 }
 
 export interface Bullets {
@@ -117,8 +121,23 @@ export function createBullets(): Bullets {
           continue;
         }
 
+        const previousX = bullet.x;
+        const previousY = bullet.y;
         bullet.x += bullet.vx * frame.dt;
         bullet.y += bullet.vy * frame.dt;
+        if (
+          frame.blocker &&
+          segmentCircleHit(
+            { x: previousX, y: previousY },
+            { x: bullet.x, y: bullet.y },
+            frame.blocker,
+          )
+        ) {
+          // The rock stops the tracer at its surface.
+          bullet.active = false;
+          bullet.sprite.visible = false;
+          continue;
+        }
         bullet.sprite.position.set(bullet.x * PIXELS_PER_METER, bullet.y * PIXELS_PER_METER);
         // Keep the glow width legible when the camera zooms out; length stays 1 m.
         bullet.sprite.height = BULLET_WIDTH_WORLD / frame.zoom;

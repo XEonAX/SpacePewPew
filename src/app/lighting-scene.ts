@@ -47,6 +47,9 @@ import {
 } from './weapon-mode';
 import type { AimMode, WeaponMode } from './weapon-mode';
 import { createMining } from './mining';
+import { ASTEROID_RADIUS_OF_WIDTH, resolveShipCollision, shipCapsule } from './asteroid-collision';
+import type { Circle, ShipCapsule } from './asteroid-collision';
+import { createShipShield } from './ship-shield';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -61,6 +64,9 @@ const MAX_DELTA_SECONDS = 0.05;
 const LOOKAHEAD_BASE_OFFSET = 0.07;
 const LOOKAHEAD_MAX_OFFSET = 0.11;
 const LOOKAHEAD_ZOOM_BOOST = 1.5;
+
+/** Fraction of the inward speed returned to the ship when it hits the rock. */
+const SHIP_IMPACT_RESTITUTION = 0.35;
 
 /** World-space lighting shared by the lit meshes. */
 const lighting: LightingState = {
@@ -114,9 +120,12 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const turrets = createTurrets(turretTexture);
   const bullets = createBullets();
   const mining = createMining();
+  // The shield is the ship's collider, so it wraps the hull and turrets.
+  const shield = createShipShield(shipCapsule(shipColor.width, shipColor.height));
   content.addChild(
     ship.mesh,
     turrets.container,
+    shield.container,
     exhaust.flames,
     bullets.container,
     asteroid.mesh,
@@ -252,6 +261,14 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   let shipPlaced = false;
   let shipBaseScale = 1;
   let asteroidBaseScale = 1;
+  /** Hull capsule in metres, refreshed on layout; drawn by the shield too. */
+  let shipCollider: ShipCapsule = { halfLength: 0, radius: 0 };
+  /** The asteroid as a solid circle in world metres; a single circle fits the art. */
+  const asteroidCollider: Circle = { x: 0, y: 0, radius: 0 };
+  /** Impact speed and contact point handed to the shield, cleared each frame. */
+  let shieldImpact = 0;
+  let shieldImpactWorldX = 0;
+  let shieldImpactWorldY = 0;
   let laidOutWidth = -1;
   let laidOutHeight = -1;
 
@@ -288,7 +305,22 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     asteroidWorld.y = (centerY - height / 2) / height;
     shipBaseScale = shipScale;
     asteroidBaseScale = asteroidScale;
+    const capsule = shipCapsule(shipColor.width, shipColor.height);
+    shipCollider = {
+      halfLength: (capsule.halfLength * shipScale) / PIXELS_PER_METER,
+      radius: (capsule.radius * shipScale) / PIXELS_PER_METER,
+    };
     hint.position.set(centerX, height - 28);
+  };
+
+  /** Refresh the asteroid's metric circle collider; layout sets the scale. */
+  const updateAsteroidCollider = (): void => {
+    const { width, height } = app.screen;
+    asteroidCollider.x = (asteroidWorld.x * width) / PIXELS_PER_METER;
+    asteroidCollider.y = (asteroidWorld.y * height) / PIXELS_PER_METER;
+    // The art is roughly circular and fills its texture, so one circle fits.
+    asteroidCollider.radius =
+      (asteroidColor.width * ASTEROID_RADIUS_OF_WIDTH * asteroidBaseScale) / PIXELS_PER_METER;
   };
 
   const followCamera = (immediate = false): void => {
@@ -370,6 +402,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       width,
       height,
       dt: deltaSeconds,
+      blocker: asteroidCollider,
     });
 
     exhaust.update({
@@ -410,6 +443,25 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     ship.mesh.position.set(shipScreenX, shipScreenY);
     ship.mesh.rotation = flight.rotation;
 
+    // The shield highlights the contact patch, so the hit point is converted
+    // from world metres into ship-texture px (the shield's local space).
+    const metresPerShipPixel = shipBaseScale / PIXELS_PER_METER;
+    const contactDx = shieldImpactWorldX - flight.x;
+    const contactDy = shieldImpactWorldY - flight.y;
+    const contactCos = Math.cos(flight.rotation);
+    const contactSin = Math.sin(flight.rotation);
+    shield.update({
+      x: shipScreenX,
+      y: shipScreenY,
+      rotation: flight.rotation,
+      scale: shipBaseScale * dust.zoom,
+      dt: deltaSeconds,
+      impact: shieldImpact,
+      impactX: (contactDx * contactCos + contactDy * contactSin) / metresPerShipPixel,
+      impactY: (-contactDx * contactSin + contactDy * contactCos) / metresPerShipPixel,
+    });
+    shieldImpact = 0;
+
     asteroid.mesh.scale.set(asteroidBaseScale * dust.zoom);
     asteroid.mesh.position.set(
       (asteroidWorld.x - dust.x) * width * dust.zoom + width / 2,
@@ -430,6 +482,26 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     asteroid.mesh.rotation -= deltaSeconds * 0.22;
 
     layout();
+    updateAsteroidCollider();
+    // The rock is solid: push the ship's shield capsule out of it and bounce
+    // the part of its velocity heading inward, so it cannot fly through.
+    if (shipCollider.radius > 0) {
+      const collision = resolveShipCollision(
+        flight,
+        shipCollider,
+        asteroidCollider,
+        SHIP_IMPACT_RESTITUTION,
+      );
+      if (collision.hit) {
+        flight.x = collision.x;
+        flight.y = collision.y;
+        flight.vx = collision.vx;
+        flight.vy = collision.vy;
+        shieldImpact = collision.impactSpeed;
+        shieldImpactWorldX = collision.contactX;
+        shieldImpactWorldY = collision.contactY;
+      }
+    }
     telemetry.update();
     followCamera();
     updateTransforms(deltaSeconds);
@@ -449,9 +521,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
         metresPerShipPixel: shipBaseScale / PIXELS_PER_METER,
       },
       asteroid: {
-        x: (asteroidWorld.x * width) / PIXELS_PER_METER,
-        y: (asteroidWorld.y * height) / PIXELS_PER_METER,
-        radius: (asteroidColor.width * asteroidBaseScale) / 2 / PIXELS_PER_METER,
+        x: asteroidCollider.x,
+        y: asteroidCollider.y,
+        radius: asteroidCollider.radius,
       },
       muzzles: turrets.getAimPoses(),
       laserFiring: weaponMode === 'mining' && miningFiring(),
@@ -593,6 +665,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroid.mesh.destroy({ children: true });
+      shield.destroy();
       hint.destroy();
       background.destroy();
     },

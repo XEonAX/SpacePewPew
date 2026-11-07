@@ -98,8 +98,15 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   cargo never expires in transit. Object-pooled chunks (256); no audio yet.
 - `src/app/mining-model.ts` — pure reflection, ray/circle laser-hit, beam-carry, intake-pulse
   and rotated-rect intake math, unit-tested.
-- `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade.
+- `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade; a swept
+  test stops them on the asteroid's circle collider (`blocker` in the frame).
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
+- `src/app/asteroid-collision.ts` — solid circle collider for the asteroid (radius fitted to the
+  roughly circular art) and the ship's capsule collider/response: push-out plus restitution
+  bounce, plus a swept segment/circle test for tracers. Pure and unit-tested.
+- `src/app/ship-shield.ts` — the oval capsule energy shield, drawn in ship-texture px so it
+  inherits the ship transform; its boundary glows and fades inward, and impacts light up the
+  contact patch. It is the same capsule used for collision.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.

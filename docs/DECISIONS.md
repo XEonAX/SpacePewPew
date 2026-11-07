@@ -379,3 +379,46 @@ Mining rules:
 gun barrels never emit tractor beams. Laser aim, tractor reach, tractor acceleration and the
 hatch rectangle remain separate knobs in `mining.ts`; the pure geometry (`mining-model.ts`) stays
 DOM-free and unit-tested.
+
+## ADR-018 — Solid asteroid circle collider and the shield capsule
+
+**Status:** accepted (2026-11-07).
+
+The asteroid was background art: the ship flew through it and tracers passed through it. The
+ship is long and pointed and the rock is roughly circular, so the cheapest honest collision model
+is **one circle for the rock** and **one capsule for the hull**, both computed from the baked art
+proportions. No physics engine is involved, and none is wanted: there is exactly one static body
+and one moving body, the arcade flight model already owns the ship's motion, and a solver would
+add a dependency, its own timestep/units, and its own position state that would then have to be
+reconciled with the metric flight state and the dust-layer camera pan every frame. Push-out plus
+a restitution bounce is a few dozen lines, is deterministic, and stays unit-testable.
+
+Rules:
+
+- **Asteroid collider:** one circle, radius set from the colour map's silhouette
+  (`ASTEROID_RADIUS_OF_WIDTH = 0.476` — the opaque pixels' 95th-percentile radius). The same
+  radius feeds the mining laser ray test, so the laser, the ship and tracers all agree on where
+  the rock is.
+- **Ship collider = the shield:** the hull's collider is a capsule down the centre line
+  (`radius = 0.38 × ship width`, straight section `0.3 × ship height`). The shield draws that exact
+  capsule in ship-texture pixels, so the rock visibly stops at the shield surface; because it is a
+  capsule rather than a circle, the nose and tail cannot sink into the rock while the sides stay
+  snug. The capsule rotates with the hull.
+- **Response:** when the capsule overlaps the rock, the ship's position is pushed out along the
+  contact normal by the penetration and the inward component of velocity is reflected with
+  `SHIP_IMPACT_RESTITUTION = 0.35`; the tangential component is kept, so glancing hits slide.
+  The ship's angular state is untouched — the shield takes the hit, not the controls.
+- **Tracers:** each bullet is swept from its previous to new metric position against the rock
+  circle (`segmentCircleHit`), so fast rounds cannot tunnel through. The tracer is dropped at the
+  surface; there is no impact art yet.
+- **Shield look:** the boundary is the brightest part and the glow fades inward (seven inset
+  strokes), so the capsule reads as a surface. It is always visible (idle alpha ≈ 0.6) and
+  breathes slightly. Impacts do **not** flash the whole bubble: the shield keeps a contact point
+  returned by the collision, converts it into ship-texture space, and lights a radial bloom there
+  that decays over ~0.3 s, scaled by impact speed.
+
+**Consequences:** because the ship starts within one nose-length of the rock, turning the shield's
+nose toward the asteroid puts it in contact immediately — the push-out keeps them apart, so the
+ship can never begin a frame inside the rock. Collision geometry stays pure (`asteroid-collision.ts`)
+and unit-tested; the shield is purely a renderer of that same capsule. Adding moving asteroids or
+debris later would mean a broadphase and multiple circles, not a rewrite of this response.
