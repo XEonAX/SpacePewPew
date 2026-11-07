@@ -80,8 +80,11 @@ src/
   app/engine-mix.ts       Pure ramped engine-output mixer (tested)
   app/turrets.ts          Eight turret mounts with finite-speed mouse tracking
   app/turret-aim.ts       Pure angular aim physics (tested)
-  app/weapons.ts          Per-pair weapon sound pools + cadence
+  app/weapons.ts          Per-pair weapon sound pools + committed shots + cadence
+  app/weapon-mode.ts      Weapon systems (guns/mining), gun aim modes, control hint
   app/weapon-tuner.ts     Live rate-of-fire sliders
+  app/mining.ts           Mining rig: red lasers, molten chunks, green tractors, cargo grill
+  app/mining-model.ts     Pure reflection/ray-hit/tractor-drag math (tested)
   app/bullets.ts          Pooled 1 m glowing tracers (200 m range)
   app/bullet-math.ts      Bullet range/fade math (tested)
   app/world-scale.ts      Metres ↔ pixels conversion (64 px per metre)
@@ -127,12 +130,13 @@ docs/                     Architecture decisions, reference art and agent workfl
   bottom-left **RATE OF FIRE** panel tunes the cooldown of each weapon pair, clamped to the
   pair's charge duration.
 - Eight turrets with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
-- **1 / 2** switch the aiming mode. **1** (default) tracks the mouse. **2** parks every mount at the forward-most aim its own cone permits — front turrets dead ahead, middle pairs 45° off the nose, rear pairs broadside — so the whole battery points as far forward as the hull allows.
+- **Tab** switches the weapon system: the **gun battery** or the **mining rig**. **1 / 2** pick how the guns aim. **1** (default) tracks the mouse. **2** parks every mount at the forward-most aim its own cone permits — front turrets dead ahead, middle pairs 45° off the nose, rear pairs broadside — so the whole battery points as far forward as the hull allows.
 - **Scroll** zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out).
   Camera dragging and click-to-reset are intentionally disabled. Audio is tied to the shot: 1× is
   full volume and the 50× zoom-out limit fades everything to about 20% (≈ −14 dB), so pulling
   the camera back feels farther away.
-- **Mouse mode (1): click / hold** fires the pair(s) aimed at the mouse. **Forward mode (2): hold Space** fires all four pairs from every barrel. Each pair still respects its own rate of fire. The front pair uses the beam, rear pairs alternate blast variants with randomized pitch, volume, and stereo pan (keyboard shots stay centred). Rounds are 1 m glowing tracers aligned with the barrel that inherit ship momentum, travel 200 m, and fade over the last 50 m. Firing starts the weapon's charge sound; the tracer is scheduled for the measured blast impact, so the visual shot lands with the audio, and a shot committed inside a cone still leaves the barrel if the mouse leaves before the charge ends. Rear-pair barrel tips glow cyan when charged, intensify while their charge sound plays, then extinguish at the shot until that pair recharges. The front beam keeps the normal charged/empty state. **M** mutes/unmutes.
+- **Guns (Tab), mouse aim (1): click / hold** fires the pair(s) aimed at the mouse. **Guns, forward aim (2): hold Space** fires all four pairs from every barrel. Each pair still respects its own rate of fire. The front pair uses the beam, rear pairs alternate blast variants with randomized pitch, volume, and stereo pan (keyboard shots stay centred). Rounds are 1 m glowing tracers aligned with the barrel that inherit ship momentum, travel 200 m, and fade over the last 50 m. Firing starts the weapon's charge sound; the tracer is scheduled for the measured blast impact, so the visual shot lands with the audio, and a shot committed inside a cone still leaves the barrel if the mouse leaves before the charge ends. Rear-pair barrel tips glow cyan when charged, intensify while their charge sound plays, then extinguish at the shot until that pair recharges. The front beam keeps the normal charged/empty state. **M** mutes/unmutes.
+- **Mining rig (Tab): hold click** fires the front pair as **red mining lasers**, mouse-aimed like gun mode 1. A laser that bites the asteroid melts off a small molten-metal chunk, which drifts away along the laser's **reflection angle**. The six rear/middle barrels become **green tractor beams** with a short 26 m reach; they run autonomously, capture any drifting metal that comes close, and drag it into the rectangular cargo grill in the ship's centre. Delivered chunks increment **cargo**, shown in the bottom hint. The grill is drawn in world space, so it scales and rotates with the ship.
 
 ## Lighting
 

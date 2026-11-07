@@ -36,12 +36,17 @@ import {
 import type { MuzzleAim, PendingShot } from './weapons';
 import { createWeaponTuner } from './weapon-tuner';
 import {
+  AIM_MODE_KEY_CODES,
+  DEFAULT_AIM_MODE,
   DEFAULT_WEAPON_MODE,
-  WEAPON_MODE_KEY_CODES,
+  WEAPON_MODE_KEY_CODE,
+  aimModeForKey,
+  toggleWeaponMode,
+  turretAimMode,
   weaponHint,
-  weaponModeForKey,
 } from './weapon-mode';
-import type { WeaponMode } from './weapon-mode';
+import type { AimMode, WeaponMode } from './weapon-mode';
+import { createMining } from './mining';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -108,7 +113,15 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const asteroid: LitSprite = createLitSprite(asteroidColor, asteroidNormal);
   const turrets = createTurrets(turretTexture);
   const bullets = createBullets();
-  content.addChild(ship.mesh, turrets.container, exhaust.flames, bullets.container, asteroid.mesh);
+  const mining = createMining();
+  content.addChild(
+    ship.mesh,
+    turrets.container,
+    exhaust.flames,
+    bullets.container,
+    asteroid.mesh,
+    mining.container,
+  );
 
   const canvas = app.canvas as HTMLCanvasElement;
   const pointer = { x: app.screen.width / 2, y: app.screen.height / 2, active: false };
@@ -123,10 +136,13 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   // Mouse aim fires on click; all-forward fires the whole battery on Space.
   let weaponMode: WeaponMode = DEFAULT_WEAPON_MODE;
+  let aimMode: AimMode = DEFAULT_AIM_MODE;
   let pointerDown = false;
   let spaceDown = false;
   let soundMuted = false;
-  const fireHeld = (): boolean => (weaponMode === 'mouse' ? pointerDown : spaceDown);
+  let cargo = 0;
+  const gunFiring = (): boolean => (aimMode === 'mouse' ? pointerDown : spaceDown);
+  const miningFiring = (): boolean => pointerDown || spaceDown;
   const pairCooldowns = [0, 0, 0, 0];
   const weaponCooldowns = WEAPON_PAIRS.map((pair) => pair.cooldown);
   const pairCursors = [0, 0, 0, 0];
@@ -161,7 +177,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
     // Keyboard fire has no crosshair; keep those shots centred.
     const pan =
-      weaponMode === 'mouse'
+      aimMode === 'mouse'
         ? clamp((pointer.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7)
         : 0;
     const volume = pair.volume * (0.92 + Math.random() * 0.16);
@@ -187,11 +203,13 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   const updateWeapons = (dt: number): void => {
     advanceShots(pendingShots, dt, (shot) => spawnBullets(shot.muzzles));
+    // The mining rig replaces the gun battery entirely.
+    if (weaponMode !== 'guns') return;
 
     const active = turrets.getActivePairs();
     for (let index = 0; index < WEAPON_PAIRS.length; index += 1) {
       pairCooldowns[index] = Math.max(0, (pairCooldowns[index] ?? 0) - dt);
-      if (!fireHeld() || !active[index] || (pairCooldowns[index] ?? 0) > 0) continue;
+      if (!gunFiring() || !active[index] || (pairCooldowns[index] ?? 0) > 0) continue;
       fireWeapon(index);
       const cooldown = weaponCooldowns[index] ?? 1;
       pairCooldowns[index] = cooldown * (0.94 + Math.random() * 0.12);
@@ -209,7 +227,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   };
 
   const hint = new Text({
-    text: weaponHint(DEFAULT_WEAPON_MODE, false),
+    text: weaponHint(DEFAULT_WEAPON_MODE, DEFAULT_AIM_MODE, false),
     style: {
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       fontSize: 12,
@@ -219,7 +237,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   hint.anchor.set(0.5);
   app.stage.addChild(hint);
   const updateHint = (): void => {
-    hint.text = weaponHint(weaponMode, soundMuted);
+    hint.text = weaponHint(weaponMode, aimMode, soundMuted, cargo);
   };
 
   const flight = createFlightState();
@@ -329,7 +347,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       mouseX: pointer.x,
       mouseY: pointer.y,
       mouseActive: pointer.active,
-      mode: weaponMode,
+      mode: turretAimMode(weaponMode, aimMode),
       dt: deltaSeconds,
       now: lighting.time,
     });
@@ -405,6 +423,40 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     followCamera();
     updateTransforms(deltaSeconds);
     updateWeapons(deltaSeconds);
+
+    const dust = background.getDustTransform();
+    const { width, height } = app.screen;
+    mining.update({
+      dt: deltaSeconds,
+      now: lighting.time,
+      ship: {
+        x: flight.x,
+        y: flight.y,
+        rotation: flight.rotation,
+        metresPerShipPixel: shipBaseScale / PIXELS_PER_METER,
+      },
+      asteroid: {
+        x: (asteroidWorld.x * width) / PIXELS_PER_METER,
+        y: (asteroidWorld.y * height) / PIXELS_PER_METER,
+        radius: (asteroidColor.width * asteroidBaseScale) / 2 / PIXELS_PER_METER,
+      },
+      muzzles: turrets.getAimPoses(),
+      laserFiring: weaponMode === 'mining' && miningFiring(),
+      tractorsActive: weaponMode === 'mining',
+      dustX: dust.x,
+      dustY: dust.y,
+      zoom: dust.zoom,
+      width,
+      height,
+    });
+    if (weaponMode === 'mining') {
+      const mined = mining.getCargo();
+      if (mined !== cargo) {
+        cargo = mined;
+        updateHint();
+      }
+    }
+
     const glowLevels = pairCooldowns.map((cooldown, pairIndex) => {
       // Only the three rear/charge pairs ramp their glow; the front beam pair
       // keeps the normal charged/empty state.
@@ -423,11 +475,18 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
 
-    if (WEAPON_MODE_KEY_CODES.has(event.code)) {
+    if (event.code === WEAPON_MODE_KEY_CODE) {
       event.preventDefault();
-      const mode = weaponModeForKey(event.code);
+      weaponMode = toggleWeaponMode(weaponMode);
+      updateHint();
+      return;
+    }
+
+    if (AIM_MODE_KEY_CODES.has(event.code)) {
+      event.preventDefault();
+      const mode = aimModeForKey(event.code);
       if (mode) {
-        weaponMode = mode;
+        aimMode = mode;
         updateHint();
       }
       return;
@@ -508,6 +567,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       telemetry.destroy();
       turrets.destroy();
       bullets.destroy();
+      mining.destroy();
       exhaust.destroy();
       engineAudio.destroy();
       ground.destroy();

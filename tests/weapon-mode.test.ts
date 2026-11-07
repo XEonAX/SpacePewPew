@@ -1,29 +1,59 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_WEAPON_MODE, weaponHint, weaponModeForKey } from '../src/app/weapon-mode';
+import {
+  AIM_MODE_KEY_CODES,
+  DEFAULT_AIM_MODE,
+  DEFAULT_WEAPON_MODE,
+  WEAPON_MODE_KEY_CODE,
+  aimModeForKey,
+  toggleWeaponMode,
+  turretAimMode,
+  weaponHint,
+} from '../src/app/weapon-mode';
 
 describe('weapon modes', () => {
-  it('defaults to mouse aiming', () => {
-    expect(DEFAULT_WEAPON_MODE).toBe('mouse');
+  it('starts in the gun battery with mouse aiming', () => {
+    expect(DEFAULT_WEAPON_MODE).toBe('guns');
+    expect(DEFAULT_AIM_MODE).toBe('mouse');
   });
 
-  it('maps Digit1 to mouse aiming and Digit2 to all-forward', () => {
-    expect(weaponModeForKey('Digit1')).toBe('mouse');
-    expect(weaponModeForKey('Digit2')).toBe('forward');
+  it('cycles the weapon system with Tab', () => {
+    expect(WEAPON_MODE_KEY_CODE).toBe('Tab');
+    expect(toggleWeaponMode('guns')).toBe('mining');
+    expect(toggleWeaponMode('mining')).toBe('guns');
   });
 
-  it('ignores unrelated keys', () => {
-    expect(weaponModeForKey('Digit3')).toBeUndefined();
-    expect(weaponModeForKey('Space')).toBeUndefined();
-    expect(weaponModeForKey('KeyW')).toBeUndefined();
+  it('maps Digit1 and Digit2 to the gun aiming modes', () => {
+    expect(AIM_MODE_KEY_CODES.has('Digit1')).toBe(true);
+    expect(AIM_MODE_KEY_CODES.has('Digit2')).toBe(true);
+    expect(aimModeForKey('Digit1')).toBe('mouse');
+    expect(aimModeForKey('Digit2')).toBe('forward');
+    expect(aimModeForKey('Digit3')).toBeUndefined();
+    expect(aimModeForKey('Tab')).toBeUndefined();
+  });
+
+  it('hands the turrets the right aim resolver', () => {
+    expect(turretAimMode('guns', 'mouse')).toBe('mouse');
+    expect(turretAimMode('guns', 'forward')).toBe('forward');
+    expect(turretAimMode('mining', 'mouse')).toBe('mining');
+    expect(turretAimMode('mining', 'forward')).toBe('mining');
   });
 
   it('describes the active controls in the hint', () => {
-    const mouse = weaponHint('mouse', false);
-    const forward = weaponHint('forward', false);
-    expect(mouse).toContain('hold click: fire');
-    expect(forward).toContain('hold Space: fire all weapons');
-    expect(mouse).toContain('M: mute');
-    expect(weaponHint('forward', true)).toContain('sound muted');
-    expect(weaponHint('forward', true)).not.toContain('M: mute');
+    const gunsMouse = weaponHint('guns', 'mouse', false);
+    expect(gunsMouse).toContain('hold click: fire');
+    expect(gunsMouse).toContain('Tab mining');
+    expect(gunsMouse).toContain('1 mouse / 2 forward');
+
+    const gunsForward = weaponHint('guns', 'forward', false);
+    expect(gunsForward).toContain('hold Space: fire all weapons');
+
+    const mining = weaponHint('mining', 'mouse', false, 7);
+    expect(mining).toContain('Tab guns');
+    expect(mining).toContain('mining laser');
+    expect(mining).toContain('tractors auto');
+    expect(mining).toContain('cargo: 7');
+
+    expect(weaponHint('guns', 'mouse', true)).toContain('sound muted');
+    expect(weaponHint('guns', 'mouse', true)).not.toContain('M: mute');
   });
 });

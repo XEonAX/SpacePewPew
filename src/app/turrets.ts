@@ -1,7 +1,7 @@
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 import { forwardAimInArc, stepTurretAim, stepTurretAimInArc, wrapAngle } from './turret-aim';
 import type { TurretAimState } from './turret-aim';
-import type { WeaponMode } from './weapon-mode';
+import type { TurretAimMode } from './weapon-mode';
 
 const NATIVE_WIDTH = 41;
 const NATIVE_HEIGHT = 52;
@@ -108,8 +108,11 @@ interface TurretFrame {
   mouseX: number;
   mouseY: number;
   mouseActive: boolean;
-  /** `forward` parks every mount at its forward-most legal aim. */
-  mode: WeaponMode;
+  /**
+   * `forward` parks every mount at its forward-most legal aim; `mining` tracks
+   * the pointer with the front pair only and parks the six tractor barrels.
+   */
+  mode: TurretAimMode;
   dt: number;
   now: number;
 }
@@ -119,6 +122,8 @@ export interface Turrets {
   update(frame: TurretFrame): void;
   getActivePairs(): readonly boolean[];
   getMuzzles(): readonly TurretMuzzle[];
+  /** Every mount's muzzle pose, whether or not its pair is hot. */
+  getAimPoses(): readonly TurretMuzzle[];
   setGlowLevels(levels: readonly number[]): void;
   destroy(): void;
 }
@@ -153,6 +158,7 @@ export function createTurrets(texture: Texture): Turrets {
   }));
   let activePairs = [false, false, false, false];
   let muzzles: TurretMuzzle[] = [];
+  let aimPoses: TurretMuzzle[] = [];
   let glowLevels: readonly number[] = [1, 1, 1, 1];
   const glowAlphas = configs.map(() => 1);
   // Barrels that fired this charge, so they keep glowing after the mouse
@@ -170,6 +176,7 @@ export function createTurrets(texture: Texture): Turrets {
       const shipSin = Math.sin(frame.rotation);
       const nextActivePairs = [false, false, false, false];
       const nextMuzzles: TurretMuzzle[] = [];
+      const nextAimPoses: TurretMuzzle[] = [];
 
       for (let index = 0; index < configs.length; index += 1) {
         const config = configs[index]!;
@@ -178,7 +185,9 @@ export function createTurrets(texture: Texture): Turrets {
         const pairIndex = Math.floor(index / 2);
 
         let inArc = false;
-        if (frame.mode === 'forward') {
+        const forwardOnly = frame.mode === 'forward' || (frame.mode === 'mining' && index >= 2);
+        const mouseTracked = frame.mode === 'mouse' || (frame.mode === 'mining' && index < 2);
+        if (forwardOnly) {
           // Aim as close to straight ahead as this mount's cone allows; all
           // pairs are hot so the keyboard can fire the whole battery.
           stepTurretAim(
@@ -187,8 +196,9 @@ export function createTurrets(texture: Texture): Turrets {
             frame.dt,
             config.turnScale,
           );
-          inArc = true;
-        } else if (!frame.mouseActive) {
+          // Mining tractors are not gun pairs: they never mark a pair hot.
+          inArc = frame.mode === 'forward';
+        } else if (!mouseTracked || !frame.mouseActive) {
           aim.angle = wrapAngle(config.restAngle);
           aim.angularVelocity = 0;
         } else {
@@ -240,6 +250,12 @@ export function createTurrets(texture: Texture): Turrets {
         glow.width = size;
         glow.height = size;
 
+        nextAimPoses.push({
+          pairIndex,
+          x: muzzleX,
+          y: muzzleY,
+          angle: aim.angle,
+        });
         if (inArc) {
           nextActivePairs[pairIndex] = true;
           nextMuzzles.push({
@@ -253,12 +269,16 @@ export function createTurrets(texture: Texture): Turrets {
 
       activePairs = nextActivePairs;
       muzzles = nextMuzzles;
+      aimPoses = nextAimPoses;
     },
     getActivePairs(): readonly boolean[] {
       return activePairs;
     },
     getMuzzles(): readonly TurretMuzzle[] {
       return muzzles;
+    },
+    getAimPoses(): readonly TurretMuzzle[] {
+      return aimPoses;
     },
     setGlowLevels(levels: readonly number[]): void {
       glowLevels = levels;

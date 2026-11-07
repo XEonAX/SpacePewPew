@@ -304,3 +304,32 @@ mode so keyboard-panned shots are centred (`pan = 0`).
 **Consequences:** keep mode-dependent aim/fire decisions in `weapon-mode.ts` and the scene; a
 mount's forward aim must always be clamped into its cone, never assumed to be 0. Fire input and
 aim mode are separate: adding a third mode means a new resolver, not new turret state.
+
+## ADR-017 — Weapon systems: guns and the mining rig
+
+**Status:** accepted (2026-11-07).
+
+Firing modes were becoming one axis: mouse aim, all-forward, and now a second weapon system.
+The axes are separate. **Tab** cycles the weapon _system_ (`guns` / `mining`); **1 / 2** select
+the gun _aiming_ mode and are inert while mining. The turrets take a resolver
+(`turretAimMode()`): `mouse`, `forward`, or `mining`, which tracks the pointer with the front
+pair only and parks the six tractor barrels at their forward limit.
+
+Mining rules:
+
+- Front pair = **red mining lasers**, mouse-aimed inside their cones. A beam ray-tests a circle
+  around the asteroid (`rayCircleHit`); a hit melts off a molten chunk that leaves along the
+  beam's **reflection** about the local surface normal (`reflectDirection`), with scatter so
+  repeat hits do not stack.
+- The six middle/rear barrels = **green tractor beams** with a 26 m reach. They are autonomous
+  while the rig is equipped: any drifting chunk inside that reach is captured, then dragged to
+  the cargo grill at 18 m/s.
+- The grill is a world-space rectangle at the ship centre. Chunks that reach it are consumed and
+  increment the cargo counter in the hint. Leaving mining mode releases captured chunks with
+  their pre-capture drift velocity rather than teleporting or freezing them.
+- Beams and chunk sprites live in the same metric world container as tracers, so they scale with
+  zoom and pan with the dust layer. Chunks are object-pooled (64). No mining audio yet.
+
+**Consequences:** mining never fires gun pairs (`updateWeapons` returns early in mining mode) and
+gun barrels never emit tractor beams. Laser aim, tractor reach and the grill remain separate
+knobs in `mining.ts`; the pure geometry (`mining-model.ts`) stays DOM-free and unit-tested.

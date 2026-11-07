@@ -77,10 +77,14 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/weapons.ts` — clean turret-pair sound pools, cadence, per-sound tracer delays, and
   committed shots: a trigger pulled inside the cone snapshots every tracking barrel, so the
   projectile still leaves the muzzle after the mouse moves out of the arc. Unit-tested.
-- `src/app/weapon-mode.ts` — `mouse` (click to fire) vs `forward` (all mounts clamped to their
-  forward-most legal aim, hold Space to fire the whole battery), key mapping 1/2 and the control
-  hint. Unit-tested.
+- `src/app/weapon-mode.ts` — the two weapon systems (`guns`, `mining`), Tab toggling, the gun
+  aiming modes 1/2, the turret aim resolver and the control hint. Unit-tested.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders.
+- `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers, molten metal
+  chunks that leave along the laser's reflection angle, six autonomous green tractor beams that
+  drag metal into the centre cargo grill. Object-pooled chunks; no audio yet.
+- `src/app/mining-model.ts` — pure reflection, ray/circle laser-hit and tractor-drag math,
+  unit-tested.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
 - `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
