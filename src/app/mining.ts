@@ -8,6 +8,7 @@ import {
   pointInRotatedRect,
   rayCircleHit,
   reflectDirection,
+  relativeAngularRate,
   steerToward,
 } from './mining-model';
 import type { Vec2 } from './mining-model';
@@ -33,6 +34,10 @@ const LASER_BARRELS = 2;
 const TRACTOR_FIRST_BARREL = 2;
 /** Tractor reach, measured from the barrel that captured the chunk. */
 const TRACTOR_RANGE_M = 5;
+/** A barrel drops cargo that would need more slew than this (rad/s). */
+const TRACTOR_TRACK_RATE_LIMIT = 3;
+/** How long a dropped chunk is left alone by the barrel that dropped it. */
+const TRACTOR_RELEASE_COOLDOWN = 0.4;
 // Curved fake carry: the chunk arcs to the hatch with a bounded heading change
 // so a tractor barrel can keep its beam on it. P swaps in the physics model.
 const CURVE_SPEED_PER_BEAM_MPS = 2.5;
@@ -74,6 +79,9 @@ interface Chunk {
   tracted: boolean;
   /** Every tractor barrel currently locked onto this chunk (more = faster). */
   barrels: number[];
+  /** Barrel that dropped this chunk for being untrackable, and until when. */
+  releaseBy: number;
+  releaseUntil: number;
 }
 
 export interface MiningShip {
@@ -161,6 +169,8 @@ export function createMining(): Mining {
       active: false,
       tracted: false,
       barrels: [],
+      releaseBy: -1,
+      releaseUntil: 0,
     });
   }
 
@@ -192,6 +202,8 @@ export function createMining(): Mining {
     chunk.active = true;
     chunk.tracted = false;
     chunk.barrels = [];
+    chunk.releaseBy = -1;
+    chunk.releaseUntil = 0;
     chunk.x = hit.x + normal.x * CHUNK_SIZE_M * 0.6;
     chunk.y = hit.y + normal.y * CHUNK_SIZE_M * 0.6;
     chunk.vx = Math.cos(angle) * speed;
@@ -286,6 +298,8 @@ export function createMining(): Mining {
       if (frame.tractorsActive) {
         // Pass 1: every beam keeps the chunk it already grips. Earlier barrels
         // win any impossible collision, so a grip is never stolen mid-delivery.
+        // A chunk that swings faster than a barrel can slew is dropped so a
+        // different tractor (or this one later) can pick it up.
         const claimed = new Set<Chunk>();
         for (let barrel = TRACTOR_FIRST_BARREL; barrel < poses.length; barrel += 1) {
           const pose = poses[barrel];
@@ -300,11 +314,22 @@ export function createMining(): Mining {
             barrelTargets[barrel] = null;
             continue;
           }
+          const swingRate = relativeAngularRate(held, pose, {
+            x: held.vx - ship.vx,
+            y: held.vy - ship.vy,
+          });
+          if (swingRate > TRACTOR_TRACK_RATE_LIMIT) {
+            held.releaseBy = barrel;
+            held.releaseUntil = frame.now + TRACTOR_RELEASE_COOLDOWN;
+            barrelTargets[barrel] = null;
+            continue;
+          }
           claimed.add(held);
         }
 
         // Pass 2: free beams claim the most external chunk in reach — the
-        // freshest metal, likeliest to drift away.
+        // freshest metal, likeliest to drift away. A chunk this barrel just
+        // dropped is skipped briefly so another beam can take it instead.
         for (let barrel = TRACTOR_FIRST_BARREL; barrel < poses.length; barrel += 1) {
           if (barrelTargets[barrel]) continue;
           const pose = poses[barrel];
@@ -313,6 +338,7 @@ export function createMining(): Mining {
           let bestExternality = -1;
           for (const chunk of chunks) {
             if (!chunk.active || claimed.has(chunk)) continue;
+            if (chunk.releaseBy === barrel && frame.now < chunk.releaseUntil) continue;
             if (Math.hypot(pose.x - chunk.x, pose.y - chunk.y) > TRACTOR_RANGE_M) continue;
             const externality = Math.hypot(chunk.x - ship.x, chunk.y - ship.y);
             if (externality > bestExternality) {

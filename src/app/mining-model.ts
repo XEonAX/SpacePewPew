@@ -252,3 +252,15 @@ export function arcToward(
     arrived,
   };
 }
+
+/**
+ * How fast a turret at `origin` would have to swing to keep a point in view,
+ * in radians per second. Used to drop cargo a barrel cannot physically track.
+ */
+export function relativeAngularRate(point: Vec2, origin: Vec2, velocity: Vec2): number {
+  const rx = point.x - origin.x;
+  const ry = point.y - origin.y;
+  const distanceSquared = Math.max(rx * rx + ry * ry, 0.04);
+  const cross = rx * velocity.y - ry * velocity.x;
+  return Math.abs(cross) / distanceSquared;
+}

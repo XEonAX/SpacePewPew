@@ -7,6 +7,7 @@ import {
   pointInRotatedRect,
   rayCircleHit,
   reflectDirection,
+  relativeAngularRate,
 } from '../src/app/mining-model';
 
 const CARRY = { speedPerBeam: 1.8, maxSpeed: 9, arrivalSeconds: 0.9 };
@@ -69,6 +70,29 @@ describe('metal damping', () => {
 
   it('leaves a chunk untouched with no damping', () => {
     expect(dampVelocity({ x: 3, y: 4 }, 0, 1)).toEqual({ x: 3, y: 4 });
+  });
+});
+
+describe('tractor tracking limit', () => {
+  it('is zero for motion straight along the sight line', () => {
+    expect(relativeAngularRate({ x: 2, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 0 })).toBeCloseTo(0);
+  });
+
+  it('measures sideways motion over distance', () => {
+    // r = (2, 0), v = (0, 3) -> cross 6, r^2 4 -> 1.5 rad/s.
+    expect(relativeAngularRate({ x: 2, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 3 })).toBeCloseTo(1.5);
+  });
+
+  it('needs more slew when the object is closer', () => {
+    const far = relativeAngularRate({ x: 4, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 2 });
+    const near = relativeAngularRate({ x: 1, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 2 });
+    expect(near).toBeGreaterThan(far);
+  });
+
+  it('stays finite even when the object is on the muzzle', () => {
+    const rate = relativeAngularRate({ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 5, y: 0 });
+    expect(Number.isFinite(rate)).toBe(true);
+    expect(rate).toBe(0);
   });
 });
 
