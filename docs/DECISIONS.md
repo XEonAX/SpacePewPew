@@ -352,8 +352,15 @@ Mining rules:
   movie space-elevator beams. Rings are staggered a third of a period apart, fade in as they
   spawn and fade out as they land, quicken (~1.7×) and brighten while cargo is inbound, and the
   intake flashes on each delivery. A landed ring never exceeds 1.2× the hatch height; the rings
-  are pure `Graphics` strokes (`add` blend, 6 px halo + 1.8 px core) redrawn each frame — six
-  small rounded-rect strokes, no filters or textures.
+  are pure `Graphics` strokes (6 px halo + 1.8 px core) redrawn each frame — six small
+  rounded-rect strokes, no filters or textures.
+- Mining glow colour is **composited, not just tinted**. Over the blue hull an additive red or
+  green glow washes out to white/cyan, so mining muzzle glows use a neutral **white** glow
+  texture (the gun glow's cyan texture stays for guns) and **normal blending**, letting the red
+  laser pair and green tractors read true; the laser muzzles are 1.3× bigger and brighter
+  (alpha 0.9 idle → 1 when firing) than the tractors. Intake rings are normal-blended for the
+  same reason. Tractor beams stay **additive** (they mostly cross dark space) but use a
+  zero-blue green (`0x2eff33`) so the additive result stays green instead of teal.
 - Chunks are drawn as **small flat-solid shapes**, not glows: one square and one triangle texture
   (32×32, flat fill, thin rim, light glow, normal blending). The old additive radial blob read as
   pure light with no metal in it; gradients, an inset molten core and irregular polygons were all

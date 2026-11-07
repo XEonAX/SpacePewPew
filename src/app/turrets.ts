@@ -42,8 +42,10 @@ const FRONT_TURN_SCALE = 1.85;
 const MINING_TURN_SCALE = 1.7;
 const MUZZLE_GLOW_SIZE = 28;
 /** Mining barrel glow colours: red front lasers, green tractor barrels. */
-const MINING_LASER_TINT = 0xff4a2e;
-const MINING_TRACTOR_TINT = 0x4dff8a;
+const MINING_LASER_TINT = 0xff5a34;
+const MINING_TRACTOR_TINT = 0x36ff5a;
+/** The laser muzzles glow hotter and larger than the tractor barrels. */
+const MINING_LASER_GLOW_SCALE = 1.3;
 
 const mount = (
   x: number,
@@ -76,7 +78,7 @@ const TURRET_LAYOUT: readonly TurretMountConfig[] = [
   mount(97, 201, Math.PI / 2, REAR_CENTER, REAR_CONE),
 ];
 
-function createChargeGlowTexture(): Texture {
+function createChargeGlowTexture(neutral = false): Texture {
   const size = 64;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -85,11 +87,21 @@ function createChargeGlowTexture(): Texture {
   if (ctx) {
     const half = size / 2;
     const gradient = ctx.createRadialGradient(half, half, 0, half, half, half);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    gradient.addColorStop(0.16, 'rgba(180, 252, 255, 1)');
-    gradient.addColorStop(0.42, 'rgba(70, 225, 255, 0.72)');
-    gradient.addColorStop(0.72, 'rgba(25, 150, 220, 0.2)');
-    gradient.addColorStop(1, 'rgba(10, 90, 160, 0)');
+    if (neutral) {
+      // White glow, so a tint reads as its own colour rather than mixing with
+      // the gun glow's cyan (mining barrels are red / green).
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      gradient.addColorStop(0.16, 'rgba(255, 255, 255, 1)');
+      gradient.addColorStop(0.42, 'rgba(255, 255, 255, 0.72)');
+      gradient.addColorStop(0.72, 'rgba(255, 255, 255, 0.2)');
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    } else {
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      gradient.addColorStop(0.16, 'rgba(180, 252, 255, 1)');
+      gradient.addColorStop(0.42, 'rgba(70, 225, 255, 0.72)');
+      gradient.addColorStop(0.72, 'rgba(25, 150, 220, 0.2)');
+      gradient.addColorStop(1, 'rgba(10, 90, 160, 0)');
+    }
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
   }
@@ -155,6 +167,9 @@ export function createTurrets(texture: Texture): Turrets {
     return sprite;
   });
   const glowTexture = createChargeGlowTexture();
+  // Mining barrels tint their glow, so they need a neutral (white) glow to
+  // avoid the gun glow's cyan turning red/green into off-colours.
+  const miningGlowTexture = createChargeGlowTexture(true);
   const glowSprites = configs.map(() => {
     const glow = new Sprite({ texture: glowTexture, anchor: 0.5 });
     glow.width = MUZZLE_GLOW_SIZE;
@@ -262,12 +277,21 @@ export function createTurrets(texture: Texture): Turrets {
         if (frame.mode === 'mining') {
           // Mining muzzle glows never vanish: front pair is laser red, the six
           // tractor barrels green, and each brightens while its beam is live.
+          const isLaser = index < 2;
           const beamActive = frame.miningBeams?.[index] ?? false;
-          glow.tint = index < 2 ? MINING_LASER_TINT : MINING_TRACTOR_TINT;
+          if (glow.texture !== miningGlowTexture) glow.texture = miningGlowTexture;
+          // Normal blend over the blue hull; additive would wash red/green to
+          // white-cyan. Gun glows keep their additive bloom.
+          if (glow.blendMode !== 'normal') glow.blendMode = 'normal';
+          glow.tint = isLaser ? MINING_LASER_TINT : MINING_TRACTOR_TINT;
           const miningFlicker = Math.sin(frame.now * 18 + index * 1.7);
-          targetAlpha = beamActive ? 1 : 0.72;
-          glowSize = MUZZLE_GLOW_SIZE * (beamActive ? 1.9 : 1) * (1 + 0.02 * miningFlicker);
+          const barrelScale = isLaser ? MINING_LASER_GLOW_SCALE : 1;
+          targetAlpha = beamActive ? 1 : isLaser ? 0.9 : 0.72;
+          glowSize =
+            MUZZLE_GLOW_SIZE * barrelScale * (beamActive ? 1.95 : 1) * (1 + 0.02 * miningFlicker);
         } else {
+          if (glow.texture !== glowTexture) glow.texture = glowTexture;
+          if (glow.blendMode !== 'add') glow.blendMode = 'add';
           glow.tint = 0xffffff;
           // A pair charging a committed shot keeps its firing barrels lit even
           // once the mouse leaves their arc.
@@ -331,6 +355,7 @@ export function createTurrets(texture: Texture): Turrets {
     destroy(): void {
       container.destroy({ children: true });
       glowTexture.destroy(true);
+      miningGlowTexture.destroy(true);
     },
   };
 }

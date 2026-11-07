@@ -93,14 +93,16 @@ const INTAKE_RING_PULL_ALPHA = 0.95;
 const INTAKE_RING_PULL_SPEED = 1.7;
 const INTAKE_DELIVERY_FLASH_S = 0.35;
 // Same green as the tractors, so the glow ties to the beams feeding the hatch.
-const INTAKE_RING_COLOR = 0x52ff9b;
-const INTAKE_RING_CORE_COLOR = 0xd4ffe8;
+// Keep the blue channel low: add-blending over the blue hull otherwise reads
+// the glow as cyan.
+const INTAKE_RING_COLOR = 0x2eff4f;
+const INTAKE_RING_CORE_COLOR = 0xaaffb4;
 /** Time a chunk spends shrinking into the intake before it becomes cargo. */
 const INTAKE_SWALLOW_S = 0.28;
 
 const LASER_COLOR = 0xff5340;
 const LASER_CORE_COLOR = 0xffd9c2;
-const TRACTOR_COLOR = 0x52ff9b;
+const TRACTOR_COLOR = 0x2eff33;
 
 interface Chunk {
   sprite: Sprite;
@@ -265,7 +267,9 @@ export function createMining(): Mining {
   const intakePulse = new Container();
   intakePulse.visible = false;
   const intakeRings = new Graphics();
-  intakeRings.blendMode = 'add';
+  // Normal blending, not additive: the hull under the hatch is blue, so an
+  // additive green glow composites to cyan. Normal keeps the rings green.
+  intakeRings.blendMode = 'normal';
   intakePulse.addChild(intakeRings);
   container.addChildAt(intakePulse, 0);
 
