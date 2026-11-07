@@ -89,8 +89,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   cargo that would need >3 rad/s of slew is dropped for another beam) that carry metal in the ship's frame into
   the hull's own slatted hatch. The hatch pulses three glowing rounded-rectangle intake rings
   (the hatch's shape, 1.2× at spawn scaling down through it — a pulling-in wave) while the rig is
-  equipped; they quicken/flare with inbound cargo and flash on delivery. A chunk that reaches the
-  hatch sinks in and scales to nothing (~0.3 s) before it counts as cargo. Carry is
+  equipped; they quicken/flare with inbound cargo and flash on delivery. Any chunk that drifts into the
+  hatch — tractored or not — sinks in and scales to nothing (~0.3 s) before it counts
+  as cargo. Carry is
   switchable in game with **P**: `curved` (default — arcs to the hatch at a turn rate the barrels
   can track) or `physics` (bounded acceleration). Beams drop a chunk that leaves their reach;
   uncaptured metal cools and fades. Object-pooled chunks (256); no audio yet.

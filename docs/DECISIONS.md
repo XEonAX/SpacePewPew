@@ -340,10 +340,12 @@ Mining rules:
 - If every beam loses the chunk (5 m reach) it is dropped and drifts freely again. Leaving mining
   mode drops all grips. Uncaptered metal cools and fades after ~8 s so it cannot starve the pool.
 - The intake is the **hull's own slatted hatch** between the two rearmost pairs (ship-texture
-  pixels: centre `(-1, 123)`, half-extents `23 × 45`), so no grill graphic is drawn. Chunks whose
-  centre enters that rotated rectangle are handed to a short **swallow** animation (~0.3 s) in
-  which the chunk sinks the rest of the way into the hatch and scales to zero; only then does the
-  cargo counter tick up, so metal visibly disappears into the ship instead of snapping away.
+  pixels: centre `(-1, 123)`, half-extents `23 × 45`), so no grill graphic is drawn. Any chunk
+  whose centre enters that rotated rectangle is handed to a short **swallow** animation (~0.3 s)
+  in which the chunk sinks the rest of the way into the hatch and scales to zero; only then does
+  the cargo counter tick up, so metal visibly disappears into the ship instead of snapping away.
+  The intake does not require a tractor beam: stray metal that drifts in on its own is swallowed
+  too, so a chunk never has to wait for a beam to become cargo.
 - While the rig is equipped the hatch also pulses **three concentric rounded-rectangle rings**
   drawn in the hatch's own shape. Each ring spawns at **1.2×** the hatch outline and scales down
   past **0.7×**, so it visibly crosses the hatch boundary on the way in — the pulling-in look of

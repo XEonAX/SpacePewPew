@@ -578,11 +578,12 @@ export function createMining(): Mining {
         }
 
         if (
-          chunk.tracted &&
           pointInRotatedRect(chunk, { x: grillX, y: grillY }, ship.rotation, grillHalfW, grillHalfH)
         ) {
-          // It reached the intake: hand it to the swallow animation instead of
-          // snapping it away, so the metal visibly disappears into the hatch.
+          // The intake swallows any metal that drifts into it, whether or not
+          // a tractor is holding it: hand the chunk to the swallow animation
+          // instead of snapping it away, so it visibly disappears into the
+          // hatch. Cargo that is being reeled in can arrive before its beam.
           chunk.takingIn = INTAKE_SWALLOW_S;
           chunk.enterX = chunk.x;
           chunk.enterY = chunk.y;
