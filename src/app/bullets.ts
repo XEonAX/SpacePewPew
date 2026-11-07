@@ -7,7 +7,7 @@ const BULLET_TEXTURE_HEIGHT = 32;
 // One metre of world-space tracer, so bullets stay legible when zoomed out.
 const BULLET_LENGTH_WORLD = PIXELS_PER_METER;
 const BULLET_WIDTH_WORLD = 4;
-const BULLET_POOL_SIZE = 128;
+const BULLET_POOL_SIZE = 512;
 
 interface Bullet {
   sprite: Sprite;
