@@ -1,5 +1,6 @@
 import './styles.css';
 import type { Application } from 'pixi.js';
+import type { AsteroidCollider } from './app/asteroid-collision';
 import { createApp } from './app/create-app';
 import { createScene } from './app/lighting-scene';
 import { AudioManager } from './audio/audio';
@@ -13,6 +14,8 @@ declare global {
     __SPACEPEWPEW__?: {
       ready: boolean;
       app: Application;
+      /** Debug: current asteroid colliders (world metres, local points). */
+      getColliders: () => readonly AsteroidCollider[];
     };
   }
 }
@@ -45,7 +48,7 @@ async function main(): Promise<void> {
 
   await audio.load();
 
-  window.__SPACEPEWPEW__ = { ready: true, app };
+  window.__SPACEPEWPEW__ = { ready: true, app, getColliders: scene.getColliders };
 
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {

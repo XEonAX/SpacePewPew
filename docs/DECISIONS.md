@@ -701,3 +701,31 @@ Rules:
 the circle reject; still no physics engine, because this _is_ what an engine's compound collider
 would do — one rigid body against static scenery. The fan decomposition assumes radial
 star-shapedness from the silhouette centre, which the radial sampler guarantees.
+
+## ADR-027 — Trace the silhouette contour, not angular bins
+
+**Status:** accepted (2026-11-07).
+
+The first polygon sampled 48 angular bins and placed each bin's maximum radius at the bin
+_centre_ angle. On a faceted rock that is the wrong vertex position: the max point belongs to a
+specific angle inside the bin, up to half a bin away. At 200 px radius a half-bin error puts the
+vertex ~17 px tangentially off, so the outline visibly cut corners and the collider looked
+inaccurate against the art even though its data was consistent.
+
+Rules:
+
+- **March rays, don't bin.** For each of 128 sample angles, a ray steps outward from the texture
+  centre through the alpha mask and keeps the outermost opaque pixel (`> 128` alpha). The vertex
+  therefore sits on the real contour at exactly that angle. Cost is ~128 × radius lookups per art
+  variant, once at startup.
+- **Same compound physics.** The 128-point contour feeds the fan-triangle decomposition for SAT,
+  concave point-in-polygon and edge tests for tracers, and per-triangle ray clipping for lasers;
+  the circle fast pass is unchanged.
+- **Accuracy is measured, not eyeballed.** With the mesh hidden and shown, the rendered
+  silhouette and the gizmo line are compared by angular profile: mean separation is ~2 px on a
+  ~200 px radius (~1 %), which is the stroke half-width plus the texture's soft alpha edge; the
+  contour no longer cuts faceted corners.
+
+**Consequences:** vertex count is fixed at 128 for every art variant (predictable cost). If the
+field grows large, decrease `SILHOUETTE_SAMPLES` for distant rocks, or add a distance LOD — the
+physics contract does not change.

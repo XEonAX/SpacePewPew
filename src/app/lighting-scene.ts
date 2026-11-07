@@ -48,12 +48,14 @@ import {
 import type { AimMode, WeaponMode } from './weapon-mode';
 import { createMining } from './mining';
 import { colliderWorldPoints, resolveShipCollision, shipHull } from './asteroid-collision';
-import type { ShipHull, Vec2 } from './asteroid-collision';
+import type { AsteroidCollider, ShipHull, Vec2 } from './asteroid-collision';
 import { createAsteroidField } from './asteroid-field';
 import { createShipShield } from './ship-shield';
 
 export interface Scene {
   setMuted(muted: boolean): void;
+  /** Read-only collider snapshot for the debug gizmo / agent inspection. */
+  getColliders(): readonly AsteroidCollider[];
   destroy(): void;
 }
 
@@ -818,6 +820,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     setMuted(muted: boolean): void {
       soundMuted = muted;
       updateHint();
+    },
+    getColliders(): readonly AsteroidCollider[] {
+      return asteroidField.getColliders();
     },
     destroy(): void {
       app.ticker.remove(tick);

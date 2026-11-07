@@ -108,9 +108,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
-  mesh plus a **two-stage collider** — a bounding circle and a radially sampled silhouette
-  polygon traced once per art variant from the colour-map alpha (concavities kept, fan
-  triangles used by the collision pass), scaled to the rock and **rotated with its spin**. The field exposes collider/mining lists (same objects, so melt decals and lasers share
+  mesh plus a **two-stage collider** — a bounding circle and a **contour-traced silhouette
+  polygon** (128 rays marched outward from the texture centre to the real alpha edge, so it
+  follows faceted edges instead of bin approximations; concavities kept, fan triangles used by
+  the collision pass), scaled to the rock and **rotated with its spin**. The field exposes collider/mining lists (same objects, so melt decals and lasers share
   the spin). Rocks tumble slowly (0.02–0.06 rad/s, seeded). `add(x, y, diameter, variant?)`
   places one, picking an art variant. The field is seeded with the demo rock beside the pad and
   the **second supplied asteroid** 20 m dead ahead of the nose at **3× the base diameter**

@@ -51,66 +51,47 @@ export interface AsteroidField {
 }
 
 /** Angular samples used to trace the silhouette polygon (more = tighter fit). */
-const SILHOUETTE_SAMPLES = 48;
+const SILHOUETTE_SAMPLES = 128;
 /** Pixels below this alpha don't contribute to the silhouette. */
 const SILHOUETTE_ALPHA = 128;
 
 /**
- * Trace the rock's outline from the colour map's alpha: the maximum radius in
- * each angular slice around the texture centre, in angle order.
+ * Trace the rock's outline by marching a ray outward at each sample angle and
+ * keeping the outermost opaque point. Sampling the real contour per ray (rather
+ * than a max radius per angular bin placed at the bin centre) keeps the polygon
+ * hugging faceted edges instead of cutting corners.
  */
 function silhouettePolygon(color: Texture): Vec2[] {
   const source = color.source.resource as CanvasImageSource | undefined;
   const width = color.width;
   const height = color.height;
-  const bins = new Array<number>(SILHOUETTE_SAMPLES).fill(0);
-  const centreX = width / 2;
-  const centreY = height / 2;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (context && source) {
-    context.drawImage(source, 0, 0, width, height);
-    const pixels = context.getImageData(0, 0, width, height).data;
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        if (pixels[(y * width + x) * 4 + 3]! < SILHOUETTE_ALPHA) continue;
-        const dx = x - centreX;
-        const dy = y - centreY;
-        const angle = Math.atan2(dy, dx);
-        const bin = Math.min(
-          SILHOUETTE_SAMPLES - 1,
-          Math.floor(((angle + Math.PI) / (Math.PI * 2)) * SILHOUETTE_SAMPLES),
-        );
-        const radius = Math.hypot(dx, dy);
-        if (radius > bins[bin]!) bins[bin] = radius;
-      }
-    }
-  }
+  const points: Vec2[] = [];
+  if (!context || !source) return points;
 
-  // Fill slices with no silhouette from their neighbours.
+  context.drawImage(source, 0, 0, width, height);
+  const pixels = context.getImageData(0, 0, width, height).data;
+  const centreX = width / 2;
+  const centreY = height / 2;
+  const maxRadius = Math.hypot(width, height) / 2;
+
   for (let index = 0; index < SILHOUETTE_SAMPLES; index += 1) {
-    if (bins[index]! > 0) continue;
-    let before = index;
-    let after = index;
-    for (let step = 1; step < SILHOUETTE_SAMPLES; step += 1) {
-      before = (index - step + SILHOUETTE_SAMPLES) % SILHOUETTE_SAMPLES;
-      if (bins[before]! > 0) break;
+    const angle = (index / SILHOUETTE_SAMPLES) * Math.PI * 2;
+    const dirX = Math.cos(angle);
+    const dirY = Math.sin(angle);
+    let lastInside = 0;
+    for (let radius = 1; radius <= maxRadius; radius += 1) {
+      const x = Math.round(centreX + dirX * radius);
+      const y = Math.round(centreY + dirY * radius);
+      if (x < 0 || y < 0 || x >= width || y >= height) break;
+      if (pixels[(y * width + x) * 4 + 3]! > SILHOUETTE_ALPHA) lastInside = radius;
     }
-    for (let step = 1; step < SILHOUETTE_SAMPLES; step += 1) {
-      after = (index + step) % SILHOUETTE_SAMPLES;
-      if (bins[after]! > 0) break;
-    }
-    bins[index] = ((bins[before] ?? 0) + (bins[after] ?? 0)) / 2;
+    points.push({ x: dirX * lastInside, y: dirY * lastInside });
   }
-
-  // Radial samples in angular order: star-shaped, so the fan decomposition in
-  // the collider covers the real (possibly concave) silhouette.
-  return bins.map((radius, index) => {
-    const angle = ((index + 0.5) / SILHOUETTE_SAMPLES) * Math.PI * 2 - Math.PI;
-    return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
-  });
+  return points;
 }
 
 /**
