@@ -47,8 +47,8 @@ import {
 } from './weapon-mode';
 import type { AimMode, WeaponMode } from './weapon-mode';
 import { createMining } from './mining';
-import { ASTEROID_RADIUS_OF_WIDTH, resolveShipCollision, shipCapsule } from './asteroid-collision';
-import type { Circle, ShipCapsule } from './asteroid-collision';
+import { ASTEROID_RADIUS_OF_WIDTH, resolveShipCollision, shipHull } from './asteroid-collision';
+import type { Circle, ShipHull } from './asteroid-collision';
 import { createShipShield } from './ship-shield';
 
 export interface Scene {
@@ -67,6 +67,11 @@ const LOOKAHEAD_ZOOM_BOOST = 1.5;
 
 /** Fraction of the inward speed returned to the ship when it hits the rock. */
 const SHIP_IMPACT_RESTITUTION = 0.35;
+/**
+ * The ship's rotation pivot (its physics centre of mass) is the orange panel
+ * just aft of the cargo hatch, in ship-texture px from the texture centre.
+ */
+const SHIP_COM_AFT_PX = 171.5;
 
 /** World-space lighting shared by the lit meshes. */
 const lighting: LightingState = {
@@ -121,7 +126,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const bullets = createBullets();
   const mining = createMining();
   // The shield is the ship's collider, so it wraps the hull and turrets.
-  const shield = createShipShield(shipCapsule(shipColor.width, shipColor.height));
+  const shield = createShipShield(shipHull(shipColor.width, shipColor.height));
   content.addChild(
     ship.mesh,
     turrets.container,
@@ -161,8 +166,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     // Muzzle poses were captured when the trigger was pulled; only the ship
     // transform is read live, so a shot that left the arc still flies.
     const localToMeters = shipBaseScale / PIXELS_PER_METER;
+    const centre = shipCentre();
     for (const muzzle of muzzles) {
-      const pose = muzzleWorldPose(muzzle, flight.x, flight.y, flight.rotation, localToMeters);
+      const pose = muzzleWorldPose(muzzle, centre.x, centre.y, flight.rotation, localToMeters);
       bullets.spawn(
         pose.x,
         pose.y,
@@ -250,6 +256,18 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   };
 
   const flight = createFlightState();
+  /**
+   * Ship texture-centre position in metres. The flight state lives at the
+   * centre of mass (aft of the texture centre), so rendering, turrets, mining
+   * and the shield all read the hull's own centre from here.
+   */
+  const shipCentre = (): { x: number; y: number } => {
+    const aft = (SHIP_COM_AFT_PX * shipBaseScale) / PIXELS_PER_METER;
+    return {
+      x: flight.x + aft * Math.sin(flight.rotation),
+      y: flight.y - aft * Math.cos(flight.rotation),
+    };
+  };
   const tuning = { ...DEFAULT_FLIGHT_TUNING };
   const asteroidWorld = { x: 0, y: 0 };
   const controls: FlightControls = {
@@ -261,8 +279,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   let shipPlaced = false;
   let shipBaseScale = 1;
   let asteroidBaseScale = 1;
-  /** Hull capsule in metres, refreshed on layout; drawn by the shield too. */
-  let shipCollider: ShipCapsule = { halfLength: 0, radius: 0 };
+  /** Hull bubble in metres, refreshed on layout; drawn by the shield too. */
+  let shipCollider: ShipHull = { points: [], radius: 0 };
   /** The asteroid as a solid circle in world metres; a single circle fits the art. */
   const asteroidCollider: Circle = { x: 0, y: 0, radius: 0 };
   /** Impact speed and contact point handed to the shield, cleared each frame. */
@@ -297,7 +315,11 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       // Flight is in metres relative to the viewport centre; rendering converts
       // metres to screen pixels with PIXELS_PER_METER.
       flight.x = (shipScreenX - width / 2) / PIXELS_PER_METER;
-      flight.y = (centerY - height / 2) / PIXELS_PER_METER;
+      // The pivot is aft of the texture centre, so the centre of mass starts
+      // one pivot offset behind the layout position.
+      flight.y =
+        (centerY - height / 2) / PIXELS_PER_METER +
+        (SHIP_COM_AFT_PX * shipScale) / PIXELS_PER_METER;
       shipPlaced = true;
     }
 
@@ -305,10 +327,11 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     asteroidWorld.y = (centerY - height / 2) / height;
     shipBaseScale = shipScale;
     asteroidBaseScale = asteroidScale;
-    const capsule = shipCapsule(shipColor.width, shipColor.height);
+    const hull = shipHull(shipColor.width, shipColor.height);
+    const hullScale = shipScale / PIXELS_PER_METER;
     shipCollider = {
-      halfLength: (capsule.halfLength * shipScale) / PIXELS_PER_METER,
-      radius: (capsule.radius * shipScale) / PIXELS_PER_METER,
+      points: hull.points.map((point) => ({ x: point.x * hullScale, y: point.y * hullScale })),
+      radius: hull.radius * hullScale,
     };
     hint.position.set(centerX, height - 28);
   };
@@ -350,6 +373,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const lagMeters = speed / CAMERA_FOLLOW_RATE;
     const lead = lagMeters + offsetMeters;
 
+    // The camera tracks the centre of mass, so the hull visibly pivots about
+    // the orange panel behind the cargo hatch instead of its texture centre.
     background.setFollowTarget(
       ((flight.x + directionX * lead) * PIXELS_PER_METER) / width,
       ((flight.y + directionY * lead) * PIXELS_PER_METER) / height,
@@ -364,8 +389,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     ground.setView(dust.x, dust.y, dust.zoom, width, height);
     audio.setListenerGain(listenerGainForZoom(dust.zoom));
 
-    const shipWorldX = flight.x * PIXELS_PER_METER;
-    const shipWorldY = flight.y * PIXELS_PER_METER;
+    const centre = shipCentre();
+    const shipWorldX = centre.x * PIXELS_PER_METER;
+    const shipWorldY = centre.y * PIXELS_PER_METER;
 
     const shipScreenX = (shipWorldX - dust.x * width) * dust.zoom + width / 2;
     const shipScreenY = (shipWorldY - dust.y * height) * dust.zoom + height / 2;
@@ -446,8 +472,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     // The shield highlights the contact patch, so the hit point is converted
     // from world metres into ship-texture px (the shield's local space).
     const metresPerShipPixel = shipBaseScale / PIXELS_PER_METER;
-    const contactDx = shieldImpactWorldX - flight.x;
-    const contactDy = shieldImpactWorldY - flight.y;
+    const contactDx = shieldImpactWorldX - centre.x;
+    const contactDy = shieldImpactWorldY - centre.y;
     const contactCos = Math.cos(flight.rotation);
     const contactSin = Math.sin(flight.rotation);
     shield.update({
@@ -485,16 +511,20 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     updateAsteroidCollider();
     // The rock is solid: push the ship's shield capsule out of it and bounce
     // the part of its velocity heading inward, so it cannot fly through.
-    if (shipCollider.radius > 0) {
+    if (shipCollider.points.length > 0) {
+      const centre = shipCentre();
       const collision = resolveShipCollision(
-        flight,
+        { x: centre.x, y: centre.y, vx: flight.vx, vy: flight.vy, rotation: flight.rotation },
         shipCollider,
         asteroidCollider,
         SHIP_IMPACT_RESTITUTION,
       );
       if (collision.hit) {
-        flight.x = collision.x;
-        flight.y = collision.y;
+        // The collider resolves the hull's centre; write the result back to the
+        // centre of mass the flight model integrates.
+        const aft = (SHIP_COM_AFT_PX * shipBaseScale) / PIXELS_PER_METER;
+        flight.x = collision.x - aft * Math.sin(flight.rotation);
+        flight.y = collision.y + aft * Math.cos(flight.rotation);
         flight.vx = collision.vx;
         flight.vy = collision.vy;
         shieldImpact = collision.impactSpeed;
@@ -513,8 +543,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       dt: deltaSeconds,
       now: lighting.time,
       ship: {
-        x: flight.x,
-        y: flight.y,
+        x: shipCentre().x,
+        y: shipCentre().y,
         rotation: flight.rotation,
         vx: flight.vx,
         vy: flight.vy,

@@ -422,3 +422,42 @@ nose toward the asteroid puts it in contact immediately — the push-out keeps t
 ship can never begin a frame inside the rock. Collision geometry stays pure (`asteroid-collision.ts`)
 and unit-tested; the shield is purely a renderer of that same capsule. Adding moving asteroids or
 debris later would mean a broadphase and multiple circles, not a rewrite of this response.
+
+## ADR-019 — Hull-shaped shield bubble and the centre-of-mass pivot
+
+**Status:** accepted (2026-11-07).
+
+Two follow-ups to ADR-018. First, a single capsule was the wrong collider _and_ the wrong
+picture: it cut through the wing tips and the nose, and a plain rounded rectangle would look
+cheap. Second, the ship turned about its texture centre, which sits forward of the cargo hatch,
+so turns felt like they pivoted in front of the ship rather than around its mass.
+
+Rules:
+
+- **Shield shape is a hull bubble.** The collider is a convex outline around the hull — pointed
+  nose, wing tips, short blunt tail — inflated by a bubble radius; that is exactly the union of
+  capsule segments along the outline's edges with rounded joins. Collision is point-to-convex-
+  polygon distance against that outline with `radius + rockRadius` as the reach, so it is a
+  handful of segment-distance tests per frame (cheap), while the visible shape follows the ship
+  instead of a generic rectangle. The outline is drawn from ship-texture proportions, so it
+  scales with the hull and the layout.
+- **The boundary is the bright part.** The shield is a single static `Graphics`: faint body fill,
+  a soft outer bloom, then inset outlines (the outline offset inward at the bubble radius minus
+  each step) fading toward the middle, a hot 2 px boundary line and a second faint inner contour.
+  Only the container transform and alpha are touched per frame.
+- **Impacts light the shield, not space.** The contact bloom is a radial sprite **masked to the
+  bubble shape**, so it brightens the shield around the contact point and is clipped at the
+  boundary instead of spilling into the starfield.
+- **Physics centre of mass is the orange panel behind the cargo hatch** (`SHIP_COM_AFT_PX`).
+  `flight.x/y` remain the integrated state but now mean the centre of mass; `shipCentre()`
+  derives the texture-centre pose used by rendering, turrets, mining, muzzle poses and the
+  shield. Collision resolves on the hull centre and is converted back to the pivot. The camera
+  tracks the centre of mass, so the hull's visual centre orbits the pivot and hard turns swing
+  the nose wide. Layout seeds the pivot aft of the layout position so the hull still starts where
+  it did.
+- **No art edits.** The pivot is a physics change only; the ship texture is untouched.
+
+**Consequences:** anything that needs the hull's visual centre must go through `shipCentre()`;
+using `flight.x/y` directly for rendering or muzzle origins would double-count the pivot offset.
+The hull bubble remains pure and unit-tested in `asteroid-collision.ts`; the shield only draws the
+same shape.

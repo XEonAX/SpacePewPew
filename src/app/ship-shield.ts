@@ -1,5 +1,6 @@
 import { CanvasSource, Container, Graphics, Sprite, Texture } from 'pixi.js';
-import type { ShipCapsule } from './asteroid-collision';
+import { offsetPolygon } from './asteroid-collision';
+import type { ShipHull, Vec2 } from './asteroid-collision';
 
 export interface ShieldFrame {
   /** Ship position on screen, px. */
@@ -29,7 +30,7 @@ const IDLE_ALPHA = 0.58;
 const IMPACT_DECAY_PER_SECOND = 3.4;
 /** Impact speed (m/s) that saturates the highlight. */
 const FULL_FLASH_IMPACT = 6;
-/** Glow band at the boundary fading inward: number of inset strokes and step. */
+/** Glow band inside the boundary: number of inward steps and their size. */
 const EDGE_RINGS = 7;
 const EDGE_STEP_PX = 5;
 const BREATH_RATE = 1.6;
@@ -55,12 +56,30 @@ function createImpactTexture(): Texture {
 }
 
 /**
- * The ship's energy shield: an oval capsule drawn in ship-texture pixels so it
- * inherits the ship's transform, and the same capsule used for collision. Its
- * glow hugs the boundary and fades toward the middle; impacts light up the
- * contact patch instead of the whole bubble.
+ * Trace a convex polygon with rounded corners: capsule-like edges joined by
+ * arcs of `radius` at each vertex. This is the outline of the union of capsule
+ * segments along the polygon's edges, so it matches the collider.
  */
-export function createShipShield(capsule: ShipCapsule): ShipShield {
+function traceRoundedPolygon(graphics: Graphics, points: readonly Vec2[], radius: number): void {
+  const count = points.length;
+  const first = points[0]!;
+  const second = points[1] ?? first;
+  graphics.moveTo((first.x + second.x) / 2, (first.y + second.y) / 2);
+  for (let index = 0; index < count; index += 1) {
+    const corner = points[(index + 1) % count]!;
+    const next = points[(index + 2) % count]!;
+    graphics.arcTo(corner.x, corner.y, next.x, next.y, radius);
+  }
+  graphics.closePath();
+}
+
+/**
+ * The ship's energy shield: a hull-shaped bubble drawn in ship-texture px so it
+ * inherits the ship's transform, and the same hull used for collision. Its glow
+ * hugs the boundary and fades toward the middle; impacts light up the contact
+ * patch instead of the whole bubble.
+ */
+export function createShipShield(hull: ShipHull): ShipShield {
   const container = new Container();
   const glow = new Graphics();
   glow.blendMode = 'add';
@@ -72,30 +91,42 @@ export function createShipShield(capsule: ShipCapsule): ShipShield {
   impact.visible = false;
   container.addChild(impact);
 
-  const { halfLength, radius } = capsule;
-  const left = -radius;
-  const top = -(halfLength + radius);
-  const width = radius * 2;
-  const height = (halfLength + radius) * 2;
+  // The outline is the hull polygon inflated by `radius`: a convex blend of
+  // capsule segments along its edges. Offsetting the polygon first and rounding
+  // its corners by the same radius traces that shape exactly.
+  const outer = offsetPolygon(hull.points, hull.radius);
+  const traceOuter = (target: Graphics): void => traceRoundedPolygon(target, outer, hull.radius);
 
   // Faint body fill, then a boundary glow that steps inward and fades: the
   // brightest light sits on the surface and the interior falls away.
-  glow.roundRect(left, top, width, height, radius).fill({ color: SHIELD_COLOR, alpha: 0.06 });
-  for (let ring = 0; ring < EDGE_RINGS; ring += 1) {
-    const inset = ring * EDGE_STEP_PX;
-    const falloff = 1 - ring / EDGE_RINGS;
-    glow
-      .roundRect(left + inset, top + inset, width - inset * 2, height - inset * 2, radius - inset)
-      .stroke({
-        color: SHIELD_COLOR,
-        width: EDGE_STEP_PX * 1.1,
-        alpha: 0.5 * falloff * falloff,
-      });
+  traceOuter(glow);
+  glow.fill({ color: SHIELD_COLOR, alpha: 0.05 });
+  traceOuter(glow);
+  glow.stroke({ color: SHIELD_COLOR, width: 11, alpha: 0.16 });
+  for (let ring = 1; ring <= EDGE_RINGS; ring += 1) {
+    const bandRadius = Math.max(2, hull.radius - ring * EDGE_STEP_PX);
+    const falloff = 1 - ring / (EDGE_RINGS + 1);
+    traceRoundedPolygon(glow, offsetPolygon(hull.points, bandRadius), bandRadius);
+    glow.stroke({
+      color: SHIELD_COLOR,
+      width: EDGE_STEP_PX * 1.1,
+      alpha: 0.55 * falloff * falloff,
+    });
   }
-  // Hot boundary line.
-  glow
-    .roundRect(left, top, width, height, radius)
-    .stroke({ color: SHIELD_EDGE_COLOR, width: 2, alpha: 1 });
+  // Hot boundary line, plus a second inner contour for depth.
+  traceOuter(glow);
+  glow.stroke({ color: SHIELD_EDGE_COLOR, width: 2.2, alpha: 1 });
+  const innerContour = offsetPolygon(hull.points, hull.radius - EDGE_STEP_PX * 2);
+  traceRoundedPolygon(glow, innerContour, hull.radius - EDGE_STEP_PX * 2);
+  glow.stroke({ color: SHIELD_EDGE_COLOR, width: 1, alpha: 0.28 });
+
+  // The impact bloom is masked to the shield, so it lights the bubble rather
+  // than spilling into the empty space around it.
+  const mask = new Graphics();
+  traceOuter(mask);
+  mask.fill({ color: 0xffffff });
+  container.addChild(mask);
+  impact.mask = mask;
 
   let flash = 0;
   let hitX = 0;
@@ -121,7 +152,10 @@ export function createShipShield(capsule: ShipCapsule): ShipShield {
       const breath = Math.sin(time * BREATH_RATE) * 0.05;
       glow.alpha = Math.max(0.4, IDLE_ALPHA + breath) + flash * 0.3;
 
-      const size = radius * (1.5 + 1.1 * flash);
+      const extent = Math.max(
+        ...hull.points.map((point) => Math.max(Math.abs(point.x), Math.abs(point.y))),
+      );
+      const size = extent * (0.75 + 0.5 * flash);
       impact.position.set(hitX, hitY);
       impact.width = size;
       impact.height = size;
@@ -131,6 +165,7 @@ export function createShipShield(capsule: ShipCapsule): ShipShield {
     destroy(): void {
       container.destroy({ children: true });
       glow.destroy();
+      mask.destroy();
       impact.destroy();
       impactTexture.destroy(true);
     },
