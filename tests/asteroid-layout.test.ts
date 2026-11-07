@@ -62,6 +62,18 @@ describe('asteroid layout', () => {
     }
   });
 
+  it('picks variants across the whole supplied art set', () => {
+    const many = generateAsteroidLayout({
+      count: 100,
+      baseDiameter: BASE,
+      variantCount: 8,
+      axisClearanceM: AXIS_CLEARANCE,
+      spawnClearanceM: SPAWN_CLEARANCE,
+      halfExtentM: HALF_EXTENT,
+    });
+    expect(new Set(many.map((rock) => rock.variant))).toEqual(new Set([0, 1, 2, 3, 4, 5, 6, 7]));
+  });
+
   it('varies diameters and art variants within bounds', () => {
     const diameters = layout.map((rock) => rock.diameter);
     expect(Math.min(...diameters)).toBeGreaterThanOrEqual(BASE * 0.5 - 1e-9);

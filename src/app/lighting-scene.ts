@@ -55,6 +55,7 @@ import { createMining } from './mining';
 import { colliderWorldPoints, resolveShipCollision, shipHull } from './asteroid-collision';
 import type { AsteroidCollider, ShipHull, Vec2 } from './asteroid-collision';
 import { createAsteroidField } from './asteroid-field';
+import { createGeneratedAsteroidArts } from './asteroid-art';
 import { DEFAULT_ASTEROID_COUNT, generateAsteroidLayout } from './asteroid-layout';
 import { createShipShield } from './ship-shield';
 
@@ -138,10 +139,15 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   content.addChild(ground.mesh, exhaust.smoke);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
-  const asteroidField = createAsteroidField([
+  // Two supplied arts plus deterministic procedurally baked variants. Generated
+  // art carries its own silhouette, so those colliders skip the alpha trace.
+  const generatedAsteroidArts = createGeneratedAsteroidArts();
+  const asteroidArts = [
     { color: asteroidColor, normal: asteroidNormal },
     { color: asteroid2Color, normal: asteroid2Normal },
-  ]);
+    ...generatedAsteroidArts,
+  ];
+  const asteroidField = createAsteroidField(asteroidArts);
   const turrets = createTurrets(turretTexture);
   const bullets = createBullets();
   const mining = createMining();
@@ -345,6 +351,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       for (const rock of generateAsteroidLayout({
         count: DEFAULT_ASTEROID_COUNT,
         baseDiameter: rockDiameter,
+        variantCount: asteroidArts.length,
       })) {
         asteroidField.add(rock.x, rock.y, rock.diameter, rock.variant);
       }
@@ -863,6 +870,10 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroidField.destroy();
+      for (const art of generatedAsteroidArts) {
+        art.color.destroy(true);
+        art.normal.destroy(true);
+      }
       shield.destroy();
       hint.destroy();
       background.destroy();

@@ -138,8 +138,17 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/asteroid-layout.ts` — pure deterministic asteroid scatter: seeded PRNG, rejection
-  placement, axis/spawn clearances, diameter/variant mix. Unit-tested in
-  `tests/asteroid-layout.test.ts`.
+  placement, axis/spawn clearances, diameter/variant mix across all available arts. Unit-tested
+  in `tests/asteroid-layout.test.ts`.
+- `src/app/asteroid-art-model.ts` — pure procedural asteroid art: seeded star-shaped outline
+  (16–24 vertices), flat Voronoi facets with lighting baked into the albedo, faceted polygonal
+  craters (flat floor + straight walls), fine grain, edge AO, colour + tangent normal pixel
+  arrays, and a Ramer–Douglas–Peucker-simplified collider silhouette (≤16 points). Unit-tested
+  in `tests/asteroid-art-model.test.ts`.
+- `src/app/asteroid-art.ts` — bakes six generated variants into canvas `CanvasSource` textures
+  at startup (fixed seeds, slate/ice palettes alternate) and returns them with their authored
+  collider silhouettes. No build-time asset pipeline; the two supplied arts still load from
+  `public/assets/lighting/`.
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
   mesh plus a **two-stage collider** — a bounding circle and a **low-poly silhouette fit**. The
   contour is traced with 128 subpixel rays from the texture centre to the alpha edge, then
@@ -147,7 +156,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   points per rock, ~1–2 % of radius deviation). Concavities are kept; the collision pass fans
   the outline into triangles. The fit scales to the rock and **rotates with its spin**. The field exposes collider/mining lists (same objects, so melt decals and lasers share
   the spin). Rocks tumble slowly (0.02–0.06 rad/s, seeded). `add(x, y, diameter, variant?)`
-  places one, picking an art variant. The world is seeded once on layout with a deterministic
+  places one, picking from the supplied plus generated art variants. Art that carries an
+  authored silhouette skips the alpha contour trace entirely; generated rocks use an 11–16
+  point star-shaped collider (the supplied arts fit at 24–28 points). The world is seeded once
+  on layout with a deterministic
   **100-rock scatter** from `asteroid-layout.ts`: seeded placement, both art variants, a few 3x
   heroes, the ship's spawn bubble kept clear and the **vertical world axis kept free of rock
   edges**. The ship's centre of mass and the camera start at the world origin.

@@ -23,6 +23,8 @@ export interface AsteroidLayoutOptions {
   spawnClearanceM?: number;
   /** Scatter half-extent in metres before the rock radius is added. */
   halfExtentM?: number;
+  /** Number of art variants to pick from (default 2). */
+  variantCount?: number;
 }
 
 export const DEFAULT_ASTEROID_COUNT = 100;
@@ -57,7 +59,9 @@ export function generateAsteroidLayout(options: AsteroidLayoutOptions): Asteroid
     axisClearanceM = DEFAULT_AXIS_CLEARANCE_M,
     spawnClearanceM = DEFAULT_SPAWN_CLEARANCE_M,
     halfExtentM = DEFAULT_FIELD_HALF_EXTENT_M,
+    variantCount = 2,
   } = options;
+  const variantLimit = Math.max(1, Math.floor(variantCount));
   const rng = createRng(seed);
   const placements: AsteroidPlacement[] = [];
   const baseRadius = Math.max(baseDiameter, 0.01) / 2;
@@ -96,7 +100,7 @@ export function generateAsteroidLayout(options: AsteroidLayoutOptions): Asteroid
         x,
         y,
         diameter,
-        variant: rng() < 0.5 ? 0 : 1,
+        variant: Math.floor(rng() * variantLimit),
       };
       if (fits(candidate, MIN_SEPARATION)) placed = candidate;
     }

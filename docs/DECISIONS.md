@@ -1010,3 +1010,32 @@ Rules:
 (spawn bubble 7 m edge clearance), and rocks appear in the side sectors as you look or fly out.
 The full field is visible by zooming out. The previous `ASTEROID_AHEAD_*` constants and demo-rock
 seeding are gone; more rocks are one `add()` call, but the field begins from the generator.
+
+## ADR-037 — Procedural asteroid art baked in the browser, with authored silhouettes
+
+**Status:** accepted (2026-11-07).
+
+Two supplied rock arts were not enough variety for a 100-rock field, and tracing a silhouette from
+alpha costs time and produces 24–28 collider points. Rather than ship more hand-painted PNGs or a
+build-time art pipeline, the game bakes extra variants at startup.
+
+Rules:
+
+- **Generation is deterministic and pure.** `asteroid-art-model.ts` takes a seed and returns
+  straight-alpha colour pixels, tangent-space normal pixels, the visual outline and a simplified
+  collider silhouette. Unit tests pin determinism, palette variation, silhouette budgets and
+  normal/alpha validity. `asteroid-art.ts` is a thin browser adapter that paints those pixels into
+  `CanvasSource` textures; it runs once at startup in the browser, not in Node.
+- **Look matches the supplied rocks.** The two supplied palettes are reused, faceted Voronoi
+  shading is baked into the colour map (the supplied art is painted, not purely normal-lit), and
+  craters are faceted polygonal pits with flat floors, straight walls and lit rims.
+- **Colliders stay cheap.** The visual outline is 16–24 vertices and star-shaped (valid fan
+  kernel); it is simplified once with the existing Ramer–Douglas–Peucker fit to ≤16 points and
+  travels with the `AsteroidArt`, so `asteroid-field` skips the alpha trace. Supplied arts still
+  trace and fit as before.
+- **Variety is seeded.** Six variants (alternating palettes) are generated, and the layout picks
+  from all eight arts (`variantCount`), so the field mixes painted and generated rocks.
+
+**Consequences:** startup pays a few canvas uploads (deterministic, no network), the collider
+loop gets cheaper for most rocks, and adding variants is a seed/option change rather than new
+art files. Keep generated art and its tests in the pure model; do not put canvas/DOM code there.

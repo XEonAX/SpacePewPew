@@ -11,6 +11,11 @@ import { PIXELS_PER_METER } from './world-scale';
 export interface AsteroidArt {
   color: Texture;
   normal: Texture;
+  /**
+   * Optional authored silhouette in texture px relative to the centre. When
+   * present the collider uses it directly and skips the alpha contour trace.
+   */
+  silhouette?: readonly Vec2[];
 }
 
 /** One world-space asteroid: static position, slowly spinning art. */
@@ -170,6 +175,7 @@ export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField
   const colliders: AsteroidCollider[] = [];
   // Trace and low-poly fit each art variant once; colliders scale the template.
   const silhouetteTemplates = arts.map((art) => {
+    if (art.silhouette) return art.silhouette.map((point) => ({ x: point.x, y: point.y }));
     const contour = silhouetteContour(art.color);
     let maxRadius = 0;
     for (const point of contour) maxRadius = Math.max(maxRadius, Math.hypot(point.x, point.y));
