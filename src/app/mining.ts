@@ -1,6 +1,8 @@
 import { CanvasSource, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { createRng, randomRange } from '../utils/random';
 import { PIXELS_PER_METER } from './world-scale';
+import { createMiningTuning } from './mining-tuning';
+import type { MiningTuning } from './mining-tuning';
 import {
   arcToward,
   dampVelocity,
@@ -21,24 +23,15 @@ import type { MuzzleAim } from './weapons';
 export const CHUNK_POOL_SIZE = 256;
 const CHUNK_SIZE_M = 0.35;
 // Molten metal floats away slowly so the gentle tractors can reel it in.
-const CHUNK_MIN_SPEED = 1.2;
-const CHUNK_MAX_SPEED = 2.8;
 const CHUNK_SPREAD_RAD = 0.3;
 // Metal cools as it drifts, so a burst slows over a couple of seconds instead
 // of sailing past the ship forever.
-const CHUNK_DAMPING_PER_SECOND = 0.55;
 // Uncaptered molten metal cools and fades; captured chunks are not aged.
-const CHUNK_LIFETIME = 8;
-const CHUNK_FADE_SECONDS = 3;
 const CHUNK_CULL_RADIUS_M = 700;
-const LASER_RANGE_M = 220;
 const LASER_BARRELS = 2;
 /** Seconds the laser must dwell on one spot before a chunk melts off. */
-const MELT_SECONDS = 1.1;
 /** Aim drift tolerated while the beam is still heating the same spot (metres). */
-const MELT_DWELL_RADIUS_M = 0.6;
 /** Melted regions glowing on the rock, and how long a finished one cools off. */
-const MELT_COOL_SECONDS = 2.2;
 const MELT_RADIUS_M = 0.26;
 const MELT_DECAL_POOL = 24;
 const MELT_COLOR = 0xff7a2e;
@@ -49,9 +42,7 @@ const MELT_SHAPE_COUNT = 4;
 const MELT_SHAPE_SEGMENTS = 10;
 const TRACTOR_FIRST_BARREL = 2;
 /** Tractor reach, measured from the barrel that captured the chunk. */
-const TRACTOR_RANGE_M = 5;
 /** A barrel drops cargo that would need more slew than this (rad/s). */
-const TRACTOR_TRACK_RATE_LIMIT = 3;
 /** How long a dropped chunk is left alone by the barrel that dropped it. */
 const TRACTOR_RELEASE_COOLDOWN = 0.4;
 /** Aim error (radians) tolerated before a tractor beam is drawn. */
@@ -59,16 +50,12 @@ const BEAM_ALIGN_RAD = 0.22;
 // Curved fake carry: the chunk arcs to the hatch with a bounded heading change
 // so a tractor barrel can keep its beam on it. P swaps in the physics model.
 const CURVE_SPEED_PER_BEAM_MPS = 2.5;
-const CURVE_MAX_SPEED_MPS = 8;
 // Below the turret's own ~3.2 rad/s sustained slew, so the beam can track it.
-const CURVE_MAX_TURN_RATE = 2.2;
 const CURVE_EASE_DISTANCE_M = 0.2;
 const CURVE_EASE_FLOOR = 0.7;
 
 export type CarryMode = 'curved' | 'physics';
 const PHYSICS_ACCEL_MPS2 = 6;
-const PHYSICS_MAX_SPEED_MPS = 8;
-const PHYSICS_ARRIVAL_SECONDS = 0.7;
 const CHUNK_TEXTURE_SIZE = 32;
 // Two shapes keep the chunk sprites in two batches.
 const CHUNK_TEXTURE_VARIANTS = 2;
@@ -241,7 +228,7 @@ function createChunkTexture(variant: number): Texture {
   return new Texture({ source: new CanvasSource({ resource: canvas }) });
 }
 
-export function createMining(): Mining {
+export function createMining(tuning: MiningTuning = createMiningTuning()): Mining {
   const container = new Container();
   const textures = Array.from({ length: CHUNK_TEXTURE_VARIANTS }, (_, variant) =>
     createChunkTexture(variant),
@@ -343,7 +330,7 @@ export function createMining(): Mining {
     const reflected = reflectDirection(direction, normal);
     const angle =
       Math.atan2(reflected.y, reflected.x) + randomRange(rng, -CHUNK_SPREAD_RAD, CHUNK_SPREAD_RAD);
-    const speed = randomRange(rng, CHUNK_MIN_SPEED, CHUNK_MAX_SPEED);
+    const speed = randomRange(rng, tuning.chunkMinSpeedMps, tuning.chunkMaxSpeedMps);
 
     chunk.active = true;
     chunk.tracted = false;
@@ -355,7 +342,7 @@ export function createMining(): Mining {
     chunk.y = hit.y + normal.y * CHUNK_SIZE_M * 0.6;
     chunk.vx = Math.cos(angle) * speed;
     chunk.vy = Math.sin(angle) * speed;
-    chunk.life = CHUNK_LIFETIME;
+    chunk.life = tuning.chunkLifetimeSeconds;
     chunk.spin = randomRange(rng, -3, 3);
 
     // The shape fills most of its texture; a small sprite is all a chunk needs.
@@ -461,7 +448,7 @@ export function createMining(): Mining {
         let hitRock: MiningAsteroid | null = null;
         let hitDistance = Infinity;
         for (const rock of frame.asteroids) {
-          const candidate = rayPolygonHit(pose, direction, LASER_RANGE_M, rock);
+          const candidate = rayPolygonHit(pose, direction, tuning.laserRangeM, rock);
           if (!candidate) continue;
           const distance = Math.hypot(candidate.x - pose.x, candidate.y - pose.y);
           if (distance < hitDistance) {
@@ -471,8 +458,8 @@ export function createMining(): Mining {
           }
         }
         const end = hit ?? {
-          x: pose.x + direction.x * LASER_RANGE_M,
-          y: pose.y + direction.y * LASER_RANGE_M,
+          x: pose.x + direction.x * tuning.laserRangeM,
+          y: pose.y + direction.y * tuning.laserRangeM,
         };
 
         if (frame.laserFiring) {
@@ -484,7 +471,7 @@ export function createMining(): Mining {
             const sameSpot =
               previous !== null &&
               meltRock[barrel] === hitRock &&
-              Math.hypot(hit.x - previous.x, hit.y - previous.y) <= MELT_DWELL_RADIUS_M;
+              Math.hypot(hit.x - previous.x, hit.y - previous.y) <= tuning.meltSpotRadiusM;
             if (!sameSpot) {
               meltSpot[barrel] = { x: hit.x, y: hit.y };
               meltRock[barrel] = hitRock;
@@ -492,7 +479,7 @@ export function createMining(): Mining {
               meltShape[barrel] = Math.floor(rng() * MELT_SHAPE_COUNT);
               meltPhase[barrel] = rng() * Math.PI * 2;
             }
-            meltHeat[barrel] = Math.min(MELT_SECONDS, meltHeat[barrel]! + frame.dt);
+            meltHeat[barrel] = Math.min(tuning.meltSeconds, meltHeat[barrel]! + frame.dt);
 
             // The beam keeps boring at one world point (that is where the
             // barrels point); the scar it leaves behind is attached to the
@@ -500,7 +487,7 @@ export function createMining(): Mining {
             const surfaceNormal = polygonHitNormal(hitRock, hit);
             const normalX = surfaceNormal.x;
             const normalY = surfaceNormal.y;
-            const heat = meltHeat[barrel]! / MELT_SECONDS;
+            const heat = meltHeat[barrel]! / tuning.meltSeconds;
             const heatRadius = (0.1 + 0.26 * heat) * PIXELS_PER_METER;
             const heatX = (hit.x - normalX * 0.1) * PIXELS_PER_METER;
             const heatY = (hit.y - normalY * 0.1) * PIXELS_PER_METER;
@@ -514,7 +501,7 @@ export function createMining(): Mining {
               frame.now,
             );
 
-            if (meltHeat[barrel]! >= MELT_SECONDS) {
+            if (meltHeat[barrel]! >= tuning.meltSeconds) {
               // The melted region lets go of a chunk.
               spawnChunk(hit, direction, hitRock);
               meltHeat[barrel] = 0;
@@ -528,7 +515,7 @@ export function createMining(): Mining {
               const cosRock = Math.cos(hitRock.rotation);
               const sinRock = Math.sin(hitRock.rotation);
               region.active = true;
-              region.life = MELT_COOL_SECONDS;
+              region.life = tuning.meltCoolSeconds;
               region.rock = hitRock;
               region.localX = offsetX * cosRock + offsetY * sinRock;
               region.localY = -offsetX * sinRock + offsetY * cosRock;
@@ -570,7 +557,7 @@ export function createMining(): Mining {
         const sinRock = Math.sin(rock.rotation);
         const x = rock.x + region.localX * cosRock - region.localY * sinRock;
         const y = rock.y + region.localX * sinRock + region.localY * cosRock;
-        const fade = region.life / MELT_COOL_SECONDS;
+        const fade = region.life / tuning.meltCoolSeconds;
         drawMeltPatch(
           x * PIXELS_PER_METER,
           y * PIXELS_PER_METER,
@@ -606,7 +593,7 @@ export function createMining(): Mining {
             !held.active ||
             held.takingIn > 0 ||
             claimed.has(held) ||
-            Math.hypot(pose.x - held.x, pose.y - held.y) > TRACTOR_RANGE_M
+            Math.hypot(pose.x - held.x, pose.y - held.y) > tuning.tractorRangeM
           ) {
             barrelTargets[barrel] = null;
             continue;
@@ -615,7 +602,7 @@ export function createMining(): Mining {
             x: held.vx - ship.vx,
             y: held.vy - ship.vy,
           });
-          if (swingRate > TRACTOR_TRACK_RATE_LIMIT) {
+          if (swingRate > tuning.tractorTrackRateLimit) {
             held.releaseBy = barrel;
             held.releaseUntil = frame.now + TRACTOR_RELEASE_COOLDOWN;
             barrelTargets[barrel] = null;
@@ -636,7 +623,7 @@ export function createMining(): Mining {
           for (const chunk of chunks) {
             if (!chunk.active || chunk.takingIn > 0 || claimed.has(chunk)) continue;
             if (chunk.releaseBy === barrel && frame.now < chunk.releaseUntil) continue;
-            if (Math.hypot(pose.x - chunk.x, pose.y - chunk.y) > TRACTOR_RANGE_M) continue;
+            if (Math.hypot(pose.x - chunk.x, pose.y - chunk.y) > tuning.tractorRangeM) continue;
             const externality = Math.hypot(chunk.x - ship.x, chunk.y - ship.y);
             if (externality > bestExternality) {
               bestExternality = externality;
@@ -654,7 +641,7 @@ export function createMining(): Mining {
           held.tracted = true;
           // A gripped chunk is cargo in transit, not debris: keep its clock
           // full so it can never cool away between the beam and the hatch.
-          held.life = CHUNK_LIFETIME;
+          held.life = tuning.chunkLifetimeSeconds;
           held.barrels.push(barrel);
           tractorTargets[barrel] = { x: held.x, y: held.y };
         }
@@ -713,8 +700,8 @@ export function createMining(): Mining {
               frame.dt,
               {
                 maxAccel: PHYSICS_ACCEL_MPS2,
-                maxSpeed: PHYSICS_MAX_SPEED_MPS,
-                arrivalSeconds: PHYSICS_ARRIVAL_SECONDS,
+                maxSpeed: tuning.carrierMaxSpeedMps,
+                arrivalSeconds: tuning.carrierArrivalSeconds,
               },
             );
             chunk.vx = ship.vx + steered.x;
@@ -733,8 +720,8 @@ export function createMining(): Mining {
               engaged.length,
               {
                 speedPerBeam: CURVE_SPEED_PER_BEAM_MPS,
-                maxSpeed: CURVE_MAX_SPEED_MPS,
-                maxTurnRate: CURVE_MAX_TURN_RATE,
+                maxSpeed: tuning.carrierMaxSpeedMps,
+                maxTurnRate: tuning.carrierTurnRate,
                 easeDistance: CURVE_EASE_DISTANCE_M,
                 easeFloor: CURVE_EASE_FLOOR,
               },
@@ -749,7 +736,7 @@ export function createMining(): Mining {
           // and only age free metal.
           const damped = dampVelocity(
             { x: chunk.vx, y: chunk.vy },
-            CHUNK_DAMPING_PER_SECOND,
+            tuning.chunkDampingPerSecond,
             frame.dt,
           );
           chunk.vx = damped.x;
@@ -797,7 +784,7 @@ export function createMining(): Mining {
         chunk.sprite.rotation += chunk.spin * frame.dt;
         chunk.sprite.alpha = chunk.tracted
           ? 1
-          : Math.min(1, Math.max(0, chunk.life / CHUNK_FADE_SECONDS));
+          : Math.min(1, Math.max(0, chunk.life / tuning.chunkFadeSeconds));
       }
 
       // Intake waves: three round-cornered rings start wide and scale down

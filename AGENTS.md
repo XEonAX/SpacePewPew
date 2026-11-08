@@ -113,7 +113,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   projectile still leaves the muzzle after the mouse moves out of the arc. Unit-tested.
 - `src/app/weapon-mode.ts` — the two weapon systems (`guns`, `mining`), Tab toggling, the gun
   aiming modes 1/2, the turret aim resolver and the control hint. Unit-tested.
-- `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders.
+- `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders; while the mining rig is
+  equipped (Tab) the panel swaps to live mining tunables (melt, chunk, tractor, carry and laser
+  range).
 - `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers that must **dwell
   on a spot for ~1.1 s** before melting a chunk (irregular, flickering orange melt craters with
   torn rims, hot cores, bloom and drifting embers, attached to the rock's spinning frame, left
@@ -137,6 +139,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   latch are driven by `mining-audio.ts` from the exposed beam counts and cargo total.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
+- `src/app/mining-tuning.ts` — live `MiningTuning` values (melt dwell/spot/cool, chunk ejection/
+  damping/lifetime, tractor reach/slew, cargo speed/turn/easing, laser range). `createMining()`
+  reads it every frame, so the overlay sliders take effect immediately; defaults are the
+  designed rig values and unit-tested in `tests/mining-tuning.test.ts`.
 - `src/app/asteroid-layout.ts` — pure deterministic asteroid scatter: seeded PRNG, rejection
   placement, axis/spawn clearances, diameter/variant mix across all available arts. Unit-tested
   in `tests/asteroid-layout.test.ts`.
@@ -231,8 +237,11 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   generation/projection math pure in `*-model.ts` files so it can be unit tested.
 - **Asteroid sprites are baked offline.** The eight generated variants are committed PNGs
   rendered by `tools/asteroid-gen/` (Blender). Re-bake with the README commands, do not add
-  runtime art generation or a build-time asset step. Their colour maps are painted (fake-lit),
-  so keep the normal maps attenuated (~0.3).
+  runtime art generation or a build-time asset step. Their colour maps are **unlit albedo**
+  (painted plate colours + baked AO only); directional shading comes from the normal map and the
+  `LitSprite` shader, so keep normals blended toward flat (~0.3) and let `asteroidLighting`
+  soften the key. Never bake lighting back into the colour map: it makes shadows rotate with the
+  sprite instead of reacting to the light.
 - **Reference art is source, not runtime.** Treat `docs/reference/` as supplied source art and
   `public/assets/lighting/` as the processed runtime copies. Processing runs were a one-off
   matte/despill/premultiplied-resample pass (see `public/assets/lighting/README.md`), including

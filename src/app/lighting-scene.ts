@@ -52,6 +52,7 @@ import {
 } from './weapon-mode';
 import type { AimMode, WeaponMode } from './weapon-mode';
 import { createMining } from './mining';
+import { createMiningTuning } from './mining-tuning';
 import { colliderWorldPoints, resolveShipCollision, shipHull } from './asteroid-collision';
 import type { AsteroidCollider, ShipHull, Vec2 } from './asteroid-collision';
 import { createAsteroidField } from './asteroid-field';
@@ -175,7 +176,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const asteroidField = createAsteroidField(asteroidArts);
   const turrets = createTurrets(turretTexture);
   const bullets = createBullets();
-  const mining = createMining();
+  const miningTuning = createMiningTuning();
+  const mining = createMining(miningTuning);
   // The shield is the ship's collider, so it wraps the hull and turrets.
   const shield = createShipShield(shipHull(shipColor.width, shipColor.height));
   // Debug gizmo: outlines the real collision shapes (F2 toggles).
@@ -786,6 +788,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     if (event.code === WEAPON_MODE_KEY_CODE) {
       event.preventDefault();
       weaponMode = toggleWeaponMode(weaponMode);
+      weaponTuner.setMining(weaponMode === 'mining');
       updateHint();
       return;
     }
@@ -846,7 +849,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   const flightTuner = createFlightTuner(tuning);
   document.body.append(flightTuner.element);
 
-  const weaponTuner = createWeaponTuner(weaponCooldowns);
+  const weaponTuner = createWeaponTuner(weaponCooldowns, miningTuning);
+  weaponTuner.setMining(weaponMode === 'mining');
   document.body.append(weaponTuner.element);
 
   const telemetry = createFlightTelemetry(flight, tuning, () => shipGeometry);

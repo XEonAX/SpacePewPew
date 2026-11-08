@@ -86,8 +86,9 @@ src/
   app/turret-aim.ts       Pure angular aim physics (tested)
   app/weapons.ts          Per-pair weapon sound pools + committed shots + cadence
   app/weapon-mode.ts      Weapon systems (guns/mining), gun aim modes, control hint
-  app/weapon-tuner.ts     Live rate-of-fire sliders
+  app/weapon-tuner.ts     Live rate-of-fire sliders; swaps to mining tunables while mining
   app/mining.ts           Mining rig: red lasers, molten chunks, green tractors, cargo grill
+  app/mining-tuning.ts    Live mining-rig tuning values (melt, chunks, tractors, carry, laser range)
   app/mining-model.ts     Pure reflection/ray-hit/tractor-drag math (tested)
   app/bullets.ts          Pooled 1 m glowing tracers (200 m range)
   app/bullet-math.ts      Bullet range/fade math (tested)
@@ -157,7 +158,9 @@ docs/                     Architecture decisions, reference art and agent workfl
   TELEMETRY** panel shows mass, terminal W/S/yaw, current velocity, angular velocity, ramped
   inputs and the drag rates currently in effect (zero while coasting). The
   bottom-left **RATE OF FIRE** panel tunes the cooldown of each weapon pair, clamped to the
-  pair's charge duration.
+  pair's charge duration. **Tab to the mining rig** and the same panel swaps to **MINING
+  TUNING**: melt dwell/spot/cool time, chunk eject speed/damping/lifetime, tractor reach and
+  slew limit, cargo speed/turn/easing and laser range — all applied live.
 - Eight turrets with finite angular speed and limited cones: front pair forward, middle four sideways, rear pair side-to-rear. Targets outside a cone are ignored, so that turret holds its current aim instead of sweeping along the boundary.
 - **Tab** switches the weapon system: the **gun battery** or the **mining rig**. **1 / 2** pick how the guns aim. **1** (default) tracks the mouse. **2** parks every mount at the forward-most aim its own cone permits — front turrets dead ahead, middle pairs 45° off the nose, rear pairs broadside — so the whole battery points as far forward as the hull allows.
 - **Scroll** zooms out from the default 1× (`0.02×–1×`, 50× max zoom-out).
