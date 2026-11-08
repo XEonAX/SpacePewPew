@@ -144,8 +144,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   hatch — tractored or not — sinks in and scales to nothing (~0.3 s) before it counts
   as cargo. Lasers can bite any asteroid in the field (the nearest hit along each beam).
   Carry is
-  switchable in game with **P**: `curved` (default — arcs to the hatch at a turn rate the barrels
-  can track) or `physics` (bounded acceleration). Beams drop a chunk that leaves their reach;
+  switchable in game with **P**: `physics` (default — bounded acceleration/momentum) or `curved`
+  (arcs to the hatch at a turn rate the barrels can track). Beams drop a chunk that leaves their reach;
   uncaptured metal cools and fades, but a gripped chunk's lifetime is reset each frame so
   cargo never expires in transit. Object-pooled chunks (256); laser/tractor beds and the cargo
   latch are driven by `mining-audio.ts` from the exposed beam counts and cargo total.

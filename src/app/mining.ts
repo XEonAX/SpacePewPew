@@ -316,7 +316,7 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
   // Sticky per-beam grips: a beam keeps its chunk until it is delivered/lost,
   // only hunting for a new (external-first) chunk when free.
   const barrelTargets = new Array<Chunk | null>(8).fill(null);
-  let carryMode: CarryMode = 'curved';
+  let carryMode: CarryMode = 'physics';
   let cargo = 0;
   /** Decays after a chunk lands, briefly flaring the intake. */
   let deliveryFlash = 0;

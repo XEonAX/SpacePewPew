@@ -97,7 +97,7 @@ Pushes to `main` are checked by CI and deployed to GitHub Pages by
 | `Space` (hold, guns + forward aim) | Fire every pair forward                               |
 | `Tab`                              | Switch gun battery ↔ mining rig                       |
 | `1` / `2`                          | Gun aiming: mouse track / all-forward                 |
-| `P`                                | Mining carry: curved arc / physics                    |
+| `P`                                | Mining carry: physics (default) / curved arc          |
 | `M`                                | Mute / unmute                                         |
 | `F1`                               | Toggle developer overlays (hidden by default)         |
 | `F2`                               | Toggle collider debug gizmo                           |

@@ -46,8 +46,8 @@ export function createPlayerHud(): PlayerHud {
   mode.textContent = 'GUNS';
   const carry = document.createElement('span');
   carry.className = 'hud-pill';
-  carry.title = 'Mining carry mode — P toggles curved arc / physics';
-  carry.textContent = 'CARRY: CURVED';
+  carry.title = 'Mining carry mode — P toggles physics / curved arc';
+  carry.textContent = 'CARRY: PHYSICS';
   const cargo = document.createElement('span');
   cargo.className = 'hud-pill';
   cargo.innerHTML = 'CARGO <b>0</b>';
