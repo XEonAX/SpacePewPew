@@ -116,7 +116,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   retro-strain bed driven by `dot(thrust, velocity) < 0` (main hums duck while braking). Pure
   helpers unit-tested in `tests/engine-audio.test.ts`.
 - `src/app/mining-audio.ts` — mining-rig audio: a laser bed whose gain follows active cutting and
-  whose pitch rises with heat, overheat/vent one-shots, a tractor bed whose gain follows connected
+  whose pitch rises with heat, overheat/re-arm one-shots, a tractor bed whose gain follows connected
   barrels, and the cargo-intake latch one-shot. Gain/pitch helpers are pure and unit-tested in
   `tests/mining-audio.test.ts`.
 - `src/app/impact-audio.ts` — collision audio: impact one-shots scaled by hit energy (threshold,
@@ -166,7 +166,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   onto it draws nothing. Each front laser has its own **heat bank**: 5 s of continuous fire, fast
   venting after an early release, and a slow locked cool-down after overheat; two beams focused on
   the same small spot melt 1.5× faster. `src/app/laser-heat.ts` owns the pure state; HUD heat bars
-  show the two barrels, and heat/focus drive the laser pitch plus overheat/vent one-shots.
+  show the two barrels, and heat/focus drive the laser pitch plus overheat/re-arm one-shots.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/mining-tuning.ts` — live `MiningTuning` values (melt dwell/spot/cool, focus melt/radius,

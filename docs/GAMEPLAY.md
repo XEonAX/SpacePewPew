@@ -17,8 +17,8 @@ Mining lasers now run on **per-barrel heat**. A barrel fires for five seconds, v
 trigger is released early, and locks into a slow cool-down if it overheats; the two HUD bars show
 each barrel. Two beams focused on the same small spot melt 1.5× faster, and heat raises the laser
 pitch. The rig melts faster overall to compensate for the new duty cycle. A low industrial klaxon
-marks the lockout, and a vent hiss marks the release/cool-down; the laser loop itself is a deeper,
-grittier cutter rather than a high sci-fi whine.
+marks the lockout; a short mechanical relay tick marks re-arm when the barrel reaches zero heat;
+the laser loop itself is a deeper, grittier cutter rather than a high sci-fi whine.
 
 `1` / `2` select **mouse** or **forward** aim. Guns and mining lasers remember separate modes:
 switching to the mining rig keeps its own mouse/forward choice, so 2 can park the cutting lasers

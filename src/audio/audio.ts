@@ -10,7 +10,8 @@ export type SoundName =
   | 'impact-1'
   | 'impact-2'
   | 'laser-overheat'
-  | 'laser-vent';
+  | 'laser-vent'
+  | 'laser-ready';
 
 /** Continuous, looped beds (engine hums, beams, grinding). */
 export type LoopName =
@@ -67,6 +68,7 @@ const SOUND_SOURCES: Record<SoundName, string> = {
   'cargo-intake': 'audio/mining/cargo-intake.wav',
   'laser-overheat': 'audio/mining/laser-overheat.wav',
   'laser-vent': 'audio/mining/laser-vent.wav',
+  'laser-ready': 'audio/mining/laser-ready.wav',
   'impact-1': 'audio/impacts/impact-1.wav',
   'impact-2': 'audio/impacts/impact-2.wav',
 };

@@ -73,10 +73,11 @@ export function createMiningAudio(audio: AudioManager): MiningAudio {
 
       ventCooldown = Math.max(0, ventCooldown - Math.max(0, dt));
       if (overheated && !wasOverheated) {
-        audio.play('laser-overheat', { volume: 0.8 });
+        audio.play('laser-overheat', { volume: 0.9 });
         ventCooldown = VENT_COOLDOWN_S;
       } else if (!overheated && wasOverheated) {
-        audio.play('laser-vent', { volume: 0.7, rate: 0.92 });
+        // Re-arm with a small relay tick, not a steam poof at the worst moment.
+        audio.play('laser-ready', { volume: 0.55 });
         ventCooldown = VENT_COOLDOWN_S;
       } else if (!anyFiring && wasFiring && maxHeat > 0.35 && ventCooldown <= 0) {
         audio.play('laser-vent', { volume: 0.35, rate: 1.06 });
