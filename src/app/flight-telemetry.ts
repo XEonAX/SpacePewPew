@@ -1,6 +1,7 @@
 import type { FlightState, FlightTuning } from './ship-flight';
 import { forwardTerminalSpeed, reverseTerminalSpeed, yawTerminalSpeed } from './ship-flight';
 import type { ShipGeometry } from './ship-engines';
+import { formatEnergyJ, formatG } from './telemetry-model';
 
 const PANEL_STYLE: Partial<CSSStyleDeclaration> = {
   position: 'fixed',
@@ -17,6 +18,17 @@ const PANEL_STYLE: Partial<CSSStyleDeclaration> = {
   backdropFilter: 'blur(6px)',
   userSelect: 'none',
 };
+
+export interface TelemetrySources {
+  /** Cargo chunks currently held by the mining rig. */
+  cargoHeld(): number;
+  /** Smoothed current acceleration in g (includes impacts). */
+  gForce(): number;
+  /** Peak acceleration seen this run, in g. */
+  maxGForce(): number;
+  /** Total impact energy absorbed by the shield, joules. */
+  shieldDamageJ(): number;
+}
 
 export interface FlightTelemetry {
   element: HTMLElement;
@@ -37,12 +49,13 @@ export function createFlightTelemetry(
   flight: FlightState,
   tuning: FlightTuning,
   geometry: () => ShipGeometry,
+  sources?: TelemetrySources,
 ): FlightTelemetry {
   const root = document.createElement('div');
   Object.assign(root.style, PANEL_STYLE);
 
   const title = document.createElement('div');
-  title.textContent = 'FLIGHT TELEMETRY';
+  title.textContent = 'TELEMETRY';
   title.style.cssText = 'margin-bottom:8px;color:#d8f3ff;letter-spacing:0.12em;font-size:10px;';
   root.append(title);
 
@@ -68,6 +81,10 @@ export function createFlightTelemetry(
   addRow('Terminal S');
   addRow('Terminal yaw');
   addRow('Velocity');
+  addRow('G force');
+  addRow('Max G');
+  addRow('Cargo held');
+  addRow('Shield dmg');
   addRow('Angular velocity');
   addRow('Linear input');
   addRow('Angular input');
@@ -86,6 +103,10 @@ export function createFlightTelemetry(
     set('Terminal S', `${fixed(reverseTerminalSpeed(tuning, shipGeometry))} m/s`);
     set('Terminal yaw', `${fixed(yawTerminalSpeed(tuning, shipGeometry))} rad/s`);
     set('Velocity', `${fixed(Math.hypot(flight.vx, flight.vy))} m/s`);
+    set('G force', formatG(sources?.gForce() ?? 0));
+    set('Max G', formatG(sources?.maxGForce() ?? 0));
+    set('Cargo held', `${sources?.cargoHeld() ?? 0}`);
+    set('Shield dmg', formatEnergyJ(sources?.shieldDamageJ() ?? 0));
     set('Angular velocity', `${fixed(flight.angularVelocity)} rad/s`);
     set('Linear input', fixed(flight.linearInput));
     set('Angular input', fixed(flight.angularInput));

@@ -17,6 +17,7 @@ import { createShipGeometry, SHIP_COM_AFT_PX } from './ship-engines';
 import type { EngineMix } from './engine-mix';
 import { createFlightTuner } from './flight-tuner';
 import { createFlightTelemetry } from './flight-telemetry';
+import { gForceFromVelocityDelta } from './telemetry-model';
 import { createGroundGrid } from './ground-grid';
 import { FLAME_LOCAL_LENGTH, createEngineExhaust } from './engine-exhaust';
 import { createEngineAudio } from './engine-audio';
@@ -208,6 +209,10 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   // Mouse aim fires on click; all-forward fires the whole battery on Space.
   let weaponMode: WeaponMode = DEFAULT_WEAPON_MODE;
+  /** Live telemetry state: smoothed/peak g and cumulative shield damage. */
+  let currentGForce = 0;
+  let maxGForce = 0;
+  let shieldDamageJ = 0;
   let aimMode: AimMode = DEFAULT_AIM_MODE;
   let pointerDown = false;
   let spaceDown = false;
@@ -571,6 +576,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     const deltaSeconds = Math.min(ticker.deltaMS / 1000, MAX_DELTA_SECONDS);
     lighting.time += deltaSeconds;
     asteroidLighting.time = lighting.time;
+    const previousVx = flight.vx;
+    const previousVy = flight.vy;
 
     engineMix = stepFlight(flight, controls, deltaSeconds, tuning, shipGeometry);
     // Collision spin is not player input: bleed it off so a hit cannot leave
@@ -656,6 +663,14 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       hitEnergy: impactEnergy,
       slideSpeed: scrapeSpeed,
     });
+    shieldDamageJ += impactEnergy;
+    const frameG = gForceFromVelocityDelta(
+      flight.vx - previousVx,
+      flight.vy - previousVy,
+      deltaSeconds,
+    );
+    maxGForce = Math.max(maxGForce, frameG);
+    currentGForce += (frameG - currentGForce) * Math.min(1, deltaSeconds * 12);
     telemetry.update();
     followCamera();
     updateTransforms(deltaSeconds);
@@ -853,7 +868,12 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   weaponTuner.setMining(weaponMode === 'mining');
   document.body.append(weaponTuner.element);
 
-  const telemetry = createFlightTelemetry(flight, tuning, () => shipGeometry);
+  const telemetry = createFlightTelemetry(flight, tuning, () => shipGeometry, {
+    cargoHeld: () => mining.getCargo(),
+    gForce: () => currentGForce,
+    maxGForce: () => maxGForce,
+    shieldDamageJ: () => shieldDamageJ,
+  });
   document.body.append(telemetry.element);
 
   canvas.addEventListener('pointerdown', onPointerDown);

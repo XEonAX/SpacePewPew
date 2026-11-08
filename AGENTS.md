@@ -79,8 +79,11 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   Re-evaluated every frame; ramped with the input ramp. Unit-tested in `tests/stabilizer.test.ts`.
 - `src/app/flight-tuner.ts` — live DOM slider overlay that mutates `FlightTuning` (mass, per-engine
   thrust, drags, ramp); dev-facing.
-- `src/app/flight-telemetry.ts` — read-only DOM overlay for mass, terminal W/S/yaw, current and
-  ramped state.
+- `src/app/flight-telemetry.ts` — read-only **TELEMETRY** overlay: mass, terminal W/S/yaw,
+  velocity, live/peak G, cargo held, cumulative shield damage absorbed, angular velocity,
+  ramped inputs and applied drag. G is derived from the actual frame velocity delta (so
+  collisions spike it) via `src/app/telemetry-model.ts`; the scene feeds cargo from
+  `mining.getCargo()`, damage from collision `hitEnergy`, and keeps the peak.
 - `src/app/world-scale.ts` — `PIXELS_PER_METER = 64`; all flight physics is in metres.
 - `src/app/ground-grid.ts` — world-space 1 m × 1 m grid (64 world px per metre; major lines every
   5 m), drawn as a camera-centred quad transformed by the dust camera exactly like the asteroid

@@ -154,9 +154,11 @@ docs/                     Architecture decisions, reference art and agent workfl
   zoom only scales layers about the viewport centre, so zooming never slides the sky after a
   long flight. The two distant galaxies are fixed to the sky.
 - The top-left **FLIGHT TUNING** panel has live sliders for ship mass (6–60 t), main and reverse
-  engine thrust (10–500 kN each), linear/angular drag and input ramp. The top-right **FLIGHT
-  TELEMETRY** panel shows mass, terminal W/S/yaw, current velocity, angular velocity, ramped
-  inputs and the drag rates currently in effect (zero while coasting). The
+  engine thrust (10–500 kN each), linear/angular drag and input ramp. The top-right **TELEMETRY**
+  panel shows mass, terminal W/S/yaw, current velocity, **G force and peak G** (real frame-to-frame
+  acceleration, so impacts spike it), **cargo held**, **shield damage absorbed** (cumulative
+  impact energy), angular velocity, ramped inputs and the drag rates currently in effect (zero
+  while coasting). The
   bottom-left **RATE OF FIRE** panel tunes the cooldown of each weapon pair, clamped to the
   pair's charge duration. **Tab to the mining rig** and the same panel swaps to **MINING
   TUNING**: melt dwell/spot/cool time, chunk eject speed/damping/lifetime, tractor reach and
