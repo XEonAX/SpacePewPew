@@ -158,8 +158,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   uncaptured metal cools and fades, but a gripped chunk's lifetime is reset each frame so
   cargo never expires in transit. Object-pooled chunks (256); laser/tractor beds and the cargo
   latch are driven by `mining-audio.ts` from the exposed beam counts and cargo total. A chunk
-  gripped by a tractor gets a green silhouette outline plus a soft additive halo (pooled helper
-  sprites, only visible while held).
+  with a **visually connected** tractor beam gets a green silhouette outline plus a soft additive
+  halo (pooled helper sprites); a barrel that has merely claimed a chunk but is still swinging
+  onto it draws nothing.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/mining-tuning.ts` — live `MiningTuning` values (melt dwell/spot/cool, chunk ejection/

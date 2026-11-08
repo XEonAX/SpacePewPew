@@ -853,9 +853,9 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
           ? 1
           : Math.min(1, Math.max(0, chunk.life / tuning.chunkFadeSeconds));
 
-        // A tractored chunk gets a crisp green silhouette outline plus a small
-        // additive halo so it reads as "held", not just another drifting chip.
-        const held = chunk.tracted;
+        // Only an actually connected tractor beam marks the cargo. A barrel
+        // that has claimed a chunk but is still swinging onto it draws nothing.
+        const held = engaged.length > 0;
         chunk.outline.visible = held;
         chunk.glow.visible = held;
         if (held) {
