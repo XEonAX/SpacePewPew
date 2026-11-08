@@ -17,8 +17,9 @@ Mining lasers now run on **per-barrel heat**. A barrel fires for five seconds, v
 trigger is released early, and locks into a slow cool-down if it overheats; the two HUD bars show
 each barrel. Two beams focused on the same small spot melt 1.5× faster, and heat raises the laser
 pitch. In the last 10% of the heat bar the beam visibly loses stability: its thickness chatters,
-and an outer bloom flickers before lockout. The rig melts faster overall to compensate for the new duty cycle. A pressure-valve clack starts a sustained steam vent while the barrel is locked out, fading with
-the heat; small contracting-metal ticks follow the falling heat bar, and a short mechanical relay
+and an outer bloom flickers before lockout. The rig melts faster overall to compensate for the new duty cycle. A pressure-valve clack starts a short steam release at lockout; after roughly 1.5 seconds the
+steam ends and the rest of the cool-down is carried by small contracting-metal ticks following the
+falling heat bar. An early release never triggers steam — it ticks only. A short mechanical relay
 tick marks re-arm when the barrel reaches zero heat. The laser
 loop itself is a deeper, grittier cutter rather than a high sci-fi whine.
 

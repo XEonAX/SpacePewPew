@@ -34,6 +34,8 @@ export function tractorGain(beams: number): number {
 }
 
 const SMOOTHING_PER_SECOND = 9;
+/** How long the steam release runs at the start of an overheat lockout. */
+const VENT_RELEASE_SECONDS = 1.5;
 /** Small deterministic pitch lift so repeated deliveries do not sound cloned. */
 const CARGO_RATES: readonly number[] = [1, 1.035];
 
@@ -52,6 +54,7 @@ export function createMiningAudio(audio: AudioManager): MiningAudio {
   let tractorLevel = 0;
   let deliveries = 0;
   let wasOverheated = false;
+  let ventReleaseRemaining = 0;
   let lastHeat = 0;
   let tickAccumulator = 0;
   let tickCount = 0;
@@ -85,8 +88,10 @@ export function createMiningAudio(audio: AudioManager): MiningAudio {
       laser.setVolume(Math.min(1, laserLevel * (1 + 0.16 * maxHeat)));
       laser.setRate(laserRate(maxHeat, laserFocused));
 
-      // A sustained pressure release for the whole lockout, fading with heat.
-      const ventTarget = overheated ? 0.22 + 0.78 * maxHeat : 0;
+      // The pressure release is only the opening of the lockout; after that
+      // the barrel cools with mechanical ticks only.
+      ventReleaseRemaining = Math.max(0, ventReleaseRemaining - Math.max(0, dt));
+      const ventTarget = overheated && ventReleaseRemaining > 0 ? 0.22 + 0.78 * maxHeat : 0;
       ventLevel += (ventTarget - ventLevel) * blend;
       vent.setVolume(ventLevel * 0.55);
       vent.setRate(0.82 + 0.24 * maxHeat);
@@ -97,6 +102,7 @@ export function createMiningAudio(audio: AudioManager): MiningAudio {
 
       if (overheated && !wasOverheated) {
         // A short valve clack starts the release; the loop carries the hiss.
+        ventReleaseRemaining = VENT_RELEASE_SECONDS;
         audio.play('laser-overheat', { volume: 0.65 });
       } else if (!overheated && wasOverheated) {
         // Re-arm with a small relay tick, not a steam poof at the worst moment.
