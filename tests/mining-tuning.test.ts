@@ -4,8 +4,13 @@ import { createMiningTuning, DEFAULT_MINING_TUNING } from '../src/app/mining-tun
 describe('mining tuning', () => {
   it('defaults to the designed rig values', () => {
     expect(DEFAULT_MINING_TUNING).toMatchObject({
-      meltSeconds: 1.1,
+      meltSeconds: 0.75,
       meltSpotRadiusM: 0.6,
+      meltFocusMultiplier: 1.5,
+      meltOverlapRadiusM: 1.2,
+      laserMaxHeatSeconds: 5,
+      laserCoolPerSecond: 2.2,
+      laserOverheatCoolPerSecond: 0.8,
       meltCoolSeconds: 2.2,
       chunkMinSpeedMps: 1.2,
       chunkMaxSpeedMps: 2.8,
@@ -27,6 +32,6 @@ describe('mining tuning', () => {
     expect(tuning.tractorRangeM).toBe(7);
     expect(tuning.chunkMinSpeedMps).toBe(DEFAULT_MINING_TUNING.chunkMinSpeedMps);
     expect(tuning).not.toBe(DEFAULT_MINING_TUNING);
-    expect(DEFAULT_MINING_TUNING.meltSeconds).toBe(1.1);
+    expect(DEFAULT_MINING_TUNING.meltSeconds).toBe(0.75);
   });
 });

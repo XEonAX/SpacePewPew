@@ -247,3 +247,9 @@ export function pulsePhase(now: number, speed: number, offset: number, period: n
   const phase = ((now * speed) / safePeriod + offset) % 1;
   return phase < 0 ? phase + 1 : phase;
 }
+
+/** True when two laser hit points are close enough to count as one focused cut. */
+export function hitsOverlap(a: Vec2 | null, b: Vec2 | null, radiusM: number): boolean {
+  if (!a || !b) return false;
+  return distance(a, b) <= Math.max(0, radiusM);
+}

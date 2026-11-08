@@ -52,7 +52,7 @@ export function gamepadHint(
 ): string {
   const controls =
     weaponMode === 'mining'
-      ? `L stick steer · RT/LT thrust · R stick aim · A mining laser · B stabilise · X guns · D-pad ←/→ ${miningAimMode === 'forward' ? 'forward' : 'mouse'}`
+      ? `L stick steer · RT/LT thrust · R stick aim · A mining laser (5 s heat) · B stabilise · X guns · D-pad ←/→ ${miningAimMode === 'forward' ? 'forward' : 'mouse'}`
       : aimMode === 'mouse'
         ? 'L stick steer · RT/LT thrust · R stick aim · A fire · B stabilise · X mining'
         : 'L stick steer · RT/LT thrust · R stick aim · A fire all · B stabilise · X mining';
@@ -69,7 +69,7 @@ export function weaponHint(
 ): string {
   const controls =
     weaponMode === 'mining'
-      ? `W/S thrust · A/D turn · 1 mouse / 2 forward (lasers: ${miningAimMode}) · Tab guns · hold click: mining laser · tractors auto · cargo: ${cargo} · carry: ${carryMode}`
+      ? `W/S thrust · A/D turn · 1 mouse / 2 forward (lasers: ${miningAimMode}) · Tab guns · hold click: mining laser (5 s heat) · tractors auto · cargo: ${cargo} · carry: ${carryMode}`
       : aimMode === 'mouse'
         ? 'W/S thrust · A/D turn · 1 mouse / 2 forward · Tab mining · hold click: fire'
         : 'W/S thrust · A/D turn · 1 mouse / 2 forward · Tab mining · hold Space: fire all weapons';

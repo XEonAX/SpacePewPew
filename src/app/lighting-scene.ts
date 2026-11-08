@@ -830,6 +830,8 @@ export async function createScene(
     hud.update({
       mode: weaponMode,
       cargo,
+      laserHeat: mining.getLaserHeat(),
+      laserFocused: mining.getLaserFocus(),
       aim: {
         ...aimScreen,
         active: aimIsForward || inputState.aim.active,
@@ -842,6 +844,8 @@ export async function createScene(
       dt: deltaSeconds,
       laserBeams: mining.getLaserBeamCount(),
       tractorBeams: mining.getTractorBeamCount(),
+      laserHeat: mining.getLaserHeat(),
+      laserFocused: mining.getLaserFocus(),
     });
 
     // Collider gizmo: the dust-world outline the physics actually uses.

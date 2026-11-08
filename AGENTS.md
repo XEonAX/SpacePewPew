@@ -92,10 +92,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   into a PD turn input (P + D, deadband) so the ship points where the stick points without a
   large overshoot. The scene feeds its output through the normal flight input ramp; gamepad
   triggers supply main/reverse thrust separately. Unit-tested.
-- `src/app/player-hud.ts` — player-facing HUD (brand, weapon/cargo pills, aim reticle and
-  an auto-fading hint line that follows the device actually in use: keyboard/mouse copy,
-  gamepad copy or hidden for touch). The dev tuners/telemetry are hidden by default and
-  revealed by **F1** or `?dev=1`; when dev UI is on the player HUD steps out.
+- `src/app/player-hud.ts` — player-facing HUD (brand, weapon/cargo pills, per-barrel laser heat
+  bars, aim reticle and an auto-fading hint line that follows the device actually in use:
+  keyboard/mouse copy, gamepad copy or hidden for touch). The dev tuners/telemetry are hidden by
+  default and revealed by **F1** or `?dev=1`; when dev UI is on the player HUD steps out.
 - `src/app/flight-telemetry.ts` — read-only **TELEMETRY** overlay: mass, terminal W/S/yaw,
   velocity, live/peak G, cargo held, cumulative shield damage absorbed, angular velocity,
   ramped inputs and applied drag. G is derived from the actual frame velocity delta (so
@@ -115,9 +115,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   nozzle's screen position. Adds a speed rush that ramps to forward terminal speed and a
   retro-strain bed driven by `dot(thrust, velocity) < 0` (main hums duck while braking). Pure
   helpers unit-tested in `tests/engine-audio.test.ts`.
-- `src/app/mining-audio.ts` — mining-rig audio: a laser bed whose gain follows active cutting
-  barrels, a tractor bed whose gain follows connected barrels, and the cargo-intake latch
-  one-shot. Gain helpers are pure and unit-tested in `tests/mining-audio.test.ts`.
+- `src/app/mining-audio.ts` — mining-rig audio: a laser bed whose gain follows active cutting and
+  whose pitch rises with heat, overheat/vent one-shots, a tractor bed whose gain follows connected
+  barrels, and the cargo-intake latch one-shot. Gain/pitch helpers are pure and unit-tested in
+  `tests/mining-audio.test.ts`.
 - `src/app/impact-audio.ts` — collision audio: impact one-shots scaled by hit energy (threshold,
   energy curve, cooldown) plus a scrape bed driven by the contact's tangential slide speed.
   `ShipCollision.slideSpeed` supplies that speed. Pure helpers unit-tested in
@@ -131,14 +132,16 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/weapons.ts` — clean turret-pair sound pools, cadence, per-sound tracer delays, and
   committed shots: a trigger pulled inside the cone snapshots every tracking barrel, so the
   projectile still leaves the muzzle after the mouse moves out of the arc. Unit-tested.
+- `src/app/laser-heat.ts` — pure per-barrel laser heat state: 5 s continuous fire, fast vent on
+  early release, locked slow cool-down after overheat, HUD readouts. Unit-tested.
 - `src/app/weapon-mode.ts` — the two weapon systems (`guns`, `mining`), Tab toggling, the
   mouse/forward aiming modes for guns and mining lasers separately, the turret aim resolver
   (`mining`/`mining-forward`) and the control hint. Unit-tested.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders; while the mining rig is
-  equipped (Tab) the panel swaps to live mining tunables (melt, chunk, tractor, carry and laser
-  range).
+  equipped (Tab) the panel swaps to live mining tunables (melt, focus, laser heat/vent, chunk,
+  tractor, carry and laser range).
 - `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers that must **dwell
-  on a spot for ~1.1 s** before melting a chunk (irregular, flickering orange melt craters with
+  on a spot for ~0.75 s** before melting a chunk (irregular, flickering orange melt craters with
   torn rims, hot cores, bloom and drifting embers, attached to the rock's spinning frame, left
   behind as cooling scars), small flat-solid **grey-blue** metal chunks
   (square / triangle, two baked textures) that leave along the laser's reflection angle and
@@ -160,11 +163,15 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   latch are driven by `mining-audio.ts` from the exposed beam counts and cargo total. A chunk
   with a **visually connected** tractor beam gets a green silhouette outline plus a soft additive
   halo (pooled helper sprites); a barrel that has merely claimed a chunk but is still swinging
-  onto it draws nothing.
+  onto it draws nothing. Each front laser has its own **heat bank**: 5 s of continuous fire, fast
+  venting after an early release, and a slow locked cool-down after overheat; two beams focused on
+  the same small spot melt 1.5× faster. `src/app/laser-heat.ts` owns the pure state; HUD heat bars
+  show the two barrels, and heat/focus drive the laser pitch plus overheat/vent one-shots.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
-- `src/app/mining-tuning.ts` — live `MiningTuning` values (melt dwell/spot/cool, chunk ejection/
-  damping/lifetime, tractor reach/slew, cargo speed/turn/easing, laser range). `createMining()`
+- `src/app/mining-tuning.ts` — live `MiningTuning` values (melt dwell/spot/cool, focus melt/radius,
+  laser heat/vent/overheat, chunk ejection/damping/lifetime, tractor reach/slew, cargo
+  speed/turn/easing, laser range). `createMining()`
   reads it every frame, so the overlay sliders take effect immediately; defaults are the
   designed rig values and unit-tested in `tests/mining-tuning.test.ts`.
 - `src/app/asteroid-layout.ts` — pure deterministic asteroid scatter: seeded PRNG, rejection

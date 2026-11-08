@@ -4,6 +4,7 @@ import {
   carryToward,
   dampVelocity,
   distance,
+  hitsOverlap,
   pointInRotatedRect,
   pulsePhase,
   reflectDirection,
@@ -198,5 +199,17 @@ describe('intake pulses', () => {
   it('never returns a negative or NaN phase for a zero period', () => {
     expect(pulsePhase(-0.5, 1, 0, 0)).toBeGreaterThanOrEqual(0);
     expect(Number.isNaN(pulsePhase(1, 1, 0, 0))).toBe(false);
+  });
+});
+
+describe('hitsOverlap', () => {
+  it('focuses two hit points inside the radius', () => {
+    expect(hitsOverlap({ x: 0, y: 0 }, { x: 1, y: 0 }, 1.2)).toBe(true);
+    expect(hitsOverlap({ x: 0, y: 0 }, { x: 1.3, y: 0 }, 1.2)).toBe(false);
+  });
+
+  it('does not focus a missing beam', () => {
+    expect(hitsOverlap(null, { x: 0, y: 0 }, 1.2)).toBe(false);
+    expect(hitsOverlap({ x: 0, y: 0 }, null, 1.2)).toBe(false);
   });
 });

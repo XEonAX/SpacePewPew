@@ -8,6 +8,16 @@ export interface MiningTuning {
   meltSeconds: number;
   /** Max drift of the beam that still counts as the same spot, metres. */
   meltSpotRadiusM: number;
+  /** Extra melt progress while both barrels focus the same small spot. */
+  meltFocusMultiplier: number;
+  /** Hit-point distance under which two barrels count as focused, metres. */
+  meltOverlapRadiusM: number;
+  /** Continuous firing seconds before a barrel overheats. */
+  laserMaxHeatSeconds: number;
+  /** Heat shed per second after releasing the trigger early. */
+  laserCoolPerSecond: number;
+  /** Heat shed per second while a barrel is locked out after overheating. */
+  laserOverheatCoolPerSecond: number;
   /** Seconds a cooling melt scar stays on the rock. */
   meltCoolSeconds: number;
   /** Ejection speed range for a fresh chunk, metres/second. */
@@ -33,8 +43,13 @@ export interface MiningTuning {
 }
 
 export const DEFAULT_MINING_TUNING: MiningTuning = {
-  meltSeconds: 1.1,
+  meltSeconds: 0.75,
   meltSpotRadiusM: 0.6,
+  meltFocusMultiplier: 1.5,
+  meltOverlapRadiusM: 1.2,
+  laserMaxHeatSeconds: 5,
+  laserCoolPerSecond: 2.2,
+  laserOverheatCoolPerSecond: 0.8,
   meltCoolSeconds: 2.2,
   chunkMinSpeedMps: 1.2,
   chunkMaxSpeedMps: 2.8,

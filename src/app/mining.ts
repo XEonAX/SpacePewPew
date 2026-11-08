@@ -7,6 +7,7 @@ import {
   arcToward,
   dampVelocity,
   distance,
+  hitsOverlap,
   pointInRotatedRect,
   pulsePhase,
   reflectDirection,
@@ -19,6 +20,8 @@ import { polygonHitNormal, rayPolygonHit } from './asteroid-collision';
 import type { AsteroidCollider } from './asteroid-collision';
 import { muzzleWorldPose } from './weapons';
 import type { MuzzleAim } from './weapons';
+import { createLaserHeatState, laserHeatReadout, stepLaserHeat } from './laser-heat';
+import type { LaserHeatReadout } from './laser-heat';
 
 export const CHUNK_POOL_SIZE = 256;
 const CHUNK_SIZE_M = 0.35;
@@ -178,6 +181,10 @@ export interface Mining {
   getActiveBeams(): readonly boolean[];
   /** Active laser barrels (front pair). */
   getLaserBeamCount(): number;
+  /** Per-barrel heat readout (front pair, in mount order). */
+  getLaserHeat(): readonly LaserHeatReadout[];
+  /** Both barrels are cutting the same small spot this frame. */
+  getLaserFocus(): boolean;
   /** Active tractor barrels (all mounts after the front pair). */
   getTractorBeamCount(): number;
   destroy(): void;
@@ -359,6 +366,9 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
       return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
     }),
   );
+  /** Per-barrel heat: builds while firing, vents fast on release. */
+  const laserHeat = Array.from({ length: LASER_BARRELS }, () => createLaserHeatState());
+  let laserFocused = false;
   /** Seconds of dwell per laser barrel, and the spot each beam is heating. */
   const meltHeat = new Array<number>(LASER_BARRELS).fill(0);
   const meltSpot = new Array<{ x: number; y: number } | null>(LASER_BARRELS).fill(null);
@@ -504,11 +514,26 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
       melt.clear();
       beamActivity.fill(false);
 
-      // Front pair: red mining lasers. Each barrel that bites the asteroid
-      // melts a fragment off along the reflection angle.
+      // Front pair: red mining lasers. Each barrel has its own heat bank and
+      // may lock out independently; two beams focused on one small spot melt
+      // faster. Heat is advanced before drawing so an overheat cuts the beam
+      // on the same frame.
+      interface LaserBeam {
+        pose: MuzzleAim;
+        direction: Vec2;
+        hit: Vec2 | null;
+        hitRock: MiningAsteroid | null;
+        end: Vec2;
+        beamOn: boolean;
+      }
+
+      const laserBeams: (LaserBeam | null)[] = [];
       for (let barrel = 0; barrel < LASER_BARRELS; barrel += 1) {
         const pose = poses[barrel];
-        if (!pose) continue;
+        if (!pose) {
+          laserBeams.push(null);
+          continue;
+        }
         const direction = { x: Math.sin(pose.angle), y: -Math.cos(pose.angle) };
         // The nearest rock the beam bites wins, so a field of asteroids works
         // without special-casing which one is "the" target.
@@ -525,12 +550,41 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
             hitRock = rock;
           }
         }
-        const end = hit ?? {
-          x: pose.x + direction.x * tuning.laserRangeM,
-          y: pose.y + direction.y * tuning.laserRangeM,
-        };
+        laserBeams.push({
+          pose,
+          direction,
+          hit,
+          hitRock,
+          end: hit ?? {
+            x: pose.x + direction.x * tuning.laserRangeM,
+            y: pose.y + direction.y * tuning.laserRangeM,
+          },
+          beamOn: stepLaserHeat(laserHeat[barrel]!, frame.laserFiring, frame.dt, tuning),
+        });
+      }
 
-        if (frame.laserFiring) {
+      // Focused cut: both beams are live, biting the same rock, close enough
+      // that the melt zones overlap. Focus multiplies each barrel's dwell.
+      const focused = laserBeams.map((beam, barrel) => {
+        const other = laserBeams[LASER_BARRELS - 1 - barrel] ?? null;
+        return !!(
+          beam?.beamOn &&
+          other?.beamOn &&
+          beam.hit &&
+          other.hit &&
+          beam.hitRock === other.hitRock &&
+          hitsOverlap(beam.hit, other.hit, tuning.meltOverlapRadiusM)
+        );
+      });
+
+      laserFocused = focused[0] === true;
+
+      for (let barrel = 0; barrel < LASER_BARRELS; barrel += 1) {
+        const beam = laserBeams[barrel] ?? null;
+        if (!beam) continue;
+        const { pose, direction, hit, hitRock, end } = beam;
+
+        if (beam.beamOn) {
           beamActivity[barrel] = true;
           if (hit && hitRock) {
             // Melting takes dwell time on one spot: sweeping the beam across
@@ -547,7 +601,9 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
               meltShape[barrel] = Math.floor(rng() * MELT_SHAPE_COUNT);
               meltPhase[barrel] = rng() * Math.PI * 2;
             }
-            meltHeat[barrel] = Math.min(tuning.meltSeconds, meltHeat[barrel]! + frame.dt);
+            const focus = focused[barrel] === true;
+            const meltRate = frame.dt * (focus ? tuning.meltFocusMultiplier : 1);
+            meltHeat[barrel] = Math.min(tuning.meltSeconds, meltHeat[barrel]! + meltRate);
 
             // The beam keeps boring at one world point (that is where the
             // barrels point); the scar it leaves behind is attached to the
@@ -557,12 +613,13 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
             const normalY = surfaceNormal.y;
             const heat = meltHeat[barrel]! / tuning.meltSeconds;
             const heatRadius = (0.1 + 0.26 * heat) * PIXELS_PER_METER;
+            const focusBoost = focus ? 0.12 : 0;
             const heatX = (hit.x - normalX * 0.1) * PIXELS_PER_METER;
             const heatY = (hit.y - normalY * 0.1) * PIXELS_PER_METER;
             drawMeltPatch(
               heatX,
               heatY,
-              heatRadius,
+              heatRadius * (1 + focusBoost),
               meltShape[barrel]!,
               meltPhase[barrel]!,
               0.4 + 0.6 * heat,
@@ -596,14 +653,19 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
             meltRock[barrel] = null;
           }
 
+          const focus = focused[barrel] === true;
           beams
             .moveTo(pose.x * PIXELS_PER_METER, pose.y * PIXELS_PER_METER)
             .lineTo(end.x * PIXELS_PER_METER, end.y * PIXELS_PER_METER)
-            .stroke({ color: LASER_COLOR, width: 5, alpha: 0.78 });
+            .stroke({ color: LASER_COLOR, width: focus ? 7 : 5, alpha: focus ? 0.95 : 0.78 });
           beams
             .moveTo(pose.x * PIXELS_PER_METER, pose.y * PIXELS_PER_METER)
             .lineTo(end.x * PIXELS_PER_METER, end.y * PIXELS_PER_METER)
-            .stroke({ color: LASER_CORE_COLOR, width: 1.6, alpha: 0.95 });
+            .stroke({
+              color: focus ? 0xffffff : LASER_CORE_COLOR,
+              width: focus ? 2.4 : 1.6,
+              alpha: 0.95,
+            });
         } else {
           meltHeat[barrel] = 0;
           meltSpot[barrel] = null;
@@ -940,6 +1002,12 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
         if (beamActivity[barrel]) count += 1;
       }
       return count;
+    },
+    getLaserHeat(): readonly LaserHeatReadout[] {
+      return laserHeat.map((state) => laserHeatReadout(state, tuning));
+    },
+    getLaserFocus(): boolean {
+      return laserFocused;
     },
     getTractorBeamCount(): number {
       let count = 0;

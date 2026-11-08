@@ -2,7 +2,15 @@ import { Howl, Howler } from 'howler';
 import { joinBaseUrl } from '../utils/paths';
 
 export type SoundName =
-  'beam-front' | 'blast-3' | 'blast-4' | 'blast-5' | 'cargo-intake' | 'impact-1' | 'impact-2';
+  | 'beam-front'
+  | 'blast-3'
+  | 'blast-4'
+  | 'blast-5'
+  | 'cargo-intake'
+  | 'impact-1'
+  | 'impact-2'
+  | 'laser-overheat'
+  | 'laser-vent';
 
 /** Continuous, looped beds (engine hums, beams, grinding). */
 export type LoopName =
@@ -57,6 +65,8 @@ const SOUND_SOURCES: Record<SoundName, string> = {
   'blast-4': 'audio/weapons/blast-4.wav',
   'blast-5': 'audio/weapons/blast-5.wav',
   'cargo-intake': 'audio/mining/cargo-intake.wav',
+  'laser-overheat': 'audio/mining/laser-overheat.wav',
+  'laser-vent': 'audio/mining/laser-vent.wav',
   'impact-1': 'audio/impacts/impact-1.wav',
   'impact-2': 'audio/impacts/impact-2.wav',
 };

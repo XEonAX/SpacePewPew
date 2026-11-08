@@ -408,6 +408,59 @@ body.touch-ui .flight-telemetry {
   color: #ffc18f;
 }
 
+.hud-heat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  color: #6f8fa7;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-shadow: 0 0 8px rgba(255, 120, 60, 0.2);
+}
+
+.hud-heat--hidden {
+  display: none;
+}
+
+.hud-heat__label {
+  width: 29px;
+  color: #9d7c6b;
+}
+
+.hud-heat--focus .hud-heat__label {
+  color: #d8ffe7;
+}
+
+.hud-heat__bar {
+  position: relative;
+  width: 40px;
+  height: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 150, 90, 0.28);
+  border-radius: 2px;
+  background: rgba(10, 16, 26, 0.8);
+}
+
+.hud-heat__fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #ffc25c, #ff6a4d 68%, #ff364d);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.08s linear;
+}
+
+.hud-heat__bar--hot {
+  border-color: rgba(255, 80, 86, 0.9);
+  box-shadow: 0 0 8px rgba(255, 80, 86, 0.55);
+}
+
+.hud-heat--focus .hud-heat__bar {
+  border-color: rgba(160, 255, 200, 0.65);
+  box-shadow: 0 0 7px rgba(110, 255, 175, 0.3);
+}
+
 .hud-hint {
   position: absolute;
   left: 50%;

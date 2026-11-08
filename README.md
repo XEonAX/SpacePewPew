@@ -151,8 +151,9 @@ show them on a desktop browser. Developer tuning panels are hidden while they ar
   [`src/app/asteroid-field.ts`](src/app/asteroid-field.ts) and
   [`tools/asteroid-gen/`](tools/asteroid-gen/).
 - **Mining** — lasers dwell on one spot, melt a scar anchored to the rock's frame, eject a
-  pooled metal chunk, and six tractors arc cargo into the hull's own hatch. See
-  [`src/app/mining.ts`](src/app/mining.ts).
+  pooled metal chunk, and six tractors arc cargo into the hull's own hatch. Each front laser has
+  a 5 s heat bank: release early to vent fast, or overheat and wait out a slow lock-out. Two
+  beams focused on the same spot melt faster. See [`src/app/mining.ts`](src/app/mining.ts).
 
 The full systems write-up lives in **[docs/GAMEPLAY.md](docs/GAMEPLAY.md)**; the module map and
 conventions are in **[AGENTS.md](AGENTS.md)**; design decisions are recorded in

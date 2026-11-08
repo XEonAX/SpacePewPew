@@ -3,6 +3,7 @@ import {
   MINING_LASER_GAIN,
   MINING_TRACTOR_GAIN,
   laserGain,
+  laserRate,
   tractorGain,
 } from '../src/app/mining-audio';
 
@@ -16,6 +17,14 @@ describe('mining audio gains', () => {
 
   it('clamps the laser bed above two barrels', () => {
     expect(laserGain(5)).toBeCloseTo(MINING_LASER_GAIN, 6);
+  });
+
+  it('raises the laser pitch with heat and focus', () => {
+    expect(laserRate(0, false)).toBe(1);
+    expect(laserRate(1, false)).toBeCloseTo(1.28);
+    expect(laserRate(1, true)).toBeCloseTo(1.36);
+    expect(laserRate(2, false)).toBeCloseTo(1.28);
+    expect(laserRate(-1, false)).toBe(1);
   });
 
   it('ramps the tractor bed with connected beams and caps out', () => {
