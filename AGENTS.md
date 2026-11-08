@@ -83,10 +83,15 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   thrust, drags, ramp); dev-facing.
 - `src/app/input-system.ts` — the common input layer. Keyboard/mouse, a standard gamepad and
   the touch overlay all feed one snapshot: analog `thrust`/`turn`, `stabilize`, `fire`/`fireAll`,
-  a pointer-or-stick `aim`, edge-triggered `InputAction`s (weapons, aim modes, carry, mute,
-  colliders, dev-overlay toggle) and a multiplicative zoom factor. Gamepads are polled with a deadzone; the touch
-  overlay is created here and hides the dev panels while visible (`?touch=1` forces it for
-  testing). `src/app/input-model.ts` holds the pure deadzone/stick/aim/zoom maths, unit-tested.
+  a pointer-or-stick `aim`, gamepad heading demand + analog trigger throttle, edge-triggered
+  `InputAction`s (weapons, aim modes, carry, mute, colliders, dev-overlay toggle) and a
+  multiplicative zoom factor. Gamepads are polled with a deadzone; the touch overlay is created
+  here and hides the dev panels while visible (`?touch=1` forces it for testing).
+  `src/app/input-model.ts` holds the pure deadzone/stick/aim/zoom maths, unit-tested.
+- `src/app/heading-steer.ts` — pure gamepad heading controller: converts a left-stick direction
+  into a PD turn input (P + D, deadband) so the ship points where the stick points without a
+  large overshoot. The scene feeds its output through the normal flight input ramp; gamepad
+  triggers supply main/reverse thrust separately. Unit-tested.
 - `src/app/player-hud.ts` — player-facing HUD (brand, weapon/cargo pills, aim reticle and
   a hint line that auto-fades). The dev tuners/telemetry are hidden by default and revealed by
   **F1** or `?dev=1`; when dev UI is on the player HUD steps out.

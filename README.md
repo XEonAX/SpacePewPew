@@ -105,20 +105,22 @@ Pushes to `main` are checked by CI and deployed to GitHub Pages by
 
 ### Gamepad
 
-| Input       | Action                              |
-| ----------- | ----------------------------------- |
-| Left stick  | Analog main/reverse thrust and turn |
-| Right stick | Aim the turrets and mining lasers   |
-| RT / A      | Fire                                |
-| LT / B      | Stabiliser                          |
-| X           | Switch gun battery ↔ mining rig     |
-| Y           | Mining carry mode                   |
-| D-pad ← / → | Aim mode: mouse / forward           |
-| D-pad ↑     | Toggle developer overlays           |
-| R3          | Cycle aim mode                      |
-| LB / RB     | Zoom out / in                       |
-| Start       | Mute / unmute                       |
-| Back        | Toggle collider debug gizmo         |
+| Input       | Action                                 |
+| ----------- | -------------------------------------- |
+| Left stick  | Point the ship's heading (PD steering) |
+| Right stick | Aim the turrets and mining lasers      |
+| RT          | Main engine (analog)                   |
+| LT          | Reverse engine (analog)                |
+| A           | Fire                                   |
+| B           | Stabiliser                             |
+| X           | Switch gun battery ↔ mining rig        |
+| Y           | Mining carry mode                      |
+| D-pad ← / → | Aim mode: mouse / forward              |
+| D-pad ↑     | Toggle developer overlays              |
+| R3          | Cycle aim mode                         |
+| LB / RB     | Zoom out / in                          |
+| Start       | Mute / unmute                          |
+| Back        | Toggle collider debug gizmo            |
 
 ### Touch
 

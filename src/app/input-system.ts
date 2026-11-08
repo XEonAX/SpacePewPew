@@ -1,4 +1,4 @@
-import { readStick, thrustFromStick, wheelZoomFactor } from './input-model';
+import { readStick, wheelZoomFactor } from './input-model';
 
 /** Logical actions consumed once per press, independent of the device. */
 export type InputAction =
@@ -32,6 +32,8 @@ export interface InputSnapshot {
   /** Space: fire the whole battery in forward aim mode. */
   fireAll: boolean;
   aim: AimInput;
+  /** Left-stick heading demand from a gamepad, separate from touch flight. */
+  gamepadHeading: { active: boolean; x: number; y: number };
   zoom: number;
   gamepadConnected: boolean;
   touchVisible: boolean;
@@ -114,7 +116,10 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
   let gamepadFire = false;
   let gamepadStabilize = false;
   let gamepadThrust = 0;
-  let gamepadTurn = 0;
+  let gamepadHeadingActive = false;
+  let gamepadHeadingX = 0;
+  let gamepadHeadingY = 0;
+  let gamepadWasActive = false;
   let previousButtons: boolean[] = [];
 
   const activity = (): void => {
@@ -423,27 +428,42 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
       gamepadFire = false;
       gamepadStabilize = false;
       gamepadThrust = 0;
-      gamepadTurn = 0;
+      gamepadHeadingActive = false;
       previousButtons = [];
       return;
     }
     gamepadConnected = true;
 
+    // Left stick is a heading demand; triggers own main/reverse thrust.
     const left = readStick(pad.axes[0] ?? 0, pad.axes[1] ?? 0, GAMEPAD_DEADZONE);
-    gamepadThrust = thrustFromStick(pad.axes[1] ?? 0, GAMEPAD_DEADZONE);
-    gamepadTurn = left.x;
+    gamepadHeadingActive = left.magnitude > 0;
+    if (gamepadHeadingActive) {
+      gamepadHeadingX = left.x;
+      gamepadHeadingY = left.y;
+      source = 'gamepad';
+    }
+    const mainTrigger = Math.max(pad.buttons[7]?.value ?? 0, pad.buttons[7]?.pressed ? 1 : 0);
+    const reverseTrigger = Math.max(pad.buttons[6]?.value ?? 0, pad.buttons[6]?.pressed ? 1 : 0);
+    gamepadThrust = Math.max(-1, Math.min(1, mainTrigger - reverseTrigger));
 
     const right = readStick(pad.axes[2] ?? 0, pad.axes[3] ?? 0, GAMEPAD_DEADZONE);
     if (right.magnitude > 0) {
       setStickAim(right.x, right.y, 'gamepad');
     }
 
-    gamepadFire = !!(pad.buttons[7]?.pressed || pad.buttons[0]?.pressed);
-    gamepadStabilize = !!(pad.buttons[6]?.pressed || pad.buttons[1]?.pressed);
-    if (gamepadFire || gamepadStabilize) {
+    gamepadFire = !!pad.buttons[0]?.pressed;
+    gamepadStabilize = !!pad.buttons[1]?.pressed;
+    const gamepadActiveNow =
+      gamepadFire ||
+      gamepadStabilize ||
+      gamepadThrust !== 0 ||
+      gamepadHeadingActive ||
+      right.magnitude > 0;
+    if (gamepadActiveNow) {
       source = 'gamepad';
-      if (gamepadFire) activity();
+      if (!gamepadWasActive) activity();
     }
+    gamepadWasActive = gamepadActiveNow;
 
     const pressed = pad.buttons.map((button) => button.pressed);
     for (const [indexText, action] of Object.entries(GAMEPAD_ACTIONS)) {
@@ -465,7 +485,9 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
     const keyboardThrust = keys.has('KeyW') ? 1 : keys.has('KeyS') ? -1 : 0;
     const keyboardTurn = keys.has('KeyD') ? 1 : keys.has('KeyA') ? -1 : 0;
     const thrust = Math.max(-1, Math.min(1, keyboardThrust + gamepadThrust + touchThrust));
-    const turn = Math.max(-1, Math.min(1, keyboardTurn + gamepadTurn + touchTurn));
+    // Gamepad steering is a heading demand handled by the flight controller;
+    // keyboard/touch turning stays direct.
+    const turn = Math.max(-1, Math.min(1, keyboardTurn + touchTurn));
     return {
       thrust,
       turn,
@@ -473,6 +495,11 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
       fire: pointerFire || touchFire || gamepadFire,
       fireAll: keys.has('Space'),
       aim: { ...aim },
+      gamepadHeading: {
+        active: gamepadHeadingActive,
+        x: gamepadHeadingX,
+        y: gamepadHeadingY,
+      },
       zoom: pendingZoom,
       gamepadConnected,
       touchVisible,

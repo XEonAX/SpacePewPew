@@ -61,6 +61,7 @@ import { createShipShield } from './ship-shield';
 import { createInputSystem } from './input-system';
 import type { InputSnapshot } from './input-system';
 import { aimPointFromStick } from './input-model';
+import { headingTurnInput } from './heading-steer';
 import { createPlayerHud } from './player-hud';
 
 export interface Scene {
@@ -621,9 +622,19 @@ export async function createScene(
     input.update();
     inputState = input.snapshot();
 
-    // Digital keys and analog sticks both feed the flight model's input ramp.
+    // Digital keys, touch sticks and gamepad triggers share the analog ramp.
+    // Gamepad steering is heading-based: the left stick points the nose and a
+    // PD loop turns the hull toward it; keyboard/touch turn stays direct.
     controls.thrustAxis = inputState.thrust;
-    controls.turnAxis = inputState.turn;
+    const gamepadTurn = inputState.gamepadHeading.active
+      ? headingTurnInput(
+          inputState.gamepadHeading.x,
+          inputState.gamepadHeading.y,
+          flight.rotation,
+          flight.angularVelocity,
+        )
+      : 0;
+    controls.turnAxis = inputState.turn !== 0 ? inputState.turn : gamepadTurn;
     controls.stabilize = inputState.stabilize;
     controls.forward = false;
     controls.reverse = false;
