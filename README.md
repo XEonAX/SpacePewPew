@@ -156,7 +156,9 @@ show them on a desktop browser. Developer tuning panels are hidden while they ar
 
 The full systems write-up lives in **[docs/GAMEPLAY.md](docs/GAMEPLAY.md)**; the module map and
 conventions are in **[AGENTS.md](AGENTS.md)**; design decisions are recorded in
-**[docs/DECISIONS.md](docs/DECISIONS.md)**.
+**[docs/DECISIONS.md](docs/DECISIONS.md)**. The current DEADWEIGHT design brief and its visual
+companion are in **[docs/DEADWEIGHT.md](docs/DEADWEIGHT.md)** and
+**[docs/DEADWEIGHT_VISUALS.md](docs/DEADWEIGHT_VISUALS.md)**.
 
 ## Project layout
 

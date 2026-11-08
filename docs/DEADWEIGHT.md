@@ -5,7 +5,7 @@
 > **A dying belt, a fat hold, and a long way home.**
 > Every good rock is further from the relay. Every tonne makes the trip back longer.
 
-**Status:** concept locked; 5-day feel gate next. This brief is the decision record after five design
+**Status:** concept locked; 5-day feel gate next. Visual companion: [DEADWEIGHT_VISUALS.md](DEADWEIGHT_VISUALS.md). This brief is the decision record after five design
 iterations and three review rounds. It is deliberately more precise than a pitch and less detailed than
 a full GDD.
 
