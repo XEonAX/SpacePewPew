@@ -65,8 +65,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   torque falls out of the nozzle positions (`engineWrench`). Acceleration is force/mass, angular
   acceleration is torque/inertia (`shipInertiaKgM2` from the radius of gyration), and the yaw
   couple is force-balanced to the weaker engine group. Inputs ramp
-  over 0.3 s; drag multiplies velocity on both axes while any input is active; terminal speeds
-  and yaw rate emerge from thrust/drag. Hold X swaps the mix for the stabiliser outputs; the
+  over 0.3 s; drag multiplies velocity on both axes while any input is active — including the
+  stabiliser hold — and terminal speeds/yaw rate emerge from thrust/drag. Hold X swaps the mix for
+  the stabiliser outputs; the
   per-nozzle mix that was used is returned so the exhaust and engine audio show the same thrust.
   Unit-tested in `tests/ship-flight.test.ts`.
 - `src/app/ship-engines.ts` — the drive geometry: every `EngineMount` (group/index, nozzle

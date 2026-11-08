@@ -271,8 +271,19 @@ export function stepFlight(
   // sets finite terminal speeds. After key-up the input still takes
   // inputRampSeconds to reach 0, so drag stays on for that whole tail; once all
   // inputs hit zero the ship coasts on its momentum.
+  // Holding the stabiliser counts as active input immediately, so both drags
+  // engage on the press rather than waiting for the ramp (and even when there
+  // is no thrust/turn demand).
+  const rawInput =
+    controls.stabilize ||
+    controls.forward ||
+    controls.reverse ||
+    controls.turnLeft ||
+    controls.turnRight ||
+    (controls.thrustAxis ?? 0) !== 0 ||
+    (controls.turnAxis ?? 0) !== 0;
   const anyInput =
-    state.linearInput !== 0 || state.angularInput !== 0 || state.stabilizeInput !== 0;
+    rawInput || state.linearInput !== 0 || state.angularInput !== 0 || state.stabilizeInput !== 0;
   if (anyInput) {
     const linearDrag = Math.exp(-tuning.linearDrag * dt);
     state.vx *= linearDrag;

@@ -114,7 +114,8 @@ export function createFlightTelemetry(
 
     // Drag only runs while a ramped input is non-zero; show the rates actually
     // in effect this frame (zero at rest / while coasting).
-    const dampingApplied = flight.linearInput !== 0 || flight.angularInput !== 0;
+    const dampingApplied =
+      flight.linearInput !== 0 || flight.angularInput !== 0 || flight.stabilizeInput !== 0;
     set('Linear damp', dampingApplied ? `${fixed(tuning.linearDrag)} /s` : '0.00 /s');
     set('Angular damp', dampingApplied ? `${fixed(tuning.angularDrag)} /s` : '0.00 /s');
   };

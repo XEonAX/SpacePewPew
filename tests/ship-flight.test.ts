@@ -48,6 +48,23 @@ describe('ship flight', () => {
     expect(state.linearInput).toBe(1);
   });
 
+  it('engages both drags while stabilizing, even without thrust or turn', () => {
+    const noEngines: ShipGeometry = { engines: [], radiusOfGyrationM: 2.4 };
+    const coast = createFlightState();
+    const stabilizing = createFlightState();
+    for (const state of [coast, stabilizing]) {
+      state.vx = 12;
+      state.vy = 7;
+      state.angularVelocity = 2.5;
+    }
+
+    stepFlight(coast, press({}), 0.4, TUNING, noEngines);
+    stepFlight(stabilizing, press({ stabilize: true }), 0.4, TUNING, noEngines);
+
+    expect(Math.hypot(stabilizing.vx, stabilizing.vy)).toBeLessThan(Math.hypot(coast.vx, coast.vy));
+    expect(Math.abs(stabilizing.angularVelocity)).toBeLessThan(Math.abs(coast.angularVelocity));
+  });
+
   it('ramps analog stick targets through the same input ramp', () => {
     const state = createFlightState();
     stepFlight(

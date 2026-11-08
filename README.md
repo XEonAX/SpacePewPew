@@ -87,21 +87,21 @@ Pushes to `main` are checked by CI and deployed to GitHub Pages by
 
 ## Controls
 
-| Input                              | Action                                                |
-| ---------------------------------- | ----------------------------------------------------- |
-| `W` / `S`                          | Main / reverse thrust                                 |
-| `A` / `D`                          | Turn left / right                                     |
-| `X` (hold)                         | Stabiliser — retro burn and spin damping              |
-| Mouse                              | Aim the turrets                                       |
-| Click / hold                       | Fire the aimed pair (or mining lasers in mining mode) |
-| `Space` (hold, guns + forward aim) | Fire every pair forward                               |
-| `Tab`                              | Switch gun battery ↔ mining rig                       |
-| `1` / `2`                          | Gun aiming: mouse track / all-forward                 |
-| `P`                                | Mining carry: physics (default) / curved arc          |
-| `M`                                | Mute / unmute                                         |
-| `F1`                               | Toggle developer overlays (hidden by default)         |
-| `F2`                               | Toggle collider debug gizmo                           |
-| Scroll                             | Zoom (1× in, 50× out)                                 |
+| Input                              | Action                                                      |
+| ---------------------------------- | ----------------------------------------------------------- |
+| `W` / `S`                          | Main / reverse thrust                                       |
+| `A` / `D`                          | Turn left / right                                           |
+| `X` (hold)                         | Stabiliser — retro burn, spin damping + linear/angular drag |
+| Mouse                              | Aim the turrets                                             |
+| Click / hold                       | Fire the aimed pair (or mining lasers in mining mode)       |
+| `Space` (hold, guns + forward aim) | Fire every pair forward                                     |
+| `Tab`                              | Switch gun battery ↔ mining rig                             |
+| `1` / `2`                          | Gun aiming: mouse track / all-forward                       |
+| `P`                                | Mining carry: physics (default) / curved arc                |
+| `M`                                | Mute / unmute                                               |
+| `F1`                               | Toggle developer overlays (hidden by default)               |
+| `F2`                               | Toggle collider debug gizmo                                 |
+| Scroll                             | Zoom (1× in, 50× out)                                       |
 
 ### Gamepad
 
