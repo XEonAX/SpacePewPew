@@ -46,7 +46,8 @@ export function createPlayerHud(): PlayerHud {
   mode.textContent = 'GUNS';
   const carry = document.createElement('span');
   carry.className = 'hud-pill';
-  carry.textContent = 'CURVED';
+  carry.title = 'Mining carry mode — P toggles curved arc / physics';
+  carry.textContent = 'CARRY: CURVED';
   const cargo = document.createElement('span');
   cargo.className = 'hud-pill';
   cargo.innerHTML = 'CARGO <b>0</b>';
@@ -79,7 +80,9 @@ export function createPlayerHud(): PlayerHud {
     const mining = state.mode === 'mining';
     mode.textContent = mining ? 'MINING' : 'GUNS';
     mode.classList.toggle('hud-pill--mining', mining);
-    carry.textContent = state.carry === 'physics' ? 'PHYSICS' : 'CURVED';
+    carry.textContent = state.carry === 'physics' ? 'CARRY: PHYSICS' : 'CARRY: CURVED';
+    // Carry mode only matters while the mining rig is equipped.
+    carry.classList.toggle('hud-pill--hidden', !mining);
     if (cargoValue) cargoValue.textContent = String(state.cargo);
 
     const showReticle = state.aim.active;
