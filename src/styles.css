@@ -40,3 +40,116 @@ body {
   pointer-events: none;
   background: radial-gradient(ellipse at center, rgba(2, 3, 10, 0) 42%, rgba(2, 3, 10, 0.55) 100%);
 }
+
+/* Boot / asset-loading overlay. Fades out once the scene and audio are ready. */
+#boot {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(60, 120, 190, 0.22), transparent 55%),
+    radial-gradient(circle at 50% 50%, #0a1626 0%, #05070f 70%);
+  color: #cfe6ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  transition: opacity 0.35s ease;
+}
+
+#boot.boot--done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boot__panel {
+  width: min(360px, 82vw);
+  text-align: center;
+}
+
+.boot__mark {
+  color: #d8f3ff;
+  font-size: 22px;
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 24px rgba(90, 200, 255, 0.35);
+}
+
+.boot__subtitle {
+  margin-top: 6px;
+  color: #7fdfff;
+  font-size: 12px;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  text-transform: uppercase;
+}
+
+.boot__tagline {
+  margin: 10px 0 0;
+  color: #6f8aa3;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.boot__bar {
+  height: 3px;
+  margin: 26px 0 10px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(120, 180, 220, 0.16);
+}
+
+.boot__fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2b6f9e, #7fdfff);
+  box-shadow: 0 0 12px rgba(127, 223, 255, 0.55);
+  transition: width 0.18s ease;
+}
+
+.boot__readout {
+  display: flex;
+  justify-content: space-between;
+  color: #6f8aa3;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.boot__percent {
+  color: #7fdfff;
+  font-variant-numeric: tabular-nums;
+}
+
+.boot--indeterminate .boot__fill {
+  width: 38% !important;
+  animation: boot-sweep 1.15s ease-in-out infinite;
+}
+
+.boot--error .boot__fill {
+  background: #ff6b5e;
+  box-shadow: 0 0 12px rgba(255, 107, 94, 0.5);
+}
+
+.boot--error .boot__status {
+  color: #ff9b92;
+}
+
+@keyframes boot-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(270%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #boot,
+  .boot__fill {
+    transition: none;
+  }
+
+  .boot--indeterminate .boot__fill {
+    animation: none;
+    transform: none;
+  }
+}

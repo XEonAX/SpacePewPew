@@ -37,7 +37,7 @@ Top-down fighter, 941 × 1672 px.
 ## Asteroid, second variant
 
 1288 × 1221 px — a rounder rock, supplied with the same colour/normal pairing. Processed to
-`public/assets/lighting/asteroid2-*.png` with the identical one-off treatment and used for the
+`public/assets/lighting/asteroid2-*.webp` with the identical one-off treatment and used for the
 second rock in the world field.
 
 <table>
@@ -65,4 +65,4 @@ second rock in the world field.
   reference above stays untouched.
 
 - `turret.svg` is the supplied mounted-gun SVG, rasterized to
-  `public/assets/lighting/turret.png` for the eight turret sprites.
+  `public/assets/lighting/turret.webp` for the eight turret sprites.

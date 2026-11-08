@@ -5,7 +5,7 @@ should start with [README.md](README.md).
 
 ## What this repo is
 
-SpacePewPew is a **starter/demo**, not a game loop yet. It contains:
+**COLD ROCK: PROSPECT** (repository: SpacePewPew) is a playable PixiJS demo. It contains:
 
 - PixiJS v8 rendering a procedural space background and a normal-mapped ship/asteroid demo,
 - a small custom GLSL normal-map lighting shader (directional key + emissive panels),
@@ -149,7 +149,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/asteroid-layout.ts` — pure deterministic asteroid scatter: seeded PRNG, rejection
   placement, axis/spawn clearances, diameter/variant mix across all available arts. Unit-tested
   in `tests/asteroid-layout.test.ts`.
-- `public/assets/lighting/generated/` — eight committed asteroid sprites (`asteroid-gen-NN-color/-normal.png`)
+- `public/assets/lighting/generated/` — eight committed asteroid sprites (`asteroid-gen-NN-color/-normal.webp`)
   rendered offline by `tools/asteroid-gen/`. Loaded with `Assets.load()` in `lighting-scene.ts`;
   there is no runtime asteroid art generation.
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
@@ -195,6 +195,13 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/utils/` — pure helpers (safe to unit test).
 - `src/main.ts` — entry point, input handlers, HMR teardown, `window.__SPACEPEWPEW__` hook
   (Pixi app, colliders, ship pose and asteroid staging for browser automation/screenshots).
+  Shows the boot overlay, pings analytics on non-local hosts and fades the overlay once
+  textures and audio are ready.
+- `src/app/loading-screen.ts` — full-screen boot overlay with texture progress, an
+  indeterminate audio phase, error state and reduced-motion support; `loading-model.ts` holds
+  the pure progress clamping (tested).
+- `src/app/analytics.ts` — fire-and-forget visit ping (`no-cors`, silent failures) except on
+  `localhost`/`127.0.0.1`; hostname gate unit-tested.
 - `docs/GAMEPLAY.md` — detailed systems write-up moved out of the README (flight, collisions,
   asteroids, weapons, mining, lighting, audio).
 - `docs/reference/` — supplied color/normal reference art for the ship and asteroid.
@@ -243,9 +250,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   a growing `lighting-scene.ts`.
 - **Procedural content is deterministic.** Use `src/utils/random.ts` with a fixed seed and keep
   generation/projection math pure in `*-model.ts` files so it can be unit tested.
-- **Asteroid sprites are baked offline.** The eight generated variants are committed PNGs
-  rendered by `tools/asteroid-gen/` (Blender). Re-bake with the README commands, do not add
-  runtime art generation or a build-time asset step. Their colour maps are **unlit albedo**
+- **Asteroid sprites are baked offline.** The eight generated variants are committed WebP sprites
+  rendered by `tools/asteroid-gen/` (Blender) and optimized for the web (quality 88 colour / 92
+  normal via `optimize_webp.py`). Re-bake with the README commands; do not add runtime art
+  generation or a build-time asset step. Their colour maps are **unlit albedo**
   (painted plate colours + baked AO only); directional shading comes from the normal map and the
   `LitSprite` shader, so keep normals blended toward flat (~0.3) and let `asteroidLighting`
   soften the key. Never bake lighting back into the colour map: it makes shadows rotate with the

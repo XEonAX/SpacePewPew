@@ -31,8 +31,15 @@ Shipped order and palettes (1–8):
 | 8   | 53   | limestone |
 
 Render each at `ASTEROID_SIZE=1024` into a temp directory, run
-`postprocess.py`, then copy `color-final.png` / `normal-final.png` over
-`public/assets/lighting/generated/asteroid-gen-NN-color.png` / `-normal.png`.
+`postprocess.py`, rename to `asteroid-gen-NN-color.png` / `-normal.png`, then run
+`optimize_webp.py` to produce the committed `.webp` runtime copies:
+
+```bash
+python3 tools/asteroid-gen/optimize_webp.py <staging-dir> public/assets/lighting/generated
+```
+
+The optimizer uses WebP quality 88 for colour maps (with alpha) and 92 for normal maps; the
+whole committed ship + asteroid art set is under 1 MB, versus 7.4 MB as PNGs.
 
 ## Usage
 
@@ -55,7 +62,7 @@ Environment:
 Outputs: `color.png` (transparent RGBA painted sprite), `normal.png`
 (camera-space normals, attenuated by post), `ambient.png` (soft occlusion),
 `stats.json` (crater/face counts). `postprocess.py` writes `color-final.png` and
-`normal-final.png` — those are the files to ship.
+`normal-final.png` — those are the files to convert for shipping.
 
 ## Technique
 

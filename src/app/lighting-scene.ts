@@ -125,8 +125,25 @@ const assetUrl = (path: string): string => joinBaseUrl(import.meta.env.BASE_URL,
 /** Blender-rendered asteroid variants committed under assets/lighting/generated. */
 const GENERATED_ASTEROID_VARIANTS = 8;
 
-export async function createScene(app: Application, audio: AudioManager): Promise<Scene> {
+export interface SceneLoadProgress {
+  loaded: number;
+  total: number;
+}
+
+export async function createScene(
+  app: Application,
+  audio: AudioManager,
+  onLoadProgress?: (progress: SceneLoadProgress) => void,
+): Promise<Scene> {
   const background = createBackground(app);
+  const totalTextures = 9 + GENERATED_ASTEROID_VARIANTS * 2;
+  let loadedTextures = 0;
+  const loadTexture = async (path: string): Promise<Texture> => {
+    const texture = await Assets.load<Texture>(path);
+    loadedTextures += 1;
+    onLoadProgress?.({ loaded: loadedTextures, total: totalTextures });
+    return texture;
+  };
 
   const [
     shipColor,
@@ -139,15 +156,15 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     asteroid2Normal,
     turretTexture,
   ] = await Promise.all([
-    Assets.load<Texture>(assetUrl('assets/lighting/ship-color.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/ship-normal.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/ship-emissive.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/ship-glow.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/asteroid-color.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/asteroid-normal.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/asteroid2-color.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/asteroid2-normal.png')),
-    Assets.load<Texture>(assetUrl('assets/lighting/turret.png')),
+    loadTexture(assetUrl('assets/lighting/ship-color.webp')),
+    loadTexture(assetUrl('assets/lighting/ship-normal.webp')),
+    loadTexture(assetUrl('assets/lighting/ship-emissive.webp')),
+    loadTexture(assetUrl('assets/lighting/ship-glow.webp')),
+    loadTexture(assetUrl('assets/lighting/asteroid-color.webp')),
+    loadTexture(assetUrl('assets/lighting/asteroid-normal.webp')),
+    loadTexture(assetUrl('assets/lighting/asteroid2-color.webp')),
+    loadTexture(assetUrl('assets/lighting/asteroid2-normal.webp')),
+    loadTexture(assetUrl('assets/lighting/turret.webp')),
   ]);
 
   // Eight asteroid sprites baked offline with tools/asteroid-gen. Their colour
@@ -157,8 +174,8 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     Array.from({ length: GENERATED_ASTEROID_VARIANTS }, (_, index) => {
       const id = String(index + 1).padStart(2, '0');
       return Promise.all([
-        Assets.load<Texture>(assetUrl(`assets/lighting/generated/asteroid-gen-${id}-color.png`)),
-        Assets.load<Texture>(assetUrl(`assets/lighting/generated/asteroid-gen-${id}-normal.png`)),
+        loadTexture(assetUrl(`assets/lighting/generated/asteroid-gen-${id}-color.webp`)),
+        loadTexture(assetUrl(`assets/lighting/generated/asteroid-gen-${id}-normal.webp`)),
       ]);
     }),
   );

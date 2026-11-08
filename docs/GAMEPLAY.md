@@ -1,6 +1,6 @@
 # Gameplay & systems deep dive
 
-This is the detailed reference for what SpacePewPew actually simulates: flight,
+This is the detailed reference for what COLD ROCK: PROSPECT actually simulates: flight,
 collisions, asteroids, weapons, mining, lighting and audio. For the short pitch,
 quick start and controls see the [README](../README.md); for the architecture map
 and agent workflow see [AGENTS.md](../AGENTS.md).
@@ -90,7 +90,7 @@ runtime copies live in [public/assets/lighting/](../public/assets/lighting/).
 ## Asteroid art
 
 The two supplied rocks are joined by **eight Blender-rendered variants** in
-[public/assets/lighting/generated/](../public/assets/lighting/generated/) (committed PNGs: colour +
+[public/assets/lighting/generated/](../public/assets/lighting/generated/) (committed WebP: colour +
 camera-space normal per variant). They were baked offline by
 [tools/asteroid-gen/](../tools/asteroid-gen/) (Blender 5.x + a small Python post pass), which builds
 each rock deterministically from a seed:

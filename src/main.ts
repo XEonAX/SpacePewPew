@@ -4,6 +4,8 @@ import type { AsteroidCollider } from './app/asteroid-collision';
 import { createApp } from './app/create-app';
 import { createScene } from './app/lighting-scene';
 import { AudioManager } from './audio/audio';
+import { pingVisit } from './app/analytics';
+import { createLoadingScreen } from './app/loading-screen';
 
 declare global {
   interface Window {
@@ -27,48 +29,64 @@ declare global {
 const audio = new AudioManager({ baseUrl: import.meta.env.BASE_URL });
 
 async function main(): Promise<void> {
-  const mount = document.querySelector<HTMLDivElement>('#app');
-  if (!mount) throw new Error('Missing #app mount point');
+  pingVisit();
+  const loading = createLoadingScreen();
+  document.body.append(loading.element);
 
-  const app = await createApp();
-  mount.append(app.canvas);
+  try {
+    const mount = document.querySelector<HTMLDivElement>('#app');
+    if (!mount) throw new Error('Missing #app mount point');
 
-  const scene = await createScene(app, audio);
+    const app = await createApp();
+    mount.append(app.canvas);
 
-  const unlockAudio = (): void => {
-    void audio.enable();
-  };
-
-  const onKeyDown = (event: KeyboardEvent): void => {
-    if (event.code === 'KeyM') {
-      scene.setMuted(audio.toggleMute());
-      return;
-    }
-    unlockAudio();
-  };
-
-  window.addEventListener('pointerdown', unlockAudio);
-  window.addEventListener('keydown', onKeyDown);
-
-  await audio.load();
-
-  window.__SPACEPEWPEW__ = {
-    ready: true,
-    app,
-    getColliders: scene.getColliders,
-    getShipPose: scene.getShipPose,
-    stageAsteroid: scene.stageAsteroid,
-  };
-
-  if (import.meta.hot) {
-    import.meta.hot.dispose(() => {
-      window.removeEventListener('pointerdown', unlockAudio);
-      window.removeEventListener('keydown', onKeyDown);
-      scene.destroy();
-      audio.destroy();
-      app.destroy(true, { children: true });
-      delete window.__SPACEPEWPEW__;
+    loading.setStatus('Loading art…');
+    const scene = await createScene(app, audio, ({ loaded, total }) => {
+      loading.setProgress(loaded, total);
     });
+
+    const unlockAudio = (): void => {
+      void audio.enable();
+    };
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.code === 'KeyM') {
+        scene.setMuted(audio.toggleMute());
+        return;
+      }
+      unlockAudio();
+    };
+
+    window.addEventListener('pointerdown', unlockAudio);
+    window.addEventListener('keydown', onKeyDown);
+
+    loading.setStatus('Waking the audio…');
+    loading.setIndeterminate(true);
+    await audio.load();
+    loading.finish();
+
+    window.__SPACEPEWPEW__ = {
+      ready: true,
+      app,
+      getColliders: scene.getColliders,
+      getShipPose: scene.getShipPose,
+      stageAsteroid: scene.stageAsteroid,
+    };
+
+    if (import.meta.hot) {
+      import.meta.hot.dispose(() => {
+        window.removeEventListener('pointerdown', unlockAudio);
+        window.removeEventListener('keydown', onKeyDown);
+        scene.destroy();
+        audio.destroy();
+        app.destroy(true, { children: true });
+        delete window.__SPACEPEWPEW__;
+        loading.destroy();
+      });
+    }
+  } catch (error) {
+    loading.fail('Startup failed — see the browser console.');
+    throw error;
   }
 }
 

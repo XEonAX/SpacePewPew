@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "A hand-lit 2.5D spaceship sandbox built with PixiJS v8, TypeScript and a custom normal-map shader.",
+  "description": "COLD ROCK: PROSPECT — a hand-lit 2.5D asteroid mining sandbox built with PixiJS v8, TypeScript and a custom normal-map shader.",
   "engines": {
     "node": ">=22.12.0"
   },

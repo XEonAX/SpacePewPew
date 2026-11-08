@@ -1,6 +1,6 @@
 /**
  * Shared engine layout. The reverse-engine values must stay in sync with the
- * reverse nozzles baked into ship-color.png / ship-normal.png.
+ * reverse nozzles baked into ship-color.webp / ship-normal.webp.
  */
 export const MAIN_ENGINE_LAYOUT = {
   xOffsets: [-80, 0, 80] as const,

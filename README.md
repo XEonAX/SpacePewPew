@@ -1,4 +1,4 @@
-# SpacePewPew
+# COLD ROCK: PROSPECT
 
 **A hand-lit 2.5D space sandbox built on PixiJS.**
 
@@ -9,11 +9,11 @@
 ![PixiJS v8](https://img.shields.io/badge/PixiJS-v8-ff5fb0)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 ![Vite](https://img.shields.io/badge/Vite-8-646cff)
-![Vitest](https://img.shields.io/badge/tests-215%20passing-brightgreen)
+![Vitest](https://img.shields.io/badge/tests-219%20passing-brightgreen)
 
-![SpacePewPew — flying through the asteroid field](https://github.com/user-attachments/assets/e9592e59-5c2c-4676-bb6c-615cdfad6f9d)
+![COLD ROCK: PROSPECT — flying through the asteroid field](https://github.com/user-attachments/assets/e9592e59-5c2c-4676-bb6c-615cdfad6f9d)
 
-SpacePewPew is a playable demo about **weight**: an 18.5-tonne hull that answers to thrust,
+**COLD ROCK: PROSPECT** is a playable demo about **weight**: an 18.5-tonne hull that answers to thrust,
 drag and inertia, a seeded field of one hundred stylised asteroids, and a mining rig that cuts
 metal out of rock and tractors it into the hold. Everything is rendered with a custom
 normal-map shader over a living parallax sky — including asteroid sprites baked in Blender
@@ -40,6 +40,8 @@ a small GLSL shader, and the maths written down.
 - **Impacts with weight.** Shield collisions produce real impulses (`Δv = J/m`, `Δω = L/I`) at
   the contact patch: heavy hits shove, glancing hits scrape, off-centre hits spin the hull, and
   the shield lights up with camera shake and collision audio.
+- **Fast to load.** All ship and asteroid maps are committed as WebP — under 1 MB for the
+  entire art set instead of 7.4 MB of PNGs — with a boot progress screen for the first load.
 - **Presentation.** Parallax nebulas, stars and galaxies, a world-space metagrid, engine flames
   and smoke, a speed-reactive camera, and engine hums whose pitch and stereo position follow each
   nozzle.
@@ -120,7 +122,7 @@ conventions are in **[AGENTS.md](AGENTS.md)**; design decisions are recorded in
 
 ```text
 src/app/         flight, lighting, asteroids, weapons, mining, HUD overlays
-public/assets/   committed ship + asteroid colour/normal maps
+public/assets/   committed ship + asteroid colour/normal maps (WebP)
 public/audio/    committed weapon, engine, mining and impact audio
 tools/asteroid-gen/  offline Blender pipeline for the asteroid sprites
 tests/           fast, pure unit tests for the simulation maths
@@ -142,8 +144,8 @@ docs/            deep dive, decisions, reference art, agent workflow
 
 The asteroid sprites are rendered with Blender by [`tools/asteroid-gen/`](tools/asteroid-gen/)
 (faceted hulls, boolean craters, inset plates, painted albedo, camera-space normals) and committed
-as 1024 px PNGs. There is no build-time or runtime art generation; re-bake deliberately with the
-pipeline README. The colour pass is unlit albedo by design — keeping lighting in the shader is
+as 1024 px WebP images (quality 88 for colour, 92 for normals) for fast web delivery. There is
+no build-time or runtime art generation; re-bake deliberately with the pipeline README. The colour pass is unlit albedo by design — keeping lighting in the shader is
 what lets a spinning rock shade correctly in game.
 
 ## Licence

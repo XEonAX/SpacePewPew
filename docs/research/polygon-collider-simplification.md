@@ -2,7 +2,7 @@
 
 Research note (2026-11-07) behind the low-poly replacement of the 128-ray silhouette collider in
 `src/app/asteroid-field.ts`. Vertex counts below are measured on the two shipped asteroid textures
-(`public/assets/lighting/asteroid-color.png` and `asteroid2-color.png`) by tracing 128 subpixel
+(`public/assets/lighting/asteroid-color.webp` and `asteroid2-color.webp`) by tracing 128 subpixel
 alpha rays from the texture centre, exactly as the game does, then running closed-polygon RDP over
 that contour.
 
