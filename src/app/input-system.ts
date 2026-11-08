@@ -164,12 +164,14 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
     }
     if (event.code === 'Space') {
       event.preventDefault();
+      source = 'keyboard';
       keys.add('Space');
       activity();
       return;
     }
     if (MOVEMENT_KEYS.has(event.code)) {
       event.preventDefault();
+      source = 'keyboard';
       keys.add(event.code);
       activity();
     }

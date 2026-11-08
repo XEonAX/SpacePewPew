@@ -93,8 +93,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   large overshoot. The scene feeds its output through the normal flight input ramp; gamepad
   triggers supply main/reverse thrust separately. Unit-tested.
 - `src/app/player-hud.ts` — player-facing HUD (brand, weapon/cargo pills, aim reticle and
-  a hint line that auto-fades). The dev tuners/telemetry are hidden by default and revealed by
-  **F1** or `?dev=1`; when dev UI is on the player HUD steps out.
+  an auto-fading hint line that follows the device actually in use: keyboard/mouse copy,
+  gamepad copy or hidden for touch). The dev tuners/telemetry are hidden by default and
+  revealed by **F1** or `?dev=1`; when dev UI is on the player HUD steps out.
 - `src/app/flight-telemetry.ts` — read-only **TELEMETRY** overlay: mass, terminal W/S/yaw,
   velocity, live/peak G, cargo held, cumulative shield damage absorbed, angular velocity,
   ramped inputs and applied drag. G is derived from the actual frame velocity delta (so

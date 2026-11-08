@@ -49,6 +49,7 @@ import {
   toggleWeaponMode,
   turretAimMode,
   weaponHint,
+  gamepadHint,
 } from './weapon-mode';
 import type { AimMode, WeaponMode } from './weapon-mode';
 import { createMining } from './mining';
@@ -331,9 +332,12 @@ export async function createScene(
   const hud = createPlayerHud();
   let devUiVisible = new URLSearchParams(window.location.search).get('dev') === '1';
   document.body.classList.toggle('dev-ui', devUiVisible);
+  let lastHintSource = inputState.source;
   const updateHint = (): void => {
     hud.setHint(
-      weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode(), miningAimMode),
+      inputState.source === 'gamepad'
+        ? gamepadHint(weaponMode, aimMode, soundMuted, miningAimMode)
+        : weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode(), miningAimMode),
     );
   };
   updateHint();
@@ -621,6 +625,10 @@ export async function createScene(
 
     input.update();
     inputState = input.snapshot();
+    if (inputState.source !== lastHintSource) {
+      lastHintSource = inputState.source;
+      updateHint();
+    }
 
     // Digital keys, touch sticks and gamepad triggers share the analog ramp.
     // Gamepad steering is heading-based: the left stick points the nose and a

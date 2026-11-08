@@ -44,6 +44,21 @@ export function turretAimMode(
   return aimMode;
 }
 
+export function gamepadHint(
+  weaponMode: WeaponMode,
+  aimMode: AimMode,
+  muted: boolean,
+  miningAimMode: AimMode = 'mouse',
+): string {
+  const controls =
+    weaponMode === 'mining'
+      ? `L stick steer · RT/LT thrust · R stick aim · A mining laser · B stabilise · X guns · D-pad ←/→ ${miningAimMode === 'forward' ? 'forward' : 'mouse'}`
+      : aimMode === 'mouse'
+        ? 'L stick steer · RT/LT thrust · R stick aim · A fire · B stabilise · X mining'
+        : 'L stick steer · RT/LT thrust · R stick aim · A fire all · B stabilise · X mining';
+  return muted ? `${controls} · Start unmute` : `${controls} · Start mute`;
+}
+
 export function weaponHint(
   weaponMode: WeaponMode,
   aimMode: AimMode,

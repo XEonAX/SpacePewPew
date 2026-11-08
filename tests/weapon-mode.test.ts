@@ -5,6 +5,7 @@ import {
   DEFAULT_WEAPON_MODE,
   WEAPON_MODE_KEY_CODE,
   aimModeForKey,
+  gamepadHint,
   toggleWeaponMode,
   turretAimMode,
   weaponHint,
@@ -38,6 +39,18 @@ describe('weapon modes', () => {
     expect(turretAimMode('mining', 'forward')).toBe('mining');
     expect(turretAimMode('mining', 'mouse', 'forward')).toBe('mining-forward');
     expect(turretAimMode('mining', 'forward', 'mouse')).toBe('mining');
+  });
+
+  it('describes the gamepad controls separately', () => {
+    const guns = gamepadHint('guns', 'mouse', false);
+    expect(guns).toContain('L stick steer');
+    expect(guns).toContain('RT/LT thrust');
+    expect(guns).toContain('R stick aim');
+    expect(guns).toContain('A fire');
+    expect(guns).toContain('B stabilise');
+    expect(guns).not.toContain('hold click');
+    expect(gamepadHint('mining', 'mouse', false)).toContain('A mining laser');
+    expect(gamepadHint('mining', 'mouse', false, 'forward')).toContain('D-pad ←/→ forward');
   });
 
   it('describes the active controls in the hint', () => {
