@@ -80,7 +80,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   lateral drift is left to the linear drag that stabilising also engages. Re-evaluated every
   frame; ramped with the input ramp. Unit-tested in `tests/stabilizer.test.ts`.
 - `src/app/flight-tuner.ts` — live DOM slider overlay that mutates `FlightTuning` (mass, per-engine
-  thrust, drags, ramp); dev-facing.
+  thrust, drags, ramp); dev-facing, with a collapsible chevron header.
 - `src/app/input-system.ts` — the common input layer. Keyboard/mouse, a standard gamepad and
   the touch overlay all feed one snapshot: analog `thrust`/`turn`, `stabilize`, `fire`/`fireAll`,
   a pointer-or-stick `aim`, gamepad heading demand + analog trigger throttle, edge-triggered
@@ -139,7 +139,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   (`mining`/`mining-forward`) and the control hint. Unit-tested.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders; while the mining rig is
   equipped (Tab) the panel swaps to live mining tunables (melt, focus, laser heat/vent, chunk,
-  tractor, carry and laser range).
+  tractor, carry and laser range). Collapsible chevron header.
+- `src/app/tuner-panel.ts` — shared DOM helper for the collapsible dev-tuner headers; keeps the
+  chevron, title and expanded/collapsed state consistent between the flight and weapon panels.
 - `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers that must **dwell
   on a spot for ~0.75 s** before melting a chunk (irregular, flickering orange melt craters with
   torn rims, hot cores, bloom and drifting embers, attached to the rock's spinning frame, left

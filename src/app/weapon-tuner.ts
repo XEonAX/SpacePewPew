@@ -1,5 +1,6 @@
 import { WEAPON_PAIRS } from './weapons';
 import type { MiningTuning } from './mining-tuning';
+import { createCollapsibleTunerPanel } from './tuner-panel';
 
 const PAIR_LABELS = ['Front pair', '2nd pair', '3rd pair', 'Rear pair'] as const;
 // The slider reaches near-instantly-repeating fire on purpose; the scene still
@@ -197,14 +198,12 @@ export function createWeaponTuner(cooldowns: number[], miningTuning: MiningTunin
   root.className = 'weapon-tuner';
   Object.assign(root.style, PANEL_STYLE);
 
-  const title = document.createElement('div');
-  title.textContent = 'RATE OF FIRE';
-  title.style.cssText = 'margin-bottom:8px;color:#d8f3ff;letter-spacing:0.12em;font-size:10px;';
-  root.append(title);
+  const panel = createCollapsibleTunerPanel('RATE OF FIRE');
+  root.append(panel.header, panel.body);
 
   const gunsSection = document.createElement('div');
   const miningSection = document.createElement('div');
-  root.append(gunsSection, miningSection);
+  panel.body.append(gunsSection, miningSection);
 
   const addRow = (
     labelText: string,
@@ -300,7 +299,7 @@ export function createWeaponTuner(cooldowns: number[], miningTuning: MiningTunin
 
   let mining = false;
   const applyMode = (): void => {
-    title.textContent = mining ? 'MINING TUNING' : 'RATE OF FIRE';
+    panel.setTitle(mining ? 'MINING TUNING' : 'RATE OF FIRE');
     gunsSection.style.display = mining ? 'none' : 'block';
     miningSection.style.display = mining ? 'block' : 'none';
   };

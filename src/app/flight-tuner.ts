@@ -1,4 +1,5 @@
 import type { FlightTuning } from './ship-flight';
+import { createCollapsibleTunerPanel } from './tuner-panel';
 
 interface SliderSpec {
   key: keyof FlightTuning;
@@ -96,10 +97,9 @@ export function createFlightTuner(tuning: FlightTuning): FlightTuner {
   root.className = 'flight-tuner';
   Object.assign(root.style, PANEL_STYLE);
 
-  const title = document.createElement('div');
-  title.textContent = 'FLIGHT TUNING';
-  title.style.cssText = 'margin-bottom:8px;color:#d8f3ff;letter-spacing:0.12em;font-size:10px;';
-  root.append(title);
+  const panel = createCollapsibleTunerPanel('FLIGHT TUNING');
+  panel.setTitle('FLIGHT TUNING');
+  root.append(panel.header, panel.body);
 
   for (const spec of SLIDERS) {
     const row = document.createElement('div');
@@ -131,7 +131,7 @@ export function createFlightTuner(tuning: FlightTuning): FlightTuner {
 
     header.append(label, value);
     row.append(header, input);
-    root.append(row);
+    panel.body.append(row);
   }
 
   return {
