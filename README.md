@@ -2,10 +2,10 @@
 
 **A hand-lit 2.5D space sandbox built on PixiJS.**
 
-**[▶ Play the live demo](https://xeonax.github.io/SpacePewPew/)** · runs in the browser, no install.
+**[▶ Play the live demo](https://coldrock.aeonax.com/)** · runs in the browser, no install.
 
 [![CI](https://github.com/XEonAX/SpacePewPew/actions/workflows/ci.yml/badge.svg)](https://github.com/XEonAX/SpacePewPew/actions/workflows/ci.yml)
-[![Deploy](https://github.com/XEonAX/SpacePewPew/actions/workflows/pages.yml/badge.svg)](https://xeonax.github.io/SpacePewPew/)
+[![Deploy](https://github.com/XEonAX/SpacePewPew/actions/workflows/pages.yml/badge.svg)](https://coldrock.aeonax.com/)
 ![PixiJS v8](https://img.shields.io/badge/PixiJS-v8-ff5fb0)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 ![Vite](https://img.shields.io/badge/Vite-8-646cff)
@@ -60,7 +60,7 @@ A shield impact — the bubble flares at the contact patch while the hull takes 
 
 ## Quick start
 
-Play it now at **https://xeonax.github.io/SpacePewPew/** (GitHub Pages), or run it locally.
+Play it now at **https://coldrock.aeonax.com/** (GitHub Pages), or run it locally.
 Requires **Node 22.12+** and **pnpm 10** (`.nvmrc` pins Node 22).
 
 ```bash
