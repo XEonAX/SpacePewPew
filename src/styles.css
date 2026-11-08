@@ -398,10 +398,6 @@ body.touch-ui .flight-telemetry {
   font-weight: 500;
 }
 
-.hud-pill--hidden {
-  display: none;
-}
-
 .hud-pill--mode {
   border-color: rgba(127, 223, 255, 0.45);
   color: #b9e7ff;

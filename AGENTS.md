@@ -85,7 +85,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   colliders, dev-overlay toggle) and a multiplicative zoom factor. Gamepads are polled with a deadzone; the touch
   overlay is created here and hides the dev panels while visible (`?touch=1` forces it for
   testing). `src/app/input-model.ts` holds the pure deadzone/stick/aim/zoom maths, unit-tested.
-- `src/app/player-hud.ts` — player-facing HUD (brand, weapon/carry/cargo pills, aim reticle and
+- `src/app/player-hud.ts` — player-facing HUD (brand, weapon/cargo pills, aim reticle and
   a hint line that auto-fades). The dev tuners/telemetry are hidden by default and revealed by
   **F1** or `?dev=1`; when dev UI is on the player HUD steps out.
 - `src/app/flight-telemetry.ts` — read-only **TELEMETRY** overlay: mass, terminal W/S/yaw,

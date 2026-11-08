@@ -10,7 +10,6 @@ export interface HudAim {
 export interface HudState {
   mode: WeaponMode;
   cargo: number;
-  carry: 'curved' | 'physics';
   aim: HudAim;
   firing: boolean;
   touch: boolean;
@@ -44,15 +43,11 @@ export function createPlayerHud(): PlayerHud {
   const mode = document.createElement('span');
   mode.className = 'hud-pill hud-pill--mode';
   mode.textContent = 'GUNS';
-  const carry = document.createElement('span');
-  carry.className = 'hud-pill';
-  carry.title = 'Mining carry mode — P toggles physics / curved arc';
-  carry.textContent = 'CARRY: PHYSICS';
   const cargo = document.createElement('span');
   cargo.className = 'hud-pill';
   cargo.innerHTML = 'CARGO <b>0</b>';
   const cargoValue = cargo.querySelector('b');
-  status.append(mode, carry, cargo);
+  status.append(mode, cargo);
   identity.append(brand, status);
 
   const hint = document.createElement('div');
@@ -80,9 +75,6 @@ export function createPlayerHud(): PlayerHud {
     const mining = state.mode === 'mining';
     mode.textContent = mining ? 'MINING' : 'GUNS';
     mode.classList.toggle('hud-pill--mining', mining);
-    carry.textContent = state.carry === 'physics' ? 'CARRY: PHYSICS' : 'CARRY: CURVED';
-    // Carry mode only matters while the mining rig is equipped.
-    carry.classList.toggle('hud-pill--hidden', !mining);
     if (cargoValue) cargoValue.textContent = String(state.cargo);
 
     const showReticle = state.aim.active;

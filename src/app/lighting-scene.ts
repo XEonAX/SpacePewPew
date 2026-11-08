@@ -786,7 +786,6 @@ export async function createScene(
     hud.update({
       mode: weaponMode,
       cargo,
-      carry: mining.getCarryMode(),
       aim: { ...aimScreen, active: inputState.aim.active, kind: inputState.aim.kind },
       firing: inputState.fire || inputState.fireAll,
       touch: inputState.touchVisible,

@@ -48,7 +48,7 @@ a small GLSL shader, and the maths written down.
 - **One input layer for every device.** Keyboard + mouse, a standard twin-stick gamepad, and a
   two-stick touch layout. Sticks are analog but still pass through the flight model's input
   ramp, so the ship eases into a turn exactly like it does on keys.
-- **Player HUD + dev tools.** A clean in-game HUD (mode, cargo, carry, reticle, fading hints) by
+- **Player HUD + dev tools.** A clean in-game HUD (mode, cargo, reticle, fading hints) by
   default; **F1** (or `?dev=1`) brings up the live flight/gun/mining tuners and telemetry.
   Built for tuning, not just watching.
 
