@@ -79,6 +79,12 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   Re-evaluated every frame; ramped with the input ramp. Unit-tested in `tests/stabilizer.test.ts`.
 - `src/app/flight-tuner.ts` — live DOM slider overlay that mutates `FlightTuning` (mass, per-engine
   thrust, drags, ramp); dev-facing.
+- `src/app/input-system.ts` — the common input layer. Keyboard/mouse, a standard gamepad and
+  the touch overlay all feed one snapshot: analog `thrust`/`turn`, `stabilize`, `fire`/`fireAll`,
+  a pointer-or-stick `aim`, edge-triggered `InputAction`s (weapons, aim modes, carry, mute,
+  colliders) and a multiplicative zoom factor. Gamepads are polled with a deadzone; the touch
+  overlay is created here and hides the dev panels while visible (`?touch=1` forces it for
+  testing). `src/app/input-model.ts` holds the pure deadzone/stick/aim/zoom maths, unit-tested.
 - `src/app/flight-telemetry.ts` — read-only **TELEMETRY** overlay: mass, terminal W/S/yaw,
   velocity, live/peak G, cargo held, cumulative shield damage absorbed, angular velocity,
   ramped inputs and applied drag. G is derived from the actual frame velocity delta (so
@@ -194,7 +200,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/utils/random.ts` — seeded PRNG helpers for procedural content.
 - `src/utils/` — pure helpers (safe to unit test).
 - `src/main.ts` — entry point, input handlers, HMR teardown, `window.__SPACEPEWPEW__` hook
-  (Pixi app, colliders, ship pose and asteroid staging for browser automation/screenshots).
+  (Pixi app, colliders, ship pose, camera zoom, merged input state and asteroid staging for
+  browser automation/screenshots).
   Shows the boot overlay, pings analytics on non-local hosts and fades the overlay once
   textures and audio are ready.
 - `src/app/loading-screen.ts` — full-screen boot overlay with texture progress, an
@@ -276,6 +283,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - **Flight is force-based.** Tune mass and per-engine thrust, never an abstract acceleration or a
   synthetic yaw torque: turning must fall out of the nozzle positions via `engineWrench` and the
   engine mix, so the physics matches the flames and audio.
+- **All input goes through `input-system.ts`.** Do not add ad-hoc `keydown`/`pointerdown`
+  handlers to the scene: add the action/axis to `InputSnapshot` or `InputAction` and consume it
+  in the tick. Analog stick targets go into `FlightControls.thrustAxis`/`turnAxis` so the flight
+  input ramp still applies; never bypass the ramp with direct velocity changes.
 - **Impacts go through the physics layer.** Collisions return a physical impulse + angular impulse;
   the scene applies them with `applyShipImpulse()` (Δv = J/m, Δω = L/I) and only writes the
   depenetration offset back to the flight position. Never assign `flight.vx/vy/angularVelocity`
@@ -294,7 +305,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   camera on every wheel notch and pans the near dust/grid layer relative to the sky.
 - **Zoom is depth-weighted.** Far stars/nebulas stay at a fixed scale; mid/near stars respond
   partially; near dust takes the full pan + zoom. Zoom is clamped to `0.02`–`1`
-  (1× is the default and maximum zoom-in); only the wheel adjusts it.
+  (1× is the default and maximum zoom-in). Zoom input comes through
+  `input-system.ts` — wheel, gamepad LB/RB and the touch −/+ buttons all call
+  `background.zoomBy()`; don't add another wheel listener back into the background.
 
 ## Agent workflow
 

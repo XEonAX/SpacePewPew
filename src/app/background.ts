@@ -40,6 +40,8 @@ interface Background {
    * Call every frame; the background eases toward it for an arcade follow cam.
    */
   setFollowTarget(x: number, y: number, immediate?: boolean): void;
+  /** Multiply the eased camera zoom target; input systems drive this. */
+  zoomBy(factor: number): void;
   destroy(): void;
 }
 
@@ -369,16 +371,6 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     project();
   };
 
-  const canvas = app.canvas as HTMLCanvasElement;
-
-  const onWheel = (event: WheelEvent): void => {
-    event.preventDefault();
-    const factor = Math.exp(-event.deltaY * (event.deltaMode === 1 ? 0.032 : 0.002));
-    targetZoom = clamp(targetZoom * factor, MIN_ZOOM, MAX_ZOOM);
-  };
-
-  canvas.addEventListener('wheel', onWheel, { passive: false });
-
   app.stage.addChild(container);
   app.ticker.add(tick);
   project();
@@ -386,6 +378,10 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
   return {
     container,
     getDustTransform: () => ({ x: dustCamera.x, y: dustCamera.y, zoom }),
+    zoomBy(factor: number): void {
+      if (!Number.isFinite(factor) || factor <= 0) return;
+      targetZoom = clamp(targetZoom * factor, MIN_ZOOM, MAX_ZOOM);
+    },
     setFollowTarget(x: number, y: number, immediate = false): void {
       followTarget = { x, y };
       if (immediate) {
@@ -400,7 +396,6 @@ export function createBackground(app: Application, seed: number = STARFIELD_SEED
     },
     destroy(): void {
       app.ticker.remove(tick);
-      canvas.removeEventListener('wheel', onWheel);
 
       container.destroy({ children: true });
       starTexture.destroy(true);

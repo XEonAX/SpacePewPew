@@ -93,6 +93,7 @@ export interface FlightTuner {
 /** Small live overlay for tuning the mass-based flight constants. */
 export function createFlightTuner(tuning: FlightTuning): FlightTuner {
   const root = document.createElement('div');
+  root.className = 'flight-tuner';
   Object.assign(root.style, PANEL_STYLE);
 
   const title = document.createElement('div');

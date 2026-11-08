@@ -7,6 +7,12 @@ and agent workflow see [AGENTS.md](../AGENTS.md).
 
 ## Controls
 
+Keyboard/mouse, a standard twin-stick gamepad and a two-stick touch layout all feed the same
+input snapshot. Sticks are analog: their partial thrust/turn targets still pass through the
+flight model's 0.3 s input ramp, so the ship eases in exactly as it does from keys. The right
+stick becomes an aim direction that is projected into turret screen space; fire, stabiliser,
+weapon switching, carry mode, zoom and mute are actions rather than raw key codes.
+
 - **X (hold)** fires the stabiliser: it points the hull at the burn that opposes travel, retro-burns
   the translation away and damps spin with a balanced yaw couple, re-evaluating every frame. If
   the drift is sideways it first turns to face the drift so the reversers can act on it.

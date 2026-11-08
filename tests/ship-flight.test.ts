@@ -48,6 +48,29 @@ describe('ship flight', () => {
     expect(state.linearInput).toBe(1);
   });
 
+  it('ramps analog stick targets through the same input ramp', () => {
+    const state = createFlightState();
+    stepFlight(
+      state,
+      press({ thrustAxis: 0.5, turnAxis: -0.5 }),
+      TUNING.inputRampSeconds / 4,
+      TUNING,
+      GEOMETRY,
+    );
+    expect(state.linearInput).toBeCloseTo(0.25, 5);
+    expect(state.angularInput).toBeCloseTo(-0.25, 5);
+
+    stepFlight(
+      state,
+      press({ thrustAxis: 0.5, turnAxis: -0.5 }),
+      TUNING.inputRampSeconds / 4,
+      TUNING,
+      GEOMETRY,
+    );
+    expect(state.linearInput).toBeCloseTo(0.5, 5);
+    expect(state.angularInput).toBeCloseTo(-0.5, 5);
+  });
+
   it('ramps angular input in both directions over the same time', () => {
     const left = createFlightState();
     const right = createFlightState();

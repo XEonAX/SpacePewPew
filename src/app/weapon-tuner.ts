@@ -149,6 +149,7 @@ export interface WeaponTuner {
 
 export function createWeaponTuner(cooldowns: number[], miningTuning: MiningTuning): WeaponTuner {
   const root = document.createElement('div');
+  root.className = 'weapon-tuner';
   Object.assign(root.style, PANEL_STYLE);
 
   const title = document.createElement('div');

@@ -18,6 +18,14 @@ export interface FlightControls {
   reverse: boolean;
   turnLeft: boolean;
   turnRight: boolean;
+  /**
+   * Analog thrust target, -1..1 (positive forward). When present it replaces
+   * the forward/reverse booleans and is still fed through the same input ramp,
+   * so sticks ease in exactly like keys.
+   */
+  thrustAxis?: number;
+  /** Analog turn target, -1..1 (positive right); replaces the turn booleans. */
+  turnAxis?: number;
   /** X: fire thrusters to null translation and spin (flight assist hold). */
   stabilize: boolean;
 }
@@ -220,8 +228,12 @@ export function stepFlight(
   const idleMix: EngineMix = { main: [0, 0, 0], reverse: [0, 0] };
   if (dt <= 0) return idleMix;
 
-  const linearTarget = controls.forward ? 1 : controls.reverse ? -1 : 0;
-  const angularTarget = controls.turnRight ? 1 : controls.turnLeft ? -1 : 0;
+  const digitalLinear = controls.forward ? 1 : controls.reverse ? -1 : 0;
+  const digitalTurn = controls.turnRight ? 1 : controls.turnLeft ? -1 : 0;
+  // Analog targets are clamped here but deliberately ramped below alongside
+  // digital input, so a gamepad/touch stick never snaps the ship instantly.
+  const linearTarget = Math.max(-1, Math.min(1, controls.thrustAxis ?? digitalLinear));
+  const angularTarget = Math.max(-1, Math.min(1, controls.turnAxis ?? digitalTurn));
   const rampSeconds = Math.max(tuning.inputRampSeconds, 0.0001);
   const maxInputStep = dt / rampSeconds;
 

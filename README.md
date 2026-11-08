@@ -45,6 +45,9 @@ a small GLSL shader, and the maths written down.
 - **Presentation.** Parallax nebulas, stars and galaxies, a world-space metagrid, engine flames
   and smoke, a speed-reactive camera, and engine hums whose pitch and stereo position follow each
   nozzle.
+- **One input layer for every device.** Keyboard + mouse, a standard twin-stick gamepad, and a
+  two-stick touch layout. Sticks are analog but still pass through the flight model's input
+  ramp, so the ship eases into a turn exactly like it does on keys.
 - **Developer overlays.** Live tuning panels for flight, guns and the mining rig, plus telemetry
   for G load, cargo and shield damage. Built for tuning, not just watching.
 
@@ -98,11 +101,41 @@ Pushes to `main` are checked by CI and deployed to GitHub Pages by
 | `F2`                               | Toggle collider debug gizmo                           |
 | Scroll                             | Zoom (1× in, 50× out)                                 |
 
+### Gamepad
+
+| Input       | Action                              |
+| ----------- | ----------------------------------- |
+| Left stick  | Analog main/reverse thrust and turn |
+| Right stick | Aim the turrets and mining lasers   |
+| RT / A      | Fire                                |
+| LT / B      | Stabiliser                          |
+| X           | Switch gun battery ↔ mining rig     |
+| Y           | Mining carry mode                   |
+| LB / RB     | Zoom out / in                       |
+| Start       | Mute / unmute                       |
+| Back        | Toggle collider debug gizmo         |
+
+### Touch
+
+| Input              | Action                                   |
+| ------------------ | ---------------------------------------- |
+| Left stick         | Fly (analog thrust and turn)             |
+| Right stick        | Aim                                      |
+| FIRE               | Fire                                     |
+| TAB / STAB / CARRY | Switch weapons / stabiliser / carry mode |
+| − / +              | Zoom out / in                            |
+| MUTE               | Mute / unmute                            |
+
+Touch controls appear automatically on touch-first devices; append `?touch=1` to the URL to
+show them on a desktop browser. Developer tuning panels are hidden while they are up.
+
 ## How it works
 
 - **Flight** — pure force-based rigid body with mass, hull inertia, ramped inputs and drag;
-  everything is in metres and converted to pixels only at draw time. See
-  [`src/app/ship-flight.ts`](src/app/ship-flight.ts).
+  everything is in metres and converted to pixels only at draw time. Analog stick axes feed
+  the same ramp as digital keys. See [`src/app/ship-flight.ts`](src/app/ship-flight.ts).
+- **Input** — one merged snapshot from keyboard/mouse, gamepad and touch, with edge-triggered
+  actions and a normalized aim point. See [`src/app/input-system.ts`](src/app/input-system.ts).
 - **Lighting** — one custom GLSL Mesh shader: directional key + ambient, tangent-space normals
   rotated by each mesh's rotation, emissive panels for the ship. See
   [`src/app/lit-sprite.ts`](src/app/lit-sprite.ts).

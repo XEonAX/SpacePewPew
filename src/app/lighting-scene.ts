@@ -44,11 +44,8 @@ import {
 import type { MuzzleAim, PendingShot } from './weapons';
 import { createWeaponTuner } from './weapon-tuner';
 import {
-  AIM_MODE_KEY_CODES,
   DEFAULT_AIM_MODE,
   DEFAULT_WEAPON_MODE,
-  WEAPON_MODE_KEY_CODE,
-  aimModeForKey,
   toggleWeaponMode,
   turretAimMode,
   weaponHint,
@@ -61,6 +58,9 @@ import type { AsteroidCollider, ShipHull, Vec2 } from './asteroid-collision';
 import { createAsteroidField } from './asteroid-field';
 import { DEFAULT_ASTEROID_COUNT, generateAsteroidLayout } from './asteroid-layout';
 import { createShipShield } from './ship-shield';
+import { createInputSystem } from './input-system';
+import type { InputSnapshot } from './input-system';
+import { aimPointFromStick } from './input-model';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -68,6 +68,10 @@ export interface Scene {
   getColliders(): readonly AsteroidCollider[];
   /** Debug: current ship pose (world metres/radians) for staging screenshots. */
   getShipPose(): { x: number; y: number; rotation: number };
+  /** Debug: latest merged input snapshot (keyboard + gamepad + touch). */
+  getInputState(): InputSnapshot;
+  /** Debug: current eased camera zoom (1 = closest). */
+  getCameraZoom(): number;
   /** Debug: stage an extra asteroid at a world-metre position (screenshots/tests). */
   stageAsteroid(x: number, y: number, diameter: number, variant?: number): void;
   destroy(): void;
@@ -112,8 +116,6 @@ const asteroidLighting: LightingState = {
   keyIntensity: 0.85,
   time: 0,
 };
-
-const CONTROL_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyX']);
 
 const assetUrl = (path: string): string => joinBaseUrl(import.meta.env.BASE_URL, path);
 
@@ -218,17 +220,21 @@ export async function createScene(
   );
 
   const canvas = app.canvas as HTMLCanvasElement;
-  const pointer = { x: app.screen.width / 2, y: app.screen.height / 2, active: false };
   const shipScreen = { x: 0, y: 0 };
+  const aimScreen = { x: app.screen.width / 2, y: app.screen.height / 2 };
   /** Collider debug gizmo: hidden for normal play, F2 shows it for tuning. */
   let showColliders = false;
-  const updatePointer = (event: PointerEvent): void => {
-    const bounds = canvas.getBoundingClientRect();
-    pointer.x = ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * app.screen.width;
-    pointer.y = ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * app.screen.height;
-    pointer.active = true;
-  };
-  const onPointerMove = (event: PointerEvent): void => updatePointer(event);
+
+  // Keyboard, mouse, gamepad and touch all feed this one input source.
+  const input = createInputSystem({
+    canvas,
+    getViewport: () => ({ width: app.screen.width, height: app.screen.height }),
+    forceTouch: new URLSearchParams(window.location.search).get('touch') === '1',
+    onActivity: () => {
+      void audio.enable();
+    },
+  });
+  let inputState: InputSnapshot = input.snapshot();
 
   // Mouse aim fires on click; all-forward fires the whole battery on Space.
   let weaponMode: WeaponMode = DEFAULT_WEAPON_MODE;
@@ -237,12 +243,11 @@ export async function createScene(
   let maxGForce = 0;
   let shieldDamageJ = 0;
   let aimMode: AimMode = DEFAULT_AIM_MODE;
-  let pointerDown = false;
-  let spaceDown = false;
   let soundMuted = false;
   let cargo = 0;
-  const gunFiring = (): boolean => (aimMode === 'mouse' ? pointerDown : spaceDown);
-  const miningFiring = (): boolean => pointerDown || spaceDown;
+  const gunFiring = (): boolean =>
+    aimMode === 'mouse' ? inputState.fire : inputState.fireAll || inputState.fire;
+  const miningFiring = (): boolean => inputState.fire || inputState.fireAll;
   const pairCooldowns = [0, 0, 0, 0];
   const weaponCooldowns = WEAPON_PAIRS.map((pair) => pair.cooldown);
   const pairCursors = [0, 0, 0, 0];
@@ -279,7 +284,7 @@ export async function createScene(
     // Keyboard fire has no crosshair; keep those shots centred.
     const pan =
       aimMode === 'mouse'
-        ? clamp((pointer.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7)
+        ? clamp((aimScreen.x - shipScreen.x) / Math.max(app.screen.width * 0.35, 1), -0.7, 0.7)
         : 0;
     const volume = pair.volume * (0.92 + Math.random() * 0.16);
 
@@ -315,16 +320,6 @@ export async function createScene(
       const cooldown = weaponCooldowns[index] ?? 1;
       pairCooldowns[index] = cooldown * (0.94 + Math.random() * 0.12);
     }
-  };
-
-  const onPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0) return;
-    updatePointer(event);
-    pointerDown = true;
-    void audio.enable();
-  };
-  const stopFiring = (): void => {
-    pointerDown = false;
   };
 
   const hint = new Text({
@@ -487,6 +482,25 @@ export async function createScene(
     const shipScreenY = (shipWorldY - dust.y * height) * dust.zoom + height / 2;
     shipScreen.x = shipScreenX;
     shipScreen.y = shipScreenY;
+
+    // Pointer aim is absolute; stick aim is a direction that becomes a point
+    // out from the ship. Both end up in turret screen space.
+    const aim = inputState.aim;
+    if (aim.kind === 'stick') {
+      const point = aimPointFromStick(
+        shipScreenX,
+        shipScreenY,
+        aim.x,
+        aim.y,
+        Math.min(width, height) * 0.45,
+      );
+      aimScreen.x = point.x;
+      aimScreen.y = point.y;
+    } else {
+      aimScreen.x = aim.x;
+      aimScreen.y = aim.y;
+    }
+
     // Mining targets arrive in world metres; turret aiming works in screen px.
     const tractorTargets = mining.getTractorTargets().map((target) =>
       target
@@ -501,9 +515,9 @@ export async function createScene(
       shipScreenY,
       shipScale: shipBaseScale * dust.zoom,
       rotation: flight.rotation,
-      mouseX: pointer.x,
-      mouseY: pointer.y,
-      mouseActive: pointer.active,
+      mouseX: aimScreen.x,
+      mouseY: aimScreen.y,
+      mouseActive: inputState.aim.active,
       mode: turretAimMode(weaponMode, aimMode),
       tractorTargets,
       miningBeams: mining.getActiveBeams(),
@@ -599,6 +613,48 @@ export async function createScene(
     const deltaSeconds = Math.min(ticker.deltaMS / 1000, MAX_DELTA_SECONDS);
     lighting.time += deltaSeconds;
     asteroidLighting.time = lighting.time;
+
+    input.update();
+    inputState = input.snapshot();
+    hint.visible = !inputState.touchVisible;
+
+    // Digital keys and analog sticks both feed the flight model's input ramp.
+    controls.thrustAxis = inputState.thrust;
+    controls.turnAxis = inputState.turn;
+    controls.stabilize = inputState.stabilize;
+    controls.forward = false;
+    controls.reverse = false;
+    controls.turnLeft = false;
+    controls.turnRight = false;
+
+    if (input.consumeAction('colliders')) {
+      showColliders = !showColliders;
+      updateHint();
+    }
+    if (input.consumeAction('toggleWeapons')) {
+      weaponMode = toggleWeaponMode(weaponMode);
+      weaponTuner.setMining(weaponMode === 'mining');
+      updateHint();
+    }
+    if (input.consumeAction('aimMouse')) {
+      aimMode = 'mouse';
+      updateHint();
+    }
+    if (input.consumeAction('aimForward')) {
+      aimMode = 'forward';
+      updateHint();
+    }
+    if (input.consumeAction('carryMode') && weaponMode === 'mining') {
+      mining.toggleCarryMode();
+      updateHint();
+    }
+    if (input.consumeAction('mute')) {
+      soundMuted = audio.toggleMute();
+      updateHint();
+    }
+    const zoom = input.consumeZoom();
+    if (zoom !== 1) background.zoomBy(zoom);
+
     const previousVx = flight.vx;
     const previousVy = flight.vy;
 
@@ -818,77 +874,6 @@ export async function createScene(
     );
   };
 
-  const onKeyDown = (event: KeyboardEvent): void => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-
-    if (event.code === 'F2') {
-      event.preventDefault();
-      showColliders = !showColliders;
-      updateHint();
-      return;
-    }
-
-    if (event.code === WEAPON_MODE_KEY_CODE) {
-      event.preventDefault();
-      weaponMode = toggleWeaponMode(weaponMode);
-      weaponTuner.setMining(weaponMode === 'mining');
-      updateHint();
-      return;
-    }
-
-    if (AIM_MODE_KEY_CODES.has(event.code)) {
-      event.preventDefault();
-      const mode = aimModeForKey(event.code);
-      if (mode) {
-        aimMode = mode;
-        updateHint();
-      }
-      return;
-    }
-
-    if (event.code === 'KeyP' && weaponMode === 'mining') {
-      event.preventDefault();
-      mining.toggleCarryMode();
-      updateHint();
-      return;
-    }
-
-    if (event.code === 'Space') {
-      event.preventDefault();
-      spaceDown = true;
-      void audio.enable();
-      return;
-    }
-
-    if (!CONTROL_CODES.has(event.code)) return;
-
-    event.preventDefault();
-    if (event.code === 'KeyW') controls.forward = true;
-    if (event.code === 'KeyS') controls.reverse = true;
-    if (event.code === 'KeyA') controls.turnLeft = true;
-    if (event.code === 'KeyD') controls.turnRight = true;
-    if (event.code === 'KeyX') controls.stabilize = true;
-  };
-
-  const onKeyUp = (event: KeyboardEvent): void => {
-    if (event.code === 'Space') spaceDown = false;
-    if (event.code === 'KeyW') controls.forward = false;
-    if (event.code === 'KeyS') controls.reverse = false;
-    if (event.code === 'KeyA') controls.turnLeft = false;
-    if (event.code === 'KeyD') controls.turnRight = false;
-    if (event.code === 'KeyX') controls.stabilize = false;
-  };
-
-  const onBlur = (): void => {
-    controls.forward = false;
-    controls.reverse = false;
-    controls.turnLeft = false;
-    controls.turnRight = false;
-    controls.stabilize = false;
-    pointerDown = false;
-    spaceDown = false;
-  };
-
   const flightTuner = createFlightTuner(tuning);
   document.body.append(flightTuner.element);
 
@@ -904,13 +889,6 @@ export async function createScene(
   });
   document.body.append(telemetry.element);
 
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  window.addEventListener('pointerup', stopFiring);
-  window.addEventListener('pointercancel', stopFiring);
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
-  window.addEventListener('blur', onBlur);
   app.ticker.add(tick);
   layout();
   telemetry.update();
@@ -929,18 +907,18 @@ export async function createScene(
     getShipPose(): { x: number; y: number; rotation: number } {
       return { x: flight.x, y: flight.y, rotation: flight.rotation };
     },
+    getInputState(): InputSnapshot {
+      return input.snapshot();
+    },
+    getCameraZoom(): number {
+      return background.getDustTransform().zoom;
+    },
     stageAsteroid(x: number, y: number, diameter: number, variant?: number): void {
       asteroidField.add(x, y, diameter, variant);
     },
     destroy(): void {
       app.ticker.remove(tick);
-      canvas.removeEventListener('pointerdown', onPointerDown);
-      canvas.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', stopFiring);
-      window.removeEventListener('pointercancel', stopFiring);
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', onBlur);
+      input.destroy();
       flightTuner.destroy();
       weaponTuner.destroy();
       telemetry.destroy();

@@ -6,6 +6,7 @@ import { createScene } from './app/lighting-scene';
 import { AudioManager } from './audio/audio';
 import { pingVisit } from './app/analytics';
 import { createLoadingScreen } from './app/loading-screen';
+import type { InputSnapshot } from './app/input-system';
 
 declare global {
   interface Window {
@@ -20,6 +21,10 @@ declare global {
       getColliders: () => readonly AsteroidCollider[];
       /** Debug: current ship pose (world metres/radians) for screenshot staging. */
       getShipPose: () => { x: number; y: number; rotation: number };
+      /** Debug: latest merged keyboard/gamepad/touch input snapshot. */
+      getInputState: () => InputSnapshot;
+      /** Debug: current eased camera zoom (1 = closest). */
+      getCameraZoom: () => number;
       /** Debug: stage an asteroid for screenshots and harness tests, world metres. */
       stageAsteroid: (x: number, y: number, diameter: number, variant?: number) => void;
     };
@@ -49,11 +54,7 @@ async function main(): Promise<void> {
       void audio.enable();
     };
 
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.code === 'KeyM') {
-        scene.setMuted(audio.toggleMute());
-        return;
-      }
+    const onKeyDown = (): void => {
       unlockAudio();
     };
 
@@ -70,6 +71,8 @@ async function main(): Promise<void> {
       app,
       getColliders: scene.getColliders,
       getShipPose: scene.getShipPose,
+      getInputState: scene.getInputState,
+      getCameraZoom: scene.getCameraZoom,
       stageAsteroid: scene.stageAsteroid,
     };
 

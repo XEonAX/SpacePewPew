@@ -52,6 +52,7 @@ export function createFlightTelemetry(
   sources?: TelemetrySources,
 ): FlightTelemetry {
   const root = document.createElement('div');
+  root.className = 'flight-telemetry';
   Object.assign(root.style, PANEL_STYLE);
 
   const title = document.createElement('div');

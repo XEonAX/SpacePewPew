@@ -153,3 +153,190 @@ body {
     transform: none;
   }
 }
+
+/* On-screen controls for touch devices (or ?touch=1 for testing). */
+#touch-controls {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#touch-controls.touch-controls--visible {
+  display: block;
+}
+
+.touch-stick {
+  position: absolute;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  border: 1px solid rgba(127, 223, 255, 0.32);
+  background: radial-gradient(circle, rgba(20, 44, 66, 0.45), rgba(5, 10, 18, 0.28) 70%);
+  box-shadow: inset 0 0 24px rgba(80, 190, 255, 0.12);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.touch-stick--fly {
+  left: calc(22px + env(safe-area-inset-left));
+}
+
+.touch-stick--aim {
+  right: calc(22px + env(safe-area-inset-right));
+}
+
+.touch-stick__ring {
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  border: 1px dashed rgba(127, 223, 255, 0.18);
+}
+
+.touch-stick__knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  border: 1px solid rgba(190, 245, 255, 0.65);
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgba(190, 245, 255, 0.55),
+    rgba(40, 100, 140, 0.55)
+  );
+  box-shadow: 0 0 18px rgba(110, 220, 255, 0.35);
+  will-change: transform;
+}
+
+.touch-stick__label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -16px;
+  color: #6f8aa3;
+  font:
+    10px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.24em;
+  text-align: center;
+}
+
+.touch-actions {
+  position: absolute;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: min(56vw, 420px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.touch-button {
+  pointer-events: auto;
+  min-width: 46px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid rgba(127, 223, 255, 0.3);
+  border-radius: 10px;
+  background: rgba(8, 20, 33, 0.62);
+  color: #b9d7e9;
+  font:
+    10px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.08em;
+  touch-action: none;
+  backdrop-filter: blur(4px);
+}
+
+.touch-button.is-held,
+.touch-button:active {
+  border-color: rgba(190, 245, 255, 0.8);
+  background: rgba(32, 84, 118, 0.72);
+  color: #e7fbff;
+}
+
+.touch-button--fire {
+  position: absolute;
+  right: calc(152px + env(safe-area-inset-right));
+  bottom: calc(58px + env(safe-area-inset-bottom));
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border-width: 2px;
+  color: #ffd9c2;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  background: radial-gradient(circle, rgba(92, 34, 22, 0.72), rgba(28, 10, 8, 0.55));
+  border-color: rgba(255, 122, 46, 0.55);
+}
+
+.touch-button--fire.is-held,
+.touch-button--fire:active {
+  background: radial-gradient(circle, rgba(255, 122, 46, 0.7), rgba(80, 20, 10, 0.6));
+  border-color: #ffb27a;
+  color: #fff4eb;
+}
+
+.touch-button--zoom {
+  min-width: 38px;
+  font-size: 16px;
+}
+
+.touch-button--mute {
+  opacity: 0.75;
+}
+
+body.touch-ui .flight-tuner,
+body.touch-ui .weapon-tuner,
+body.touch-ui .flight-telemetry {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .touch-stick {
+    width: 108px;
+    height: 108px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .touch-stick__knob {
+    width: 46px;
+    height: 46px;
+    margin: -23px 0 0 -23px;
+  }
+
+  .touch-stick--fly {
+    left: calc(14px + env(safe-area-inset-left));
+  }
+
+  .touch-stick--aim {
+    right: calc(14px + env(safe-area-inset-right));
+  }
+
+  .touch-button--fire {
+    right: calc(118px + env(safe-area-inset-right));
+    bottom: calc(48px + env(safe-area-inset-bottom));
+    width: 78px;
+    height: 78px;
+    font-size: 11px;
+  }
+
+  .touch-actions {
+    width: min(50vw, 300px);
+  }
+}
