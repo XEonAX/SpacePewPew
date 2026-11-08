@@ -36,6 +36,8 @@ describe('weapon modes', () => {
     expect(turretAimMode('guns', 'forward')).toBe('forward');
     expect(turretAimMode('mining', 'mouse')).toBe('mining');
     expect(turretAimMode('mining', 'forward')).toBe('mining');
+    expect(turretAimMode('mining', 'mouse', 'forward')).toBe('mining-forward');
+    expect(turretAimMode('mining', 'forward', 'mouse')).toBe('mining');
   });
 
   it('describes the active controls in the hint', () => {
@@ -53,6 +55,9 @@ describe('weapon modes', () => {
     expect(mining).toContain('tractors auto');
     expect(mining).toContain('cargo: 7');
     expect(mining).toContain('carry: physics');
+    expect(weaponHint('mining', 'mouse', false, 7, 'physics', 'forward')).toContain(
+      'lasers: forward',
+    );
     expect(weaponHint('mining', 'mouse', false, 7, 'curved')).toContain('carry: curved');
 
     expect(weaponHint('guns', 'mouse', true)).toContain('sound muted');

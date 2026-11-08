@@ -2,7 +2,14 @@ import { readStick, thrustFromStick, wheelZoomFactor } from './input-model';
 
 /** Logical actions consumed once per press, independent of the device. */
 export type InputAction =
-  'toggleWeapons' | 'aimMouse' | 'aimForward' | 'carryMode' | 'mute' | 'colliders' | 'toggleDevUi';
+  | 'toggleWeapons'
+  | 'aimMouse'
+  | 'aimForward'
+  | 'aimCycle'
+  | 'carryMode'
+  | 'mute'
+  | 'colliders'
+  | 'toggleDevUi';
 
 export type InputSource = 'keyboard' | 'gamepad' | 'touch';
 
@@ -59,6 +66,8 @@ const GAMEPAD_ACTIONS: Readonly<Record<number, InputAction>> = {
   3: 'carryMode',
   8: 'colliders',
   9: 'mute',
+  14: 'aimMouse',
+  15: 'aimForward',
 };
 
 const ACTION_BY_KEY: Readonly<Record<string, InputAction>> = {
@@ -221,6 +230,7 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
     </div>
     <button class="touch-button touch-button--fire" type="button" data-touch="fire" tabindex="-1">FIRE</button>
     <div class="touch-actions">
+      <button class="touch-button" type="button" data-touch="aim" tabindex="-1">AIM</button>
       <button class="touch-button" type="button" data-touch="weapons" tabindex="-1">TAB</button>
       <button class="touch-button" type="button" data-touch="stabilize" tabindex="-1">STAB</button>
       <button class="touch-button" type="button" data-touch="carry" tabindex="-1">CARRY</button>
@@ -366,6 +376,7 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
       { signal },
     );
   };
+  tapButton('[data-touch="aim"]', () => pressAction('aimCycle', 'touch'));
   tapButton('[data-touch="weapons"]', () => pressAction('toggleWeapons', 'touch'));
   tapButton('[data-touch="carry"]', () => pressAction('carryMode', 'touch'));
   tapButton('[data-touch="mute"]', () => pressAction('mute', 'touch'));

@@ -127,7 +127,9 @@ interface TurretFrame {
   mouseActive: boolean;
   /**
    * `forward` parks every mount at its forward-most legal aim; `mining` tracks
-   * the pointer with the front pair only and parks the six tractor barrels.
+   * the pointer with the front pair and parks the tractor barrels;
+   * `mining-forward` parks the front laser pair forward while tractors still
+   * track chunks.
    */
   mode: TurretAimMode;
   /**
@@ -212,11 +214,15 @@ export function createTurrets(texture: Texture): Turrets {
         const pairIndex = Math.floor(index / 2);
 
         let inArc = false;
-        const forwardOnly = frame.mode === 'forward' || (frame.mode === 'mining' && index >= 2);
-        const mouseTracked = frame.mode === 'mouse' || (frame.mode === 'mining' && index < 2);
+        const isMining = frame.mode === 'mining' || frame.mode === 'mining-forward';
+        const miningTracksPointer = frame.mode === 'mining';
+        const forwardOnly =
+          frame.mode === 'forward' ||
+          frame.mode === 'mining-forward' ||
+          (miningTracksPointer && index >= 2);
+        const mouseTracked = frame.mode === 'mouse' || (miningTracksPointer && index < 2);
         if (forwardOnly) {
-          const tractorTarget =
-            frame.mode === 'mining' ? (frame.tractorTargets?.[index] ?? null) : null;
+          const tractorTarget = isMining ? (frame.tractorTargets?.[index] ?? null) : null;
           if (tractorTarget) {
             // Tractor barrels rotate fully — no cone clamp — to face the chunk
             // they are gripping.
@@ -274,7 +280,7 @@ export function createTurrets(texture: Texture): Turrets {
         let targetAlpha: number;
         let glowSize: number;
 
-        if (frame.mode === 'mining') {
+        if (isMining) {
           // Mining muzzle glows never vanish: front pair is laser red, the six
           // tractor barrels green, and each brightens while its beam is live.
           const isLaser = index < 2;

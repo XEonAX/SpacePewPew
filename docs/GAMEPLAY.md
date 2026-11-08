@@ -13,6 +13,11 @@ flight model's 0.3 s input ramp, so the ship eases in exactly as it does from ke
 stick becomes an aim direction that is projected into turret screen space; fire, stabiliser,
 weapon switching, carry mode, zoom and mute are actions rather than raw key codes.
 
+`1` / `2` select **mouse** or **forward** aim. Guns and mining lasers remember separate modes:
+switching to the mining rig keeps its own mouse/forward choice, so 2 can park the cutting lasers
+straight ahead while the gun battery stays on pointer tracking (and vice versa). Gamepad D-pad
+←/→ and the touch **AIM** button switch the active weapon's mode.
+
 - **X (hold)** fires the stabiliser: it cancels spin with a balanced yaw couple and brakes
   translation along the **current heading** with the applicable thruster — it never turns the
   ship toward a new direction. Sideways drift is handled by the linear drag that stabilising

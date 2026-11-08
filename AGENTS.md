@@ -125,8 +125,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/weapons.ts` — clean turret-pair sound pools, cadence, per-sound tracer delays, and
   committed shots: a trigger pulled inside the cone snapshots every tracking barrel, so the
   projectile still leaves the muzzle after the mouse moves out of the arc. Unit-tested.
-- `src/app/weapon-mode.ts` — the two weapon systems (`guns`, `mining`), Tab toggling, the gun
-  aiming modes 1/2, the turret aim resolver and the control hint. Unit-tested.
+- `src/app/weapon-mode.ts` — the two weapon systems (`guns`, `mining`), Tab toggling, the
+  mouse/forward aiming modes for guns and mining lasers separately, the turret aim resolver
+  (`mining`/`mining-forward`) and the control hint. Unit-tested.
 - `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders; while the mining rig is
   equipped (Tab) the panel swaps to live mining tunables (melt, chunk, tractor, carry and laser
   range).

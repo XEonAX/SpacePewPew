@@ -244,6 +244,10 @@ export async function createScene(
   let maxGForce = 0;
   let shieldDamageJ = 0;
   let aimMode: AimMode = DEFAULT_AIM_MODE;
+  // Mining lasers have their own aim mode, so switching guns does not silently
+  // change how the rig cuts.
+  let miningAimMode: AimMode = DEFAULT_AIM_MODE;
+  let aimIsForward = false;
   let soundMuted = false;
   let cargo = 0;
   const gunFiring = (): boolean =>
@@ -327,7 +331,9 @@ export async function createScene(
   let devUiVisible = new URLSearchParams(window.location.search).get('dev') === '1';
   document.body.classList.toggle('dev-ui', devUiVisible);
   const updateHint = (): void => {
-    hud.setHint(weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode()));
+    hud.setHint(
+      weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode(), miningAimMode),
+    );
   };
   updateHint();
 
@@ -473,9 +479,18 @@ export async function createScene(
     shipScreen.y = shipScreenY;
 
     // Pointer aim is absolute; stick aim is a direction that becomes a point
-    // out from the ship. Both end up in turret screen space.
+    // out from the ship. Both end up in turret screen space. Forward aim parks
+    // the reticle out along the nose instead.
+    const activeAimMode = weaponMode === 'mining' ? miningAimMode : aimMode;
     const aim = inputState.aim;
-    if (aim.kind === 'stick') {
+    const forwardAim = activeAimMode === 'forward';
+    aimIsForward = forwardAim;
+    if (forwardAim) {
+      // Keep the forward reticle on screen rather than off in the distance.
+      const reach = Math.min(width, height) * 0.24;
+      aimScreen.x = shipScreenX + Math.sin(flight.rotation) * reach;
+      aimScreen.y = shipScreenY - Math.cos(flight.rotation) * reach;
+    } else if (aim.kind === 'stick') {
       const point = aimPointFromStick(
         shipScreenX,
         shipScreenY,
@@ -507,7 +522,7 @@ export async function createScene(
       mouseX: aimScreen.x,
       mouseY: aimScreen.y,
       mouseActive: inputState.aim.active,
-      mode: turretAimMode(weaponMode, aimMode),
+      mode: turretAimMode(weaponMode, aimMode, miningAimMode),
       tractorTargets,
       miningBeams: mining.getActiveBeams(),
       dt: deltaSeconds,
@@ -629,11 +644,21 @@ export async function createScene(
       updateHint();
     }
     if (input.consumeAction('aimMouse')) {
-      aimMode = 'mouse';
+      if (weaponMode === 'mining') miningAimMode = 'mouse';
+      else aimMode = 'mouse';
       updateHint();
     }
     if (input.consumeAction('aimForward')) {
-      aimMode = 'forward';
+      if (weaponMode === 'mining') miningAimMode = 'forward';
+      else aimMode = 'forward';
+      updateHint();
+    }
+    if (input.consumeAction('aimCycle')) {
+      if (weaponMode === 'mining') {
+        miningAimMode = miningAimMode === 'mouse' ? 'forward' : 'mouse';
+      } else {
+        aimMode = aimMode === 'mouse' ? 'forward' : 'mouse';
+      }
       updateHint();
     }
     if (input.consumeAction('carryMode') && weaponMode === 'mining') {
@@ -786,7 +811,11 @@ export async function createScene(
     hud.update({
       mode: weaponMode,
       cargo,
-      aim: { ...aimScreen, active: inputState.aim.active, kind: inputState.aim.kind },
+      aim: {
+        ...aimScreen,
+        active: aimIsForward || inputState.aim.active,
+        kind: inputState.aim.kind,
+      },
       firing: inputState.fire || inputState.fireAll,
       touch: inputState.touchVisible,
     });

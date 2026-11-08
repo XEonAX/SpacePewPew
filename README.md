@@ -119,14 +119,14 @@ Pushes to `main` are checked by CI and deployed to GitHub Pages by
 
 ### Touch
 
-| Input              | Action                                   |
-| ------------------ | ---------------------------------------- |
-| Left stick         | Fly (analog thrust and turn)             |
-| Right stick        | Aim                                      |
-| FIRE               | Fire                                     |
-| TAB / STAB / CARRY | Switch weapons / stabiliser / carry mode |
-| − / +              | Zoom out / in                            |
-| MUTE               | Mute / unmute                            |
+| Input                    | Action                                                    |
+| ------------------------ | --------------------------------------------------------- |
+| Left stick               | Fly (analog thrust and turn)                              |
+| Right stick              | Aim                                                       |
+| FIRE                     | Fire                                                      |
+| AIM / TAB / STAB / CARRY | Cycle aim mode / switch weapons / stabiliser / carry mode |
+| − / +                    | Zoom out / in                                             |
+| MUTE                     | Mute / unmute                                             |
 
 Touch controls appear automatically on touch-first devices; append `?touch=1` to the URL to
 show them on a desktop browser. Developer tuning panels are hidden while they are up.

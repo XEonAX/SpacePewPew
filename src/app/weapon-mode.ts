@@ -10,9 +10,11 @@ export type AimMode = 'mouse' | 'forward';
 
 /**
  * Aim resolver handed to the turrets. `mining` tracks the pointer with the
- * front pair only and parks the six tractor barrels at their forward limit.
+ * front pair and parks the six tractor barrels at their forward limit;
+ * `mining-forward` parks the front laser pair forward while tractors still
+ * track chunks autonomously.
  */
-export type TurretAimMode = AimMode | 'mining';
+export type TurretAimMode = AimMode | 'mining' | 'mining-forward';
 
 export const DEFAULT_WEAPON_MODE: WeaponMode = 'guns';
 export const DEFAULT_AIM_MODE: AimMode = 'mouse';
@@ -31,8 +33,15 @@ export function toggleWeaponMode(mode: WeaponMode): WeaponMode {
   return mode === 'guns' ? 'mining' : 'guns';
 }
 
-export function turretAimMode(weaponMode: WeaponMode, aimMode: AimMode): TurretAimMode {
-  return weaponMode === 'mining' ? 'mining' : aimMode;
+export function turretAimMode(
+  weaponMode: WeaponMode,
+  aimMode: AimMode,
+  miningAimMode: AimMode = 'mouse',
+): TurretAimMode {
+  if (weaponMode === 'mining') {
+    return miningAimMode === 'forward' ? 'mining-forward' : 'mining';
+  }
+  return aimMode;
 }
 
 export function weaponHint(
@@ -41,10 +50,11 @@ export function weaponHint(
   muted: boolean,
   cargo = 0,
   carryMode: 'curved' | 'physics' = 'physics',
+  miningAimMode: AimMode = 'mouse',
 ): string {
   const controls =
     weaponMode === 'mining'
-      ? `W/S thrust · A/D turn · Tab guns · hold click: mining laser · tractors auto · cargo: ${cargo} · carry: ${carryMode}`
+      ? `W/S thrust · A/D turn · 1 mouse / 2 forward (lasers: ${miningAimMode}) · Tab guns · hold click: mining laser · tractors auto · cargo: ${cargo} · carry: ${carryMode}`
       : aimMode === 'mouse'
         ? 'W/S thrust · A/D turn · 1 mouse / 2 forward · Tab mining · hold click: fire'
         : 'W/S thrust · A/D turn · 1 mouse / 2 forward · Tab mining · hold Space: fire all weapons';
