@@ -6,7 +6,9 @@ import { CAMERA_FOLLOW_RATE, createBackground } from './background';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
 import {
+  applyShipImpulse,
   createFlightState,
+  dampShipAngularVelocity,
   stepFlight,
   DEFAULT_FLIGHT_TUNING,
   forwardTerminalSpeed,
@@ -584,7 +586,7 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     // the ship turning forever (the flight model only damps while input is on).
     const spinDecay = Math.exp(-IMPACT_SPIN_DAMPING * deltaSeconds);
     const spinRemaining = impactSpin * spinDecay;
-    flight.angularVelocity -= impactSpin - spinRemaining;
+    dampShipAngularVelocity(flight, impactSpin - spinRemaining);
     impactSpin = spinRemaining;
     layout();
     // The rock is solid: push the ship's shield capsule out of it and bounce
@@ -614,6 +616,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       const previousAngular = flight.angularVelocity;
       let touched = false;
       let strongest = 0;
+      let impulseX = 0;
+      let impulseY = 0;
+      let angularImpulse = 0;
       for (const rock of asteroidField.getColliders()) {
         const collision = resolveShipCollision(pose, shipCollider, rock, body);
         if (!collision.hit) continue;
@@ -625,6 +630,9 @@ export async function createScene(app: Application, audio: AudioManager): Promis
           rotation: pose.rotation,
           angularVelocity: collision.angularVelocity,
         };
+        impulseX += collision.impulseX;
+        impulseY += collision.impulseY;
+        angularImpulse += collision.angularImpulse;
         touched = true;
         scrapeSpeed = Math.max(scrapeSpeed, collision.slideSpeed);
         if (collision.hitEnergy >= impactEnergy) {
@@ -643,15 +651,14 @@ export async function createScene(app: Application, audio: AudioManager): Promis
         );
       }
       if (touched) {
-        // The collider resolves the hull's centre; write the result back to the
-        // centre of mass the flight model integrates.
+        // Depenetration moves the hull out of the rock; the velocity change is
+        // applied through the flight physics layer as a real impulse, never by
+        // writing flight velocities directly from the collision solver.
         flight.x = pose.x - pivotAft * Math.sin(flight.rotation);
         flight.y = pose.y + pivotAft * Math.cos(flight.rotation);
-        flight.vx = pose.vx;
-        flight.vy = pose.vy;
-        flight.angularVelocity = pose.angularVelocity;
+        applyShipImpulse(flight, tuning, shipGeometry, impulseX, impulseY, angularImpulse);
         impactSpin = clamp(
-          impactSpin + (pose.angularVelocity - previousAngular),
+          impactSpin + (flight.angularVelocity - previousAngular),
           -IMPACT_SPIN_LIMIT,
           IMPACT_SPIN_LIMIT,
         );

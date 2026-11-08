@@ -99,6 +99,34 @@ export function shipInertiaKgM2(tuning: FlightTuning, geometry: ShipGeometry): n
 }
 
 /**
+ * Bleed angular velocity by an explicit amount, used for collision-spin decay
+ * that the flight model intentionally does not apply while coasting.
+ */
+export function dampShipAngularVelocity(flight: FlightState, delta: number): void {
+  flight.angularVelocity -= delta;
+}
+
+/**
+ * Apply a physical impulse (N·s) and angular impulse (N·m·s) to the flight body.
+ * Collisions compute the impulse; only this layer mutates the flight velocities,
+ * so impacts obey the same mass/inertia as thrust.
+ */
+export function applyShipImpulse(
+  flight: FlightState,
+  tuning: FlightTuning,
+  geometry: ShipGeometry,
+  impulseX: number,
+  impulseY: number,
+  angularImpulse: number,
+): void {
+  const inverseMass = 1 / Math.max(tuning.massKg, 0.001);
+  const inverseInertia = 1 / Math.max(shipInertiaKgM2(tuning, geometry), 1e-6);
+  flight.vx += impulseX * inverseMass;
+  flight.vy += impulseY * inverseMass;
+  flight.angularVelocity += angularImpulse * inverseInertia;
+}
+
+/**
  * Sum each nozzle's ramped thrust into a body-frame force and torque. The
  * engine mix turns the ramped linear/angular inputs into per-nozzle outputs;
  * this is the single place where input becomes force.

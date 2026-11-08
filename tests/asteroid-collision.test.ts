@@ -12,6 +12,8 @@ import {
   shipHull,
 } from '../src/app/asteroid-collision';
 import type { AsteroidCollider } from '../src/app/asteroid-collision';
+import { applyShipImpulse, createFlightState, DEFAULT_FLIGHT_TUNING } from '../src/app/ship-flight';
+import type { ShipGeometry } from '../src/app/ship-engines';
 
 /** Diamond hull, 2 m to a side, with a 0.5 m shield bubble. */
 const HULL = {
@@ -98,6 +100,9 @@ describe('ship vs asteroid polygon', () => {
       impactSpeed: 0,
       slideSpeed: 0,
       impulse: 0,
+      impulseX: 0,
+      impulseY: 0,
+      angularImpulse: 0,
       hitEnergy: 0,
       contactX: 0,
       contactY: 20,
@@ -143,6 +148,31 @@ describe('ship vs asteroid polygon', () => {
     expect(result.x).toBeLessThan(0);
     // 4 m/s inward bounces back at 35% restitution.
     expect(result.vx).toBeCloseTo(-1.4);
+  });
+
+  it('sends the contact impulse through the flight physics layer', () => {
+    const ship = { x: 0, y: 3.4, vx: 3, vy: -4, rotation: 0, angularVelocity: 0 };
+    const result = resolveShipCollision(ship, HULL, ROCK, BODY);
+
+    // Match the solver's body: same mass and inertia, so the impulse applied by
+    // the flight layer must reproduce the solver's predicted velocities.
+    const flight = createFlightState();
+    flight.vx = ship.vx;
+    flight.vy = ship.vy;
+    const tuning = { ...DEFAULT_FLIGHT_TUNING, massKg: BODY.mass };
+    const geometry = { radiusOfGyrationM: 1 } as ShipGeometry;
+    applyShipImpulse(
+      flight,
+      tuning,
+      geometry,
+      result.impulseX,
+      result.impulseY,
+      result.angularImpulse,
+    );
+
+    expect(flight.vx).toBeCloseTo(result.vx, 6);
+    expect(flight.vy).toBeCloseTo(result.vy, 6);
+    expect(flight.angularVelocity).toBeCloseTo(result.angularVelocity, 6);
   });
 
   it('gives the hit weight: mass sets the energy, inertia the spin', () => {

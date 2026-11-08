@@ -173,7 +173,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
     honoured (with a cheap per-piece distance reject), separating-axis collision between the ship's
     **hull bubble** and each rock piece with an **impulse response** (mass/inertia, shield
     restitution, Coulomb friction, off-centre hits spin the hull), plus concave point-in-polygon,
-    ray and swept-segment tests for mining lasers and tracers. Pure and unit-tested.
+    ray and swept-segment tests for mining lasers and tracers. Pure and unit-tested. The response
+    returns world/angular impulse vectors and a depenetration offset; it does **not** own the
+    flight velocities — `applyShipImpulse()` in `ship-flight.ts` applies them to the rigid body.
 - `src/app/polygon-fit.ts` — pure closed-polygon simplification (Ramer–Douglas–Peucker) and a
   vertex-budget fitter that turns the traced silhouette into a low-poly collider; unit-tested.
 - `src/app/ship-shield.ts` — the hull-shaped energy shield, drawn in ship-texture px so it
@@ -263,6 +265,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - **Flight is force-based.** Tune mass and per-engine thrust, never an abstract acceleration or a
   synthetic yaw torque: turning must fall out of the nozzle positions via `engineWrench` and the
   engine mix, so the physics matches the flames and audio.
+- **Impacts go through the physics layer.** Collisions return a physical impulse + angular impulse;
+  the scene applies them with `applyShipImpulse()` (Δv = J/m, Δω = L/I) and only writes the
+  depenetration offset back to the flight position. Never assign `flight.vx/vy/angularVelocity`
+  from a collision solver, or impacts stop respecting the configured mass and inertia.
 - **Galaxies are fixed sky.** The two galaxy sprites have zero parallax/zoom response; only
   stars, nebulas, and the near dust layer pan.
 - **Parallax pan is integrated.** Each panned layer owns an accumulated pan offset advanced by

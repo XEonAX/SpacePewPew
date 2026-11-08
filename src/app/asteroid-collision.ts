@@ -156,6 +156,11 @@ export interface ShipCollision {
   slideSpeed: number;
   /** Normal impulse magnitude, N·s. */
   impulse: number;
+  /** World-space impulse applied by this contact (normal + friction), N·s. */
+  impulseX: number;
+  impulseY: number;
+  /** Angular impulse applied by this contact, N·m·s. */
+  angularImpulse: number;
   /** Kinetic energy dissipated at the contact, J. */
   hitEnergy: number;
   /** Shield-surface contact point in world metres (ship position when no hit). */
@@ -173,6 +178,9 @@ const noHit = (ship: ShipPose): ShipCollision => ({
   impactSpeed: 0,
   slideSpeed: 0,
   impulse: 0,
+  impulseX: 0,
+  impulseY: 0,
+  angularImpulse: 0,
   hitEnergy: 0,
   contactX: ship.x,
   contactY: ship.y,
@@ -477,6 +485,9 @@ export function resolveShipCollision(
   let vy = ship.vy;
   let angularVelocity = ship.angularVelocity;
   let impulse = 0;
+  let impulseX = 0;
+  let impulseY = 0;
+  let angularImpulse = 0;
   let hitEnergy = 0;
 
   if (inward > 0) {
@@ -489,6 +500,9 @@ export function resolveShipCollision(
     vx += normalImpulseX * inverseMass;
     vy += normalImpulseY * inverseMass;
     angularVelocity += (rx * normalImpulseY - ry * normalImpulseX) / body.inertia;
+    impulseX += normalImpulseX;
+    impulseY += normalImpulseY;
+    angularImpulse += rx * normalImpulseY - ry * normalImpulseX;
 
     const tangentX = contactVx - inward * normal.x;
     const tangentY = contactVy - inward * normal.y;
@@ -508,6 +522,9 @@ export function resolveShipCollision(
       vx += frictionX * inverseMass;
       vy += frictionY * inverseMass;
       angularVelocity += (rx * frictionY - ry * frictionX) / body.inertia;
+      impulseX += frictionX;
+      impulseY += frictionY;
+      angularImpulse += rx * frictionY - ry * frictionX;
     }
 
     hitEnergy = 0.5 * body.mass * inward * inward;
@@ -523,6 +540,9 @@ export function resolveShipCollision(
     impactSpeed: inward > 0 ? inward : 0,
     slideSpeed,
     impulse,
+    impulseX,
+    impulseY,
+    angularImpulse,
     hitEnergy,
     contactX,
     contactY,
