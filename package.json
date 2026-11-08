@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "SpacePewPew — PixiJS v8 + Vite + TypeScript starter with Howler audio and an agent-inspectable browser workflow",
+  "description": "A hand-lit 2.5D spaceship sandbox built with PixiJS v8, TypeScript and a custom normal-map shader.",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -49,5 +49,27 @@
     "typescript-eslint": "^8.72.1",
     "vite": "^8.3.6",
     "vitest": "^5.1.0"
-  }
+  },
+  "keywords": [
+    "pixijs",
+    "webgl",
+    "2d",
+    "spaceship",
+    "game",
+    "typescript",
+    "vite",
+    "shader",
+    "normal-map",
+    "blender"
+  ],
+  "homepage": "https://github.com/XEonAX/SpacePewPew#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XEonAX/SpacePewPew.git"
+  },
+  "bugs": {
+    "url": "https://github.com/XEonAX/SpacePewPew/issues"
+  },
+  "author": "XEonAX",
+  "license": "UNLICENSED"
 }

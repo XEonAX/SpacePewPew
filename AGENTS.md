@@ -193,7 +193,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/audio/audio.ts` — the only place Howler is used.
 - `src/utils/random.ts` — seeded PRNG helpers for procedural content.
 - `src/utils/` — pure helpers (safe to unit test).
-- `src/main.ts` — entry point, input handlers, HMR teardown, `window.__SPACEPEWPEW__` hook.
+- `src/main.ts` — entry point, input handlers, HMR teardown, `window.__SPACEPEWPEW__` hook
+  (Pixi app, colliders, ship pose and asteroid staging for browser automation/screenshots).
+- `docs/GAMEPLAY.md` — detailed systems write-up moved out of the README (flight, collisions,
+  asteroids, weapons, mining, lighting, audio).
 - `docs/reference/` — supplied color/normal reference art for the ship and asteroid.
 - `public/assets/lighting/` — processed runtime copies (color + normal maps) used by the scene.
 - `scripts/browser.mjs` — CLI for the shared browser.
