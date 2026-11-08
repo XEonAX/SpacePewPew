@@ -45,11 +45,16 @@ export function laserRate(maxHeat: number, focused: boolean): number {
 /** Mining rig audio: continuous laser/tractor beds plus the cargo intake latch. */
 export function createMiningAudio(audio: AudioManager): MiningAudio {
   const laser = audio.createLoop('mining-laser', { volume: 0 });
+  const vent = audio.createLoop('laser-vent', { volume: 0 });
   const tractor = audio.createLoop('tractor-beam', { volume: 0 });
   let laserLevel = 0;
+  let ventLevel = 0;
   let tractorLevel = 0;
   let deliveries = 0;
   let wasOverheated = false;
+  let lastHeat = 0;
+  let tickAccumulator = 0;
+  let tickCount = 0;
 
   return {
     update({ dt, laserBeams, tractorBeams, laserHeat, laserFocused }): void {
@@ -59,15 +64,40 @@ export function createMiningAudio(audio: AudioManager): MiningAudio {
 
       const maxHeat = laserHeat.reduce((peak, barrel) => Math.max(peak, barrel.heat), 0);
       const overheated = laserHeat.some((barrel) => barrel.overheated);
+      const heatDrop = lastHeat - maxHeat;
+      if (heatDrop > 0 && maxHeat > 0.02) {
+        // Sparse contracting-metal ticks as the bank sheds heat. They are
+        // quieter and slower during the locked vent than after an early release.
+        tickAccumulator += heatDrop;
+        const step = overheated ? 0.18 : 0.28;
+        while (tickAccumulator >= step) {
+          tickAccumulator -= step;
+          audio.play('laser-cool-tick', {
+            volume: 0.24,
+            rate: 0.9 + 0.2 * (1 - maxHeat) + (tickCount % 3) * 0.02,
+          });
+          tickCount += 1;
+        }
+      } else if (heatDrop <= 0) {
+        tickAccumulator = 0;
+      }
+      lastHeat = maxHeat;
       laser.setVolume(Math.min(1, laserLevel * (1 + 0.16 * maxHeat)));
       laser.setRate(laserRate(maxHeat, laserFocused));
+
+      // A sustained pressure release for the whole lockout, fading with heat.
+      const ventTarget = overheated ? 0.22 + 0.78 * maxHeat : 0;
+      ventLevel += (ventTarget - ventLevel) * blend;
+      vent.setVolume(ventLevel * 0.55);
+      vent.setRate(0.82 + 0.24 * maxHeat);
+
       tractor.setVolume(tractorLevel);
       // More connected beams pull a slightly brighter, faster field.
       tractor.setRate(1 + 0.04 * Math.min(6, Math.max(0, tractorBeams)));
 
       if (overheated && !wasOverheated) {
-        // The laser dumps pressure when it hits terminal heat.
-        audio.play('laser-overheat', { volume: 0.9 });
+        // A short valve clack starts the release; the loop carries the hiss.
+        audio.play('laser-overheat', { volume: 0.65 });
       } else if (!overheated && wasOverheated) {
         // Re-arm with a small relay tick, not a steam poof at the worst moment.
         audio.play('laser-ready', { volume: 0.55 });
@@ -82,6 +112,7 @@ export function createMiningAudio(audio: AudioManager): MiningAudio {
     },
     destroy(): void {
       laser.stop();
+      vent.stop();
       tractor.stop();
     },
   };

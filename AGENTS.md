@@ -116,7 +116,7 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   retro-strain bed driven by `dot(thrust, velocity) < 0` (main hums duck while braking). Pure
   helpers unit-tested in `tests/engine-audio.test.ts`.
 - `src/app/mining-audio.ts` — mining-rig audio: a laser bed whose gain follows active cutting and
-  whose pitch rises with heat, overheat/re-arm one-shots, a tractor bed whose gain follows connected
+  whose pitch rises with heat, a sustained vent loop, cooling ticks, overheat/re-arm one-shots, a tractor bed whose gain follows connected
   barrels, and the cargo-intake latch one-shot. Gain/pitch helpers are pure and unit-tested in
   `tests/mining-audio.test.ts`.
 - `src/app/impact-audio.ts` — collision audio: impact one-shots scaled by hit energy (threshold,
