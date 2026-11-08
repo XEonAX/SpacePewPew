@@ -2,6 +2,8 @@
 
 **A hand-lit 2.5D space sandbox built on PixiJS.**
 
+**[▶ Play the live demo](https://xeonax.github.io/SpacePewPew/)** · runs in the browser, no install.
+
 [![CI](https://github.com/XEonAX/SpacePewPew/actions/workflows/ci.yml/badge.svg)](https://github.com/XEonAX/SpacePewPew/actions/workflows/ci.yml)
 ![PixiJS v8](https://img.shields.io/badge/PixiJS-v8-ff5fb0)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
@@ -55,6 +57,7 @@ A shield impact — the bubble flares at the contact patch while the hull takes 
 
 ## Quick start
 
+Play it now at **https://xeonax.github.io/SpacePewPew/** (GitHub Pages), or run it locally.
 Requires **Node 22.12+** and **pnpm 10** (`.nvmrc` pins Node 22).
 
 ```bash
@@ -71,6 +74,9 @@ pnpm build     # typecheck + production build
 pnpm preview   # serve the build locally
 pnpm check     # typecheck, lint, format check, tests and build — the full gate
 ```
+
+Pushes to `main` are checked by CI and deployed to GitHub Pages by
+`.github/workflows/pages.yml` (Vite is built with the repo's subpath as its base).
 
 ## Controls
 
