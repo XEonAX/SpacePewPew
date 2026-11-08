@@ -5,6 +5,7 @@
 **[▶ Play the live demo](https://xeonax.github.io/SpacePewPew/)** · runs in the browser, no install.
 
 [![CI](https://github.com/XEonAX/SpacePewPew/actions/workflows/ci.yml/badge.svg)](https://github.com/XEonAX/SpacePewPew/actions/workflows/ci.yml)
+[![Deploy](https://github.com/XEonAX/SpacePewPew/actions/workflows/pages.yml/badge.svg)](https://xeonax.github.io/SpacePewPew/)
 ![PixiJS v8](https://img.shields.io/badge/PixiJS-v8-ff5fb0)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 ![Vite](https://img.shields.io/badge/Vite-8-646cff)
