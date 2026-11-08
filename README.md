@@ -75,7 +75,7 @@ src/
   app/stabilizer.ts       Hold-X thruster assist: retro burn + spin damping (tested)
   app/flight-tuner.ts     Live overlay sliders for flight tuning
   app/flight-telemetry.ts Read-only terminal/velocity/input telemetry overlay
-  app/ground-grid.ts      Screen-space 1 m grid fixed to the near dust layer
+  app/ground-grid.ts      World-space 1 m grid (camera-centred quad, origin axes)
   app/engine-exhaust.ts   Cone flames + world-space smoke exhaust
   app/engine-audio.ts     Per-engine hum loops driven by nozzle power (tested)
   app/mining-audio.ts     Laser/tractor beds + cargo intake latch (tested)
@@ -91,6 +91,8 @@ src/
   app/mining-model.ts     Pure reflection/ray-hit/tractor-drag math (tested)
   app/bullets.ts          Pooled 1 m glowing tracers (200 m range)
   app/bullet-math.ts      Bullet range/fade math (tested)
+  app/asteroid-layout.ts  Deterministic 100-rock scatter around the origin (tested)
+  app/asteroid-field.ts   World-space asteroid meshes, colliders, spin, mining targets
   app/asteroid-collision.ts  Asteroid polygon/ray tests + ship shield collision math (tested)
   app/ship-shield.ts      Oval capsule energy shield: the ship's collision shape, rendered
   app/shield-glow.ts      Pure dim/bright/afterglow curve for the shield (tested)
@@ -109,6 +111,9 @@ public/
   audio/mining/           Seamless laser/tractor beds + cargo intake latch
   audio/impacts/          Impact one-shots (two weights) + seamless scrape bed
   assets/lighting/        Processed color/normal maps + ship emissive/glow maps
+  assets/lighting/generated/  Eight Blender-rendered asteroid sprites (colour + normal)
+tools/
+  asteroid-gen/           Offline Blender pipeline that renders the asteroid sprites
 scripts/
   browser.mjs             Shared-browser CLI (open / inspect / act / stop)
   mcp-browser.mjs         Playwright MCP launcher (attaches to shared browser)
@@ -164,7 +169,7 @@ docs/                     Architecture decisions, reference art and agent workfl
 
 **P** toggles the carry model: **curved** (default — the chunk **arcs** to the hatch, turning no faster than a tractor barrel can slew so the beam can follow it) or **physics** (bounded acceleration, momentum). The bottom hint shows `carry:`. Delivered chunks increment **cargo**, shown in the bottom hint.
 
-**Asteroids live in the world**, in the same dust layer the ship flies through, so they pan and zoom with the environment; they tumble slowly (0.02–0.06 rad/s) rather than spin. The ship's **centre of mass and the camera start at the world origin**, and the field is a **deterministic scatter of 100 rocks** (seeded) around that origin — here and there, both art variants, mostly normal sizes with a few 3x heroes. Placement keeps the **vertical grid axis clear** (no rock edge crosses x = 0) and the ship's spawn bubble empty. Adding more is a single `add(x, y, diameter, variant?)` on the field; every rock gets a collider traced from its own art — a bounding circle for the fast pass and a **convex silhouette polygon that turns with the rock** for the accurate pass — stops tracers, and can be mined (lasers bite the nearest rock their beam hits, tested against that polygon).
+**Asteroids live in the world**, in the same dust layer the ship flies through, so they pan and zoom with the environment; they tumble slowly (0.02–0.06 rad/s) rather than spin. The ship's **centre of mass and the camera start at the world origin**, and the field is a **deterministic scatter of 100 rocks** (seeded) around that origin — here and there, drawn from **ten art variants** (the two supplied rocks plus eight Blender-rendered ones), mostly normal sizes with a few 3x heroes. Placement keeps the **vertical grid axis clear** (no rock edge crosses x = 0) and the ship's spawn bubble empty. Adding more is a single `add(x, y, diameter, variant?)` on the field; every rock gets a collider traced from its own art — a bounding circle for the fast pass and a **convex silhouette polygon that turns with the rock** for the accurate pass — stops tracers, and can be mined (lasers bite the nearest rock their beam hits, tested against that polygon).
 
 **The asteroid is solid.** A collider **gizmo** is hidden by default; press **F2** to overlay it while tuning (green = rock silhouettes and bounding circles, cyan = ship hull bubble). **The asteroid is solid.** The ship carries a hull-shaped **energy shield** that is both its collision shape and its visual: its outline follows the hull — pointed nose, wing tips, blunt tail — as a convex outline inflated by a bubble radius of 16 % of the hull width (equivalently, capsule segments joined with rounded corners), so the whole ship sits inside it with room over the pointed nose and wing corners. The boundary glows and fades inward, so the edge reads as a surface. At rest the shield is
 **dim**; a recent hit lifts the whole bubble to its full brightness and it eases back to rest
@@ -195,6 +200,30 @@ baked cel shading, so normals are kept at 0.30 strength to avoid a metallic/embo
 Source art for the 2.5D game (ship + asteroid, color/key and matching normal maps) lives in
 [docs/reference/](docs/reference/) — see [REFERENCE_ART.md](docs/REFERENCE_ART.md). Processed
 runtime copies live in [public/assets/lighting/](public/assets/lighting/).
+
+## Asteroid art
+
+The two supplied rocks are joined by **eight Blender-rendered variants** in
+[public/assets/lighting/generated/](public/assets/lighting/generated/) (committed PNGs: colour +
+camera-space normal per variant). They were baked offline by
+[tools/asteroid-gen/](tools/asteroid-gen/) (Blender 5.x + a small Python post pass), which builds
+each rock deterministically from a seed:
+
+- Voronoi-dual flat facets (blue-noise points → hull → dual → planarised n-gons), posed under a
+  fixed key light;
+- tapered octagonal flat-floored craters cut with real booleans, with darker walls and
+  light-catching bevelled rims;
+- inset-raised plates for layered relief, plus octagonal studs, micro studs and small blue-grey
+  rock chunks scattered on camera-facing facets (never on the silhouette or inside a crater);
+- painted **fake-lit emission materials** (ramp by normal·light, per-facet tint, blotches,
+  dry-brush streaks, scratches, Voronoi pits), so the colour map carries the shading;
+- a post pass adds the dark silhouette ink, a subtle rim light, and attenuates the normal map to
+  0.3 strength for the game's 2D shader.
+
+`lighting-scene.ts` loads the eight variants with `Assets.load()` and appends them to the supplied
+two, so the layout picks across ten arts. Re-baking is an offline step, not a build step:
+`tools/asteroid-gen/README.md` documents the commands, and `tools/asteroid-gen/HANDOFF.md` keeps
+the current status/knobs.
 
 ## Audio
 

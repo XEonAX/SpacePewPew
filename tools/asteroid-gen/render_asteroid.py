@@ -45,7 +45,7 @@ FLOOR_RATIO = 0.58
 N_STUDS = 12
 N_DOTS = 10
 N_CHUNKS = 4
-BEVEL_WIDTH = 0.036
+BEVEL_WIDTH = 0.045
 PLATES_ENABLED = True
 
 # ---- look ----
@@ -53,27 +53,47 @@ LIGHT_DIR = (-0.62, 0.50, 0.60)
 ROOT_ROTATION_DEG = (-28, 12, 37)
 CREASE_ANGLE_DEG = 112
 
-ROCK_RAMP = [
-    (0.00, "#1a2539"),
-    (0.18, "#354966"),
-    (0.38, "#55718f"),
-    (0.56, "#7f99b3"),
-    (0.70, "#a5b3bd"),
-    (0.82, "#c7c5b4"),
-    (0.94, "#e7e1cc"),
-]
+ROCK_RAMPS = {
+    "slate": [
+        (0.00, "#33475e"),
+        (0.20, "#4a6480"),
+        (0.42, "#6d8aa6"),
+        (0.62, "#93acbe"),
+        (0.78, "#b9c4c2"),
+        (0.90, "#d3d0c2"),
+        (1.00, "#e4dcc6"),
+    ],
+    "ice": [
+        (0.00, "#284a6e"),
+        (0.20, "#3a6690"),
+        (0.42, "#5485b0"),
+        (0.62, "#7fa8c8"),
+        (0.78, "#a9c2d4"),
+        (0.90, "#c9d3cf"),
+        (1.00, "#e0dbc9"),
+    ],
+    "limestone": [
+        (0.00, "#3d4a58"),
+        (0.20, "#5c6b78"),
+        (0.42, "#84909a"),
+        (0.62, "#aab0ae"),
+        (0.78, "#c9c6b8"),
+        (0.90, "#ddd6c1"),
+        (1.00, "#ece2cc"),
+    ],
+}
 CHUNK_RAMP = [
-    (0.00, "#3a4759"),
-    (0.30, "#60748a"),
-    (0.55, "#93a6b5"),
-    (0.78, "#bfc9cf"),
-    (1.00, "#dde0da"),
+    (0.00, "#4a5a6c"),
+    (0.30, "#6f8397"),
+    (0.55, "#9aa9b6"),
+    (0.78, "#c2c8c6"),
+    (1.00, "#e0ddcf"),
 ]
 
 PALETTE_TINT = {
     "slate": {"multiply": (1.0, 1.0, 1.0), "offset": 0.0},
-    "ice": {"multiply": (0.84, 0.95, 1.10), "offset": -0.03},
-    "limestone": {"multiply": (1.08, 1.04, 0.93), "offset": 0.04},
+    "ice": {"multiply": (0.92, 0.98, 1.06), "offset": 0.0},
+    "limestone": {"multiply": (1.06, 1.03, 0.95), "offset": 0.02},
 }
 
 rng = random.Random(SEED)
@@ -623,7 +643,7 @@ def build_bits(mesh, sites, view_local, collection, materials):
 
 # ---- materials --------------------------------------------------------------
 def paint_material(name, stops, t_offset=0.0, multiply=(1.0, 1.0, 1.0), rand_amt=0.42,
-                   blotch=0.17, streak=0.11, scratches=0.24, pits=0.70):
+                   blotch=0.08, streak=0.05, scratches=0.24, pits=0.70):
     old = bpy.data.materials.get(name)
     if old:
         bpy.data.materials.remove(old)
@@ -679,22 +699,22 @@ def paint_material(name, stops, t_offset=0.0, multiply=(1.0, 1.0, 1.0), rand_amt
         links.new(value, ramp.inputs[0])
         return ramp.outputs[0]
 
-    geometry = node("ShaderNodeNewGeometry")
     coordinates = node("ShaderNodeTexCoord")
     object_coordinates = coordinates.outputs["Object"]
 
-    dot = node("ShaderNodeVectorMath", operation="DOT_PRODUCT")
-    links.new(geometry.outputs["Normal"], dot.inputs[0])
-    dot.inputs[1].default_value = tuple(Vector(LIGHT_DIR).normalized())
-    value = math_node("MULTIPLY_ADD", dot.outputs["Value"], 0.95, 0.02 + t_offset)
-    value = math_node("MAXIMUM", value, 0.15 + t_offset * 0.6)
-
+    # The base colour map is UNLIT: it carries only albedo variation (which
+    # plate is cream, which is blue/slate) and painted surface detail. Directional
+    # shading comes from the game shader + normal map, so spinning the sprite
+    # actually changes which facets are lit (the supplied art bakes lighting in,
+    # which is the bug where dark areas never brighten as the rock turns).
     facet_attribute = node("ShaderNodeAttribute", attribute_type="GEOMETRY", attribute_name="facet_rand")
     value = math_node(
-        "ADD",
-        value,
-        math_node("MULTIPLY", math_node("SUBTRACT", facet_attribute.outputs["Fac"], 0.5), rand_amt),
+        "MULTIPLY_ADD",
+        facet_attribute.outputs["Fac"],
+        0.5,
+        0.3 + t_offset,
     )
+    value = math_node("MAXIMUM", value, 0.2 + t_offset * 0.5)
 
     blotch_noise = noise_tex(object_coordinates, (1.0, 1.0, 1.0), 2.2, 6.0)
     value = math_node("ADD", value, math_node("MULTIPLY", math_node("SUBTRACT", blotch_noise, 0.5), blotch * 2))
@@ -780,6 +800,7 @@ def render_normal_map(scene, output_path):
 
 def main():
     tint = PALETTE_TINT.get(PALETTE, PALETTE_TINT["slate"])
+    ramp = ROCK_RAMPS.get(PALETTE, ROCK_RAMPS["slate"])
 
     bpy.ops.wm.read_homefile(use_empty=True, use_factory_startup=True)
     scene = bpy.context.scene
@@ -788,20 +809,20 @@ def main():
     scene.collection.children.link(collection)
 
     rock_material = paint_material(
-        "AST_rock", ROCK_RAMP, multiply=tint["multiply"], t_offset=tint["offset"]
+        "AST_rock", ramp, multiply=tint["multiply"], t_offset=tint["offset"]
     )
     crater_material = paint_material(
         "AST_crater",
-        ROCK_RAMP,
-        t_offset=tint["offset"] - 0.2,
-        multiply=(0.5 * tint["multiply"][0], 0.6 * tint["multiply"][1], 0.8 * tint["multiply"][2]),
+        ramp,
+        t_offset=tint["offset"] - 0.1,
+        multiply=(0.66 * tint["multiply"][0], 0.72 * tint["multiply"][1], 0.86 * tint["multiply"][2]),
         scratches=0.2,
         pits=0.25,
     )
     edge_material = paint_material(
         "AST_edge",
-        ROCK_RAMP,
-        t_offset=tint["offset"] + 0.12,
+        ramp,
+        t_offset=tint["offset"] + 0.18,
         rand_amt=0.06,
         blotch=0.05,
         streak=0.04,
@@ -811,7 +832,7 @@ def main():
     )
     stud_material = paint_material(
         "AST_stud",
-        ROCK_RAMP,
+        ramp,
         t_offset=0.12,
         rand_amt=0.12,
         multiply=(1.04 * tint["multiply"][0], 1.02 * tint["multiply"][1], 0.98 * tint["multiply"][2]),
@@ -821,17 +842,17 @@ def main():
     chunk_material = paint_material("AST_chunk", CHUNK_RAMP, scratches=0.3, pits=0.0)
     side_material = paint_material(
         "AST_side",
-        ROCK_RAMP,
-        t_offset=tint["offset"] - 0.1,
-        multiply=(0.6 * tint["multiply"][0], 0.68 * tint["multiply"][1], 0.82 * tint["multiply"][2]),
+        ramp,
+        t_offset=tint["offset"] - 0.05,
+        multiply=(0.72 * tint["multiply"][0], 0.78 * tint["multiply"][1], 0.88 * tint["multiply"][2]),
         scratches=0.15,
         pits=0.2,
     )
     wall_material = paint_material(
         "AST_wall",
-        ROCK_RAMP,
-        t_offset=tint["offset"] - 0.35,
-        multiply=(0.4 * tint["multiply"][0], 0.48 * tint["multiply"][1], 0.66 * tint["multiply"][2]),
+        ramp,
+        t_offset=tint["offset"] - 0.22,
+        multiply=(0.55 * tint["multiply"][0], 0.62 * tint["multiply"][1], 0.76 * tint["multiply"][2]),
         scratches=0.1,
         pits=0.1,
     )

@@ -1,7 +1,11 @@
 # Handoff — asteroid art pipeline
 
-Snapshot for continuing on 2026-11-09. Code is on `main`; a tag
-`asteroid-art-wip` points at the same commit.
+**Status: integrated.** Eight variants are committed under
+`public/assets/lighting/generated/`, `lighting-scene.ts` loads them alongside the
+two supplied rocks, and the browser-baked generator has been deleted (ADR-038).
+This file remains as the reference for re-baking/polishing the art.
+
+Code is on `main`; the `asteroid-art-wip` tag marks the pre-integration snapshot.
 
 ## Where things are
 
@@ -18,9 +22,9 @@ Snapshot for continuing on 2026-11-09. Code is on `main`; a tag
   - `.agent/blender/v11-seed<seed>-<palette>/color-final.png`
   - `.agent/blender/hero3-seed3-slate/color-final.png` (1024 hero)
   - Regenerate if wiped; the command is below.
-- **Game art state**: the game still renders the **browser-baked** variants from
-  `src/app/asteroid-art.ts` / `asteroid-art-model.ts` (8 variants, 1024 px,
-  slate/ice/limestone). The Blender sprites are **not integrated yet**.
+- **Game art state**: the field renders the two supplied rocks plus the eight
+  committed Blender variants from `public/assets/lighting/generated/`; the
+  browser-baked generator is gone.
 
 ## Resume commands
 
@@ -38,20 +42,13 @@ the same `runpy` loop used during development): for seeds
 `(3,slate), (7,ice), (11,slate), (19,limestone), (23,ice), (31,slate)`, set the
 env vars above and run `render_asteroid.py`, then postprocess each directory.
 
-## Next step (integration)
+## Re-baking / iterating
 
-1. Render the final set (8 variants, 1024 px, alternating slate/ice/limestone)
-   into `public/assets/lighting/generated/` as `asteroid-gen-XX-color.png` and
-   `asteroid-gen-XX-normal.png` (use WebP if repo size matters).
-2. In `src/app/lighting-scene.ts`, load those assets and append them to
-   `asteroidArts` (the array already supports arbitrary variants); the layout
-   picks variants across the whole array via `variantCount`.
-3. Remove `createGeneratedAsteroidArts()` from the scene, delete
-   `src/app/asteroid-art.ts` + `asteroid-art-model.ts` + their test, and update
-   README/AGENTS/DECISIONS accordingly.
-4. Verify: 100 rocks, 60 FPS, vertical axis clear, colliders present (the Blender
-   alpha silhouette is traced once per variant by `asteroid-field.ts`; expected
-   ~24–28 points, same as supplied art).
+The shipped seed/palette order is in `README.md`. To change the look, edit the
+knobs in `render_asteroid.py`, re-render the eight variants at 1024 px, run
+`postprocess.py`, copy the finals into `public/assets/lighting/generated/`, and
+update `preview/`. No game-code change is needed unless the variant count
+changes (`GENERATED_ASTEROID_VARIANTS` in `lighting-scene.ts`).
 
 ## Notes / gotchas
 

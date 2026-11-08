@@ -26,6 +26,8 @@ export interface AsteroidCollider {
   points: readonly Vec2[];
   /** Bounding-circle radius in metres, for the fast pass. */
   radius: number;
+  /** Art variant index (0/1 = supplied art, 2+ = generated); debug/inspection aid. */
+  variant?: number;
 }
 
 /** Ship bubble collider, in ship-texture px except the radius being live units. */

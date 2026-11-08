@@ -140,15 +140,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/asteroid-layout.ts` — pure deterministic asteroid scatter: seeded PRNG, rejection
   placement, axis/spawn clearances, diameter/variant mix across all available arts. Unit-tested
   in `tests/asteroid-layout.test.ts`.
-- `src/app/asteroid-art-model.ts` — pure procedural asteroid art: seeded star-shaped outline
-  (16–24 vertices), flat Voronoi facets with lighting baked into the albedo, faceted polygonal
-  craters (flat floor + straight walls), fine grain, edge AO, colour + tangent normal pixel
-  arrays, and a Ramer–Douglas–Peucker-simplified collider silhouette (≤16 points). Unit-tested
-  in `tests/asteroid-art-model.test.ts`.
-- `src/app/asteroid-art.ts` — bakes six generated variants into canvas `CanvasSource` textures
-  at startup (fixed seeds, slate/ice palettes alternate) and returns them with their authored
-  collider silhouettes. No build-time asset pipeline; the two supplied arts still load from
-  `public/assets/lighting/`.
+- `public/assets/lighting/generated/` — eight committed asteroid sprites (`asteroid-gen-NN-color/-normal.png`)
+  rendered offline by `tools/asteroid-gen/`. Loaded with `Assets.load()` in `lighting-scene.ts`;
+  there is no runtime asteroid art generation.
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
   mesh plus a **two-stage collider** — a bounding circle and a **low-poly silhouette fit**. The
   contour is traced with 128 subpixel rays from the texture centre to the alpha edge, then
@@ -156,13 +150,12 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   points per rock, ~1–2 % of radius deviation). Concavities are kept; the collision pass fans
   the outline into triangles. The fit scales to the rock and **rotates with its spin**. The field exposes collider/mining lists (same objects, so melt decals and lasers share
   the spin). Rocks tumble slowly (0.02–0.06 rad/s, seeded). `add(x, y, diameter, variant?)`
-  places one, picking from the supplied plus generated art variants. Art that carries an
-  authored silhouette skips the alpha contour trace entirely; generated rocks use an 11–16
-  point star-shaped collider (the supplied arts fit at 24–28 points). The world is seeded once
-  on layout with a deterministic
-  **100-rock scatter** from `asteroid-layout.ts`: seeded placement, both art variants, a few 3x
-  heroes, the ship's spawn bubble kept clear and the **vertical world axis kept free of rock
-  edges**. The ship's centre of mass and the camera start at the world origin.
+  places one, picking from the ten art variants (two supplied plus eight Blender-rendered).
+  Every art is traced and fitted to a ~24–28 point silhouette. The world is seeded once on
+  layout with a deterministic **100-rock scatter** from `asteroid-layout.ts`: seeded placement,
+  all ten art variants, a few 3x heroes, the ship's spawn bubble kept clear and the **vertical
+  world axis kept free of rock edges**. The ship's centre of mass and the camera start at the
+  world origin.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade; a swept
   test stops them on every asteroid's polygon collider (circle fast pass inside) via `blockers`.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
@@ -196,6 +189,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `scripts/dev-server.mjs` — detached dev server (start/stop/status).
 - `scripts/lib/shared-browser.mjs` — browser lifecycle, CDP health checks, shared profile.
 - `scripts/mcp-browser.mjs` — Playwright MCP stdio wrapper.
+- `tools/asteroid-gen/` — offline Blender pipeline (`render_asteroid.py` + `postprocess.py`)
+  that bakes the asteroid sprites: Voronoi-dual facets, tapered boolean craters, inset-raised
+  plates, painted fake-lit emission materials, studs/chunks, ink outline and attenuated normal
+  map. `README.md` has usage; `HANDOFF.md` has the tuning knobs and status.
 - `tests/` — Vitest tests. Keep them fast, pure and DOM-free.
 
 ## Conventions
@@ -232,6 +229,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   a growing `lighting-scene.ts`.
 - **Procedural content is deterministic.** Use `src/utils/random.ts` with a fixed seed and keep
   generation/projection math pure in `*-model.ts` files so it can be unit tested.
+- **Asteroid sprites are baked offline.** The eight generated variants are committed PNGs
+  rendered by `tools/asteroid-gen/` (Blender). Re-bake with the README commands, do not add
+  runtime art generation or a build-time asset step. Their colour maps are painted (fake-lit),
+  so keep the normal maps attenuated (~0.3).
 - **Reference art is source, not runtime.** Treat `docs/reference/` as supplied source art and
   `public/assets/lighting/` as the processed runtime copies. Processing runs were a one-off
   matte/despill/premultiplied-resample pass (see `public/assets/lighting/README.md`), including

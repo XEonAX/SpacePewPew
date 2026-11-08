@@ -1039,3 +1039,35 @@ Rules:
 **Consequences:** startup pays a few canvas uploads (deterministic, no network), the collider
 loop gets cheaper for most rocks, and adding variants is a seed/option change rather than new
 art files. Keep generated art and its tests in the pure model; do not put canvas/DOM code there.
+
+## ADR-038 — Blender-rendered asteroid sprites replace the browser bake
+
+**Status:** accepted (2026-11-09). Supersedes ADR-037.
+
+ADR-037 baked extra asteroid variants in the browser at startup. The reference art called for a
+much higher bar — layered facets, tapered flat-floored craters, bevel ridges and painted
+detail — which is far easier to author in a 3D renderer than in a 2D canvas pass, and baking
+eight 1024 px variants on the main thread cost several seconds of startup.
+
+Rules:
+
+- **Sprites are rendered offline.** `tools/asteroid-gen/render_asteroid.py` (Blender) builds each
+  rock from a seed: Voronoi-dual flat facets, tapered octagonal boolean craters, inset-raised
+  plates, scattered studs/chunks, and painted fake-lit emission materials; a second pass writes
+  camera-space normals. `postprocess.py` adds the ink outline, a rim light and attenuates the
+  normals to 0.3 (the colour map already carries the shading, like the supplied art).
+- **Assets are committed.** Eight variants live in `public/assets/lighting/generated/` as
+  `asteroid-gen-NN-color.png` / `-normal.png` (1024 px). `lighting-scene.ts` loads them with
+  `Assets.load()` and appends them to the two supplied rocks, so the layout picks across ten arts.
+- **No runtime or build-time generation.** Re-baking is a manual offline step documented in
+  `tools/asteroid-gen/README.md` and `HANDOFF.md`; `pnpm build` does not touch the assets.
+- **Colliders are still traced from alpha.** All ten arts are plain PNGs, so `asteroid-field.ts`
+  traces and fits their silhouettes once (~24–28 points), exactly like the supplied rocks. The
+  authored-silhouette fast path from ADR-037 is no longer used.
+- **The browser generator is gone.** `src/app/asteroid-art.ts`, `asteroid-art-model.ts` and
+  `tests/asteroid-art-model.test.ts` were deleted with the same change.
+
+**Consequences:** startup no longer spends seconds baking canvases, the field renders a more
+detailed and more varied set of rocks, and art direction happens in Blender where facets, booleans
+and painted materials are natural. The trade-off is ~6.4 MB of committed PNGs and an offline
+rebake step when the look changes.

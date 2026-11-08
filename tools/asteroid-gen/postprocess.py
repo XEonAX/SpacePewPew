@@ -34,8 +34,8 @@ if ambient_path.exists():
 alpha_image = Image.fromarray((alpha * 255).astype(np.uint8))
 eroded = np.array(alpha_image.filter(ImageFilter.MinFilter(3)), dtype=np.float32) / 255.0
 outline = np.clip(alpha - eroded, 0.0, 1.0)
-ink = np.array([0.035, 0.05, 0.075], dtype=np.float32)
-rgb = rgb * (1.0 - 0.92 * outline[..., None]) + ink * (0.92 * outline[..., None])
+ink = np.array([0.11, 0.14, 0.2], dtype=np.float32)
+rgb = rgb * (1.0 - 0.6 * outline[..., None]) + ink * (0.6 * outline[..., None])
 
 # A warm rim on the lit (top-left) silhouette.
 blurred = np.array(alpha_image.filter(ImageFilter.GaussianBlur(1.1)), dtype=np.float32) / 255.0
@@ -47,14 +47,36 @@ facing = np.clip(outward_x * -0.62 + outward_y * -0.78, 0.0, 1.0)
 rim_band = np.clip(1.0 - np.abs(np.hypot(grad_x, grad_y)) * 26.0, 0.0, 1.0) * (alpha > 0.1)
 rgb = rgb + 0.10 * (facing * rim_band)[..., None] * np.array([1.0, 0.94, 0.80], dtype=np.float32)
 
+# Match the supplied reference art's tonal band without flattening hue: remap
+# luminance into the reference's p3..p97 range and scale RGB by the same ratio
+# so chroma survives (a per-channel affine lift washed the rocks out to grey).
+rgb = np.clip(rgb, 0.0, 1.0)
+opaque = alpha > 0.5
+# Base colour stays as rendered (albedo); the shader supplies lighting.
+rgb = np.clip(rgb, 0.0, 1.0)
+
+# Crisp facet seams from the raw normal map: give plate boundaries a thin dark
+# albedo line. Use the unflattened normals so the edges stay sharp.
+raw = normal[..., :3] * 2.0 - 1.0
+raw /= np.maximum(np.linalg.norm(raw, axis=2, keepdims=True), 1e-4)
+gx = np.gradient(raw[..., 0], axis=1) + np.gradient(raw[..., 1], axis=1) + np.gradient(raw[..., 2], axis=1)
+gy = np.gradient(raw[..., 0], axis=0) + np.gradient(raw[..., 1], axis=0) + np.gradient(raw[..., 2], axis=0)
+facet_edge = np.clip(np.hypot(gx, gy) * 2.2, 0.0, 1.0) * (alpha > 0.5)
+rgb = rgb * (1.0 - 0.18 * facet_edge[..., None])
+rgb = np.clip(rgb, 0.0, 1.0)
+
 out_color = np.concatenate([np.clip(rgb, 0.0, 1.0), alpha[..., None]], axis=2)
 Image.fromarray((out_color * 255).clip(0, 255).astype(np.uint8), "RGBA").save(directory / "color-final.png")
 
-# Attenuate the normal map for the 2D shader (baked painting already shades it).
+# Attenuate the normal map for the 2D shader. The supplied reference maps were
+# blended toward a flat (0, 0, 1) normal *before* renormalising; scaling X/Y and
+# keeping Z leaves side facets steep, which reads as harsh in-game lighting and
+# gives the map strong, "weird" colours. Blend toward flat instead.
 nx = normal[..., 0] * 2.0 - 1.0
 ny = normal[..., 1] * 2.0 - 1.0
 nz = normal[..., 2] * 2.0 - 1.0
-mild = np.stack([nx * 0.3, ny * 0.3, nz], axis=2)
+blend = 0.3
+mild = np.stack([nx * blend, ny * blend, nz * blend + (1.0 - blend)], axis=2)
 mild /= np.maximum(np.linalg.norm(mild, axis=2, keepdims=True), 1e-4)
 normal_out = np.concatenate([mild * 0.5 + 0.5, np.ones_like(nx[..., None])], axis=2)
 Image.fromarray((normal_out * 255).clip(0, 255).astype(np.uint8), "RGBA").save(

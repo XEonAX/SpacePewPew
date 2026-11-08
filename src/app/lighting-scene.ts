@@ -55,7 +55,6 @@ import { createMining } from './mining';
 import { colliderWorldPoints, resolveShipCollision, shipHull } from './asteroid-collision';
 import type { AsteroidCollider, ShipHull, Vec2 } from './asteroid-collision';
 import { createAsteroidField } from './asteroid-field';
-import { createGeneratedAsteroidArts } from './asteroid-art';
 import { DEFAULT_ASTEROID_COUNT, generateAsteroidLayout } from './asteroid-layout';
 import { createShipShield } from './ship-shield';
 
@@ -94,6 +93,18 @@ const lighting: LightingState = {
   time: 0,
 };
 
+/**
+ * Asteroids use unlit albedo maps and let the shader light them, so they need a
+ * softer contrast than the ship: more ambient, a slightly weaker key.
+ */
+const asteroidLighting: LightingState = {
+  ambient: [0.42, 0.45, 0.52],
+  keyDirection: [0.7, -0.714],
+  keyColor: [1, 0.949, 0.847],
+  keyIntensity: 0.85,
+  time: 0,
+};
+
 const CONTROL_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyX']);
 
 const assetUrl = (path: string): string => joinBaseUrl(import.meta.env.BASE_URL, path);
@@ -103,6 +114,9 @@ const assetUrl = (path: string): string => joinBaseUrl(import.meta.env.BASE_URL,
  * light from the top-right. WASD flies the ship; the cyan panels use a baked
  * emissive map plus a blurred glow map.
  */
+/** Blender-rendered asteroid variants committed under assets/lighting/generated. */
+const GENERATED_ASTEROID_VARIANTS = 8;
+
 export async function createScene(app: Application, audio: AudioManager): Promise<Scene> {
   const background = createBackground(app);
 
@@ -128,6 +142,19 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     Assets.load<Texture>(assetUrl('assets/lighting/turret.png')),
   ]);
 
+  // Eight asteroid sprites baked offline with tools/asteroid-gen. Their colour
+  // maps already carry painted lighting; the normal maps are attenuated for the
+  // 2D shader and their silhouettes are traced once by the asteroid field.
+  const generatedAsteroidVariants = await Promise.all(
+    Array.from({ length: GENERATED_ASTEROID_VARIANTS }, (_, index) => {
+      const id = String(index + 1).padStart(2, '0');
+      return Promise.all([
+        Assets.load<Texture>(assetUrl(`assets/lighting/generated/asteroid-gen-${id}-color.png`)),
+        Assets.load<Texture>(assetUrl(`assets/lighting/generated/asteroid-gen-${id}-normal.png`)),
+      ]);
+    }),
+  );
+
   const content = new Container();
   app.stage.addChild(content);
 
@@ -139,13 +166,11 @@ export async function createScene(app: Application, audio: AudioManager): Promis
   content.addChild(ground.mesh, exhaust.smoke);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
-  // Two supplied arts plus deterministic procedurally baked variants. Generated
-  // art carries its own silhouette, so those colliders skip the alpha trace.
-  const generatedAsteroidArts = createGeneratedAsteroidArts();
+  // Two supplied hand-painted rocks plus the eight Blender variants.
   const asteroidArts = [
     { color: asteroidColor, normal: asteroidNormal },
     { color: asteroid2Color, normal: asteroid2Normal },
-    ...generatedAsteroidArts,
+    ...generatedAsteroidVariants.map(([color, normal]) => ({ color, normal })),
   ];
   const asteroidField = createAsteroidField(asteroidArts);
   const turrets = createTurrets(turretTexture);
@@ -537,12 +562,13 @@ export async function createScene(app: Application, audio: AudioManager): Promis
 
   const updateLighting = (): void => {
     ship.setLighting(lighting);
-    asteroidField.setLighting(lighting);
+    asteroidField.setLighting(asteroidLighting);
   };
 
   const tick = (ticker: Ticker): void => {
     const deltaSeconds = Math.min(ticker.deltaMS / 1000, MAX_DELTA_SECONDS);
     lighting.time += deltaSeconds;
+    asteroidLighting.time = lighting.time;
 
     engineMix = stepFlight(flight, controls, deltaSeconds, tuning, shipGeometry);
     // Collision spin is not player input: bleed it off so a hit cannot leave
@@ -870,10 +896,6 @@ export async function createScene(app: Application, audio: AudioManager): Promis
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroidField.destroy();
-      for (const art of generatedAsteroidArts) {
-        art.color.destroy(true);
-        art.normal.destroy(true);
-      }
       shield.destroy();
       hint.destroy();
       background.destroy();

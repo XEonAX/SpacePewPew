@@ -212,7 +212,7 @@ export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField
       }));
       let radius = 0;
       for (const point of points) radius = Math.max(radius, Math.hypot(point.x, point.y));
-      colliders.push({ x, y, rotation: 0, points, radius });
+      colliders.push({ x, y, rotation: 0, points, radius, variant: artIndex });
       return asteroid;
     },
     update(frame: AsteroidFieldFrame): void {

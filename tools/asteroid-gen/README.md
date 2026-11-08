@@ -5,15 +5,34 @@ faceted rock, cream/blue painted lighting, octagonal flat-floored craters,
 hex studs and small rock chunks — rendered with Blender (5.x) and finished with a
 small Python pass.
 
-## Status (2026-11-08)
+## Status (2026-11-09)
 
-- ✅ Pipeline works and produces consistent variants across seeds/palettes.
-- ✅ Candidate hero/contact sheet reviewed visually: `preview/`.
-- ⏳ **Not wired into the game yet.** The field still uses the browser-baked
-  variants in `src/app/asteroid-art.ts`; the plan is to render a final set of
-  8 variants at 1024 px into `public/assets/lighting/generated/`, load them in
-  `lighting-scene.ts`, and retire the browser-baked generator.
-- Candidate renders live in `.agent/blender/` (gitignored, disposable).
+- ✅ **Integrated.** Eight variants are committed in
+  `public/assets/lighting/generated/` and loaded by `lighting-scene.ts`; the
+  browser-baked generator was removed (ADR-038).
+- ✅ Pipeline produces consistent variants across seeds/palettes; previews in
+  `preview/`.
+- Renders are deterministic: same seed + size + palette → same sprite.
+- Working renders live in `.agent/blender/` (gitignored, disposable).
+
+## Re-baking the shipped set
+
+Shipped order and palettes (1–8):
+
+| #   | seed | palette   |
+| --- | ---- | --------- |
+| 1   | 3    | slate     |
+| 2   | 7    | ice       |
+| 3   | 11   | slate     |
+| 4   | 19   | limestone |
+| 5   | 23   | ice       |
+| 6   | 31   | slate     |
+| 7   | 41   | ice       |
+| 8   | 53   | limestone |
+
+Render each at `ASTEROID_SIZE=1024` into a temp directory, run
+`postprocess.py`, then copy `color-final.png` / `normal-final.png` over
+`public/assets/lighting/generated/asteroid-gen-NN-color.png` / `-normal.png`.
 
 ## Usage
 
