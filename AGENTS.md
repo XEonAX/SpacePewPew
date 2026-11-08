@@ -165,8 +165,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   halo (pooled helper sprites); a barrel that has merely claimed a chunk but is still swinging
   onto it draws nothing. Each front laser has its own **heat bank**: 5 s of continuous fire, fast
   venting after an early release, and a slow locked cool-down after overheat; two beams focused on
-  the same small spot melt 1.5× faster. `src/app/laser-heat.ts` owns the pure state; HUD heat bars
-  show the two barrels, and heat/focus drive the laser pitch plus overheat/re-arm one-shots.
+  the same small spot melt 1.5× faster. In the final 10% of heat the beam's thickness chatters and
+  an outer bloom flickers; `src/app/laser-heat.ts` owns the pure state; HUD heat bars show the two
+  barrels, and heat/focus drive the laser pitch plus overheat/re-arm one-shots.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/mining-tuning.ts` — live `MiningTuning` values (melt dwell/spot/cool, focus melt/radius,

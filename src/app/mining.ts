@@ -654,16 +654,46 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
           }
 
           const focus = focused[barrel] === true;
+          // Only the final 10% of the heat bar gets noisy: the beam thickens,
+          // chatters and picks up a flickering outer bloom just before lockout.
+          const heatFraction = Math.min(
+            1,
+            (laserHeat[barrel]?.heatSeconds ?? 0) / Math.max(0.001, tuning.laserMaxHeatSeconds),
+          );
+          const stress = Math.max(0, Math.min(1, (heatFraction - 0.9) / 0.1));
+          const chatter =
+            0.5 +
+            0.5 *
+              (0.6 * Math.sin(frame.now * (48 + 22 * heatFraction) + barrel * 2.7) +
+                0.4 * Math.sin(frame.now * (91 + 37 * heatFraction) + barrel * 5.1));
+          const outerWidth = (focus ? 7 : 5) * (1 + stress * (0.16 + 0.5 * chatter));
+          const coreWidth = (focus ? 2.4 : 1.6) * (1 + stress * (0.2 + 0.7 * chatter));
+          const beamAlpha = (focus ? 0.95 : 0.78) * (1 - 0.12 * stress * (1 - chatter));
+          const startX = pose.x * PIXELS_PER_METER;
+          const startY = pose.y * PIXELS_PER_METER;
+          const endX = end.x * PIXELS_PER_METER;
+          const endY = end.y * PIXELS_PER_METER;
+
+          if (stress > 0.01) {
+            beams
+              .moveTo(startX, startY)
+              .lineTo(endX, endY)
+              .stroke({
+                color: 0xffa15a,
+                width: outerWidth * (1.55 + 0.35 * chatter),
+                alpha: 0.1 * stress,
+              });
+          }
           beams
-            .moveTo(pose.x * PIXELS_PER_METER, pose.y * PIXELS_PER_METER)
-            .lineTo(end.x * PIXELS_PER_METER, end.y * PIXELS_PER_METER)
-            .stroke({ color: LASER_COLOR, width: focus ? 7 : 5, alpha: focus ? 0.95 : 0.78 });
+            .moveTo(startX, startY)
+            .lineTo(endX, endY)
+            .stroke({ color: LASER_COLOR, width: outerWidth, alpha: beamAlpha });
           beams
-            .moveTo(pose.x * PIXELS_PER_METER, pose.y * PIXELS_PER_METER)
-            .lineTo(end.x * PIXELS_PER_METER, end.y * PIXELS_PER_METER)
+            .moveTo(startX, startY)
+            .lineTo(endX, endY)
             .stroke({
               color: focus ? 0xffffff : LASER_CORE_COLOR,
-              width: focus ? 2.4 : 1.6,
+              width: coreWidth,
               alpha: 0.95,
             });
         } else {

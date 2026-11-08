@@ -16,7 +16,8 @@ weapon switching, carry mode, zoom and mute are actions rather than raw key code
 Mining lasers now run on **per-barrel heat**. A barrel fires for five seconds, vents quickly if the
 trigger is released early, and locks into a slow cool-down if it overheats; the two HUD bars show
 each barrel. Two beams focused on the same small spot melt 1.5× faster, and heat raises the laser
-pitch. The rig melts faster overall to compensate for the new duty cycle. A pressure-valve steam burst
+pitch. In the last 10% of the heat bar the beam visibly loses stability: its thickness chatters,
+and an outer bloom flickers before lockout. The rig melts faster overall to compensate for the new duty cycle. A pressure-valve steam burst
 marks terminal heat; a short mechanical relay tick marks re-arm when the barrel reaches zero heat;
 the laser loop itself is a deeper, grittier cutter rather than a high sci-fi whine.
 
