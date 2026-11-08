@@ -107,6 +107,10 @@ const TRACTOR_COLOR = 0x2eff33;
 
 interface Chunk {
   sprite: Sprite;
+  /** White silhouette behind the sprite; tinted green while tractored. */
+  outline: Sprite;
+  /** Soft additive green halo while tractored. */
+  glow: Sprite;
   x: number;
   y: number;
   vx: number;
@@ -196,18 +200,7 @@ function createChunkTexture(variant: number): Texture {
     ctx.fillStyle = halo;
     ctx.fillRect(0, 0, size, size);
 
-    const reach = half - 4;
-    const path = new Path2D();
-    if (variant === 1) {
-      // Triangle.
-      path.moveTo(0, -reach);
-      path.lineTo(reach, reach * 0.8);
-      path.lineTo(-reach, reach * 0.8);
-    } else {
-      // Square.
-      path.rect(-reach * 0.8, -reach * 0.8, reach * 1.6, reach * 1.6);
-    }
-    path.closePath();
+    const path = chunkShapePath(variant, size);
 
     // The shape is drawn around the origin, so translate it to the texture
     // centre: otherwise the solid body sits in the top-left corner and the
@@ -228,22 +221,95 @@ function createChunkTexture(variant: number): Texture {
   return new Texture({ source: new CanvasSource({ resource: canvas }) });
 }
 
+/** The solid chip silhouette, centred on the origin. */
+function chunkShapePath(variant: number, size: number): Path2D {
+  const half = size / 2;
+  const reach = half - 4;
+  const path = new Path2D();
+  if (variant === 1) {
+    path.moveTo(0, -reach);
+    path.lineTo(reach, reach * 0.8);
+    path.lineTo(-reach, reach * 0.8);
+  } else {
+    path.rect(-reach * 0.8, -reach * 0.8, reach * 1.6, reach * 1.6);
+  }
+  path.closePath();
+  return path;
+}
+
+/** White silhouette used as a tinted outline behind a held chunk. */
+function createChunkSilhouetteTexture(variant: number): Texture {
+  const size = CHUNK_TEXTURE_SIZE;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.translate(size / 2, size / 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill(chunkShapePath(variant, size));
+  }
+  return new Texture({ source: new CanvasSource({ resource: canvas }) });
+}
+
+/** Soft additive halo for a chunk held in a tractor beam. */
+function createChunkGlowTexture(): Texture {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const half = size / 2;
+    const glow = ctx.createRadialGradient(half, half, 0, half, half, half);
+    glow.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+    glow.addColorStop(0.35, 'rgba(255, 255, 255, 0.35)');
+    glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, size, size);
+  }
+  return new Texture({ source: new CanvasSource({ resource: canvas }) });
+}
+
+/** Hide a pooled chunk and every helper layer it owns. */
+function hideChunk(chunk: Chunk): void {
+  chunk.active = false;
+  chunk.tracted = false;
+  chunk.sprite.visible = false;
+  chunk.outline.visible = false;
+  chunk.glow.visible = false;
+}
+
 export function createMining(tuning: MiningTuning = createMiningTuning()): Mining {
   const container = new Container();
   const textures = Array.from({ length: CHUNK_TEXTURE_VARIANTS }, (_, variant) =>
     createChunkTexture(variant),
   );
+  const outlineTextures = Array.from({ length: CHUNK_TEXTURE_VARIANTS }, (_, variant) =>
+    createChunkSilhouetteTexture(variant),
+  );
+  const glowTexture = createChunkGlowTexture();
   const chunks: Chunk[] = [];
   for (let index = 0; index < CHUNK_POOL_SIZE; index += 1) {
+    const variant = index % CHUNK_TEXTURE_VARIANTS;
+    const glow = new Sprite({ texture: glowTexture, anchor: 0.5 });
+    glow.blendMode = 'add';
+    glow.tint = 0x2eff4f;
+    glow.visible = false;
+    const outline = new Sprite({ texture: outlineTextures[variant]!, anchor: 0.5 });
+    outline.tint = 0x5dff8a;
+    outline.visible = false;
     const sprite = new Sprite({
-      texture: textures[index % textures.length]!,
+      texture: textures[variant]!,
       anchor: 0.5,
     });
     sprite.blendMode = 'normal';
     sprite.visible = false;
-    container.addChild(sprite);
+    container.addChild(glow, outline, sprite);
     chunks.push({
       sprite,
+      outline,
+      glow,
       x: 0,
       y: 0,
       vx: 0,
@@ -355,6 +421,8 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
     chunk.sprite.tint = 0xffffff;
     chunk.sprite.position.set(chunk.x * PIXELS_PER_METER, chunk.y * PIXELS_PER_METER);
     chunk.sprite.visible = true;
+    chunk.outline.visible = false;
+    chunk.glow.visible = false;
   };
 
   /**
@@ -657,6 +725,8 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
         // of the way in and shrinks to nothing, then counts as cargo. This is
         // the only place the shrink is driven, so it always finishes.
         if (chunk.takingIn > 0) {
+          chunk.outline.visible = false;
+          chunk.glow.visible = false;
           chunk.takingIn = Math.max(0, chunk.takingIn - frame.dt);
           const progress = 1 - chunk.takingIn / INTAKE_SWALLOW_S;
           const sink = progress * progress;
@@ -668,8 +738,7 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
           chunk.sprite.position.set(chunk.x * PIXELS_PER_METER, chunk.y * PIXELS_PER_METER);
           chunk.sprite.rotation += chunk.spin * frame.dt;
           if (chunk.takingIn <= 0) {
-            chunk.active = false;
-            chunk.sprite.visible = false;
+            hideChunk(chunk);
             cargo += 1;
             deliveryFlash = 1;
           }
@@ -747,14 +816,12 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
         }
 
         if (chunk.life <= 0) {
-          chunk.active = false;
-          chunk.sprite.visible = false;
+          hideChunk(chunk);
           continue;
         }
 
         if (!chunk.tracted && distance(chunk, ship) > CHUNK_CULL_RADIUS_M) {
-          chunk.active = false;
-          chunk.sprite.visible = false;
+          hideChunk(chunk);
           continue;
         }
 
@@ -785,6 +852,25 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
         chunk.sprite.alpha = chunk.tracted
           ? 1
           : Math.min(1, Math.max(0, chunk.life / tuning.chunkFadeSeconds));
+
+        // A tractored chunk gets a crisp green silhouette outline plus a small
+        // additive halo so it reads as "held", not just another drifting chip.
+        const held = chunk.tracted;
+        chunk.outline.visible = held;
+        chunk.glow.visible = held;
+        if (held) {
+          const size = chunk.sprite.width;
+          chunk.outline.width = size * 1.18;
+          chunk.outline.height = size * 1.18;
+          chunk.outline.position.copyFrom(chunk.sprite.position);
+          chunk.outline.rotation = chunk.sprite.rotation;
+          chunk.outline.alpha = 0.95;
+
+          chunk.glow.width = size * 2.2;
+          chunk.glow.height = size * 2.2;
+          chunk.glow.position.copyFrom(chunk.sprite.position);
+          chunk.glow.alpha = 0.36 + 0.08 * Math.sin(frame.now * 8 + chunk.x * 5 + chunk.y * 3);
+        }
       }
 
       // Intake waves: three round-cornered rings start wide and scale down
@@ -865,6 +951,8 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
     destroy(): void {
       container.destroy({ children: true });
       for (const texture of textures) texture.destroy(true);
+      for (const texture of outlineTextures) texture.destroy(true);
+      glowTexture.destroy(true);
     },
   };
 }
