@@ -13,9 +13,10 @@ flight model's 0.3 s input ramp, so the ship eases in exactly as it does from ke
 stick becomes an aim direction that is projected into turret screen space; fire, stabiliser,
 weapon switching, carry mode, zoom and mute are actions rather than raw key codes.
 
-- **X (hold)** fires the stabiliser: it points the hull at the burn that opposes travel, retro-burns
-  the translation away and damps spin with a balanced yaw couple, re-evaluating every frame. If
-  the drift is sideways it first turns to face the drift so the reversers can act on it.
+- **X (hold)** fires the stabiliser: it cancels spin with a balanced yaw couple and brakes
+  translation along the **current heading** with the applicable thruster — it never turns the
+  ship toward a new direction. Sideways drift is handled by the linear drag that stabilising
+  also engages.
 - **W/S** thrust forward/back; **A/D** rotate. The ship is a rigid body: each nozzle pushes a
   force at its real position, and the engine mix (W/S plus A/D) decides each nozzle's output.
   Turning is therefore real **differential thrust** torque, not a scripted spin. Inputs ramp in

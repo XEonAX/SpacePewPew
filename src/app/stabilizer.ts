@@ -1,27 +1,21 @@
 /**
- * The stabiliser (hold X): fires the nozzles to null linear and angular
- * velocity.
+ * The stabiliser (hold X): cancels spin and brakes along the hull's current
+ * heading, without re-orienting the ship.
  *
- * Only axial thrust is available, so the controller first points the hull at
- * the burn that opposes travel (nose along the velocity for reverse thrust, or
- * nose against it for main thrust when moving backwards), damps spin with a
- * yaw couple, and then burns along the hull. The force couple is balanced so
- * turning the hull never adds translation.
+ * It fires a balanced yaw couple to null angular velocity, then uses the
+ * applicable axial thruster — reversers when travelling nose-first, mains when
+ * travelling backwards — to slow translation. Sideways drift is left to the
+ * linear drag that stabilising also engages; the hull keeps the heading the
+ * pilot chose. The yaw couple is balanced so turning the nozzles never adds
+ * translation.
  */
 import type { EngineMix } from './engine-mix';
 import type { EngineMount } from './ship-engines';
 import type { ShipGeometry } from './ship-engines';
 import type { FlightState, FlightTuning } from './ship-flight';
-import { wrapAngle } from './turret-aim';
 
-/** Speed below which the stabiliser holds its current heading. */
-export const STABILIZE_ALIGN_SPEED = 0.3;
-/** Desired braking deceleration per m/s of travel (clamped by available thrust). */
+/** Desired braking deceleration per m/s of axial travel (clamped by thrust). */
 export const STABILIZE_BRAKE_GAIN = 2.4;
-/** cos(alignment error) above which the braking thrust is allowed to fire. */
-export const STABILIZE_ALIGN_COS = 0.95;
-/** Attitude gain: desired angular acceleration per radian of heading error. */
-export const STABILIZE_ATTITUDE_GAIN = 4;
 /** Spin-damping gain: desired angular acceleration per rad/s of spin. */
 export const STABILIZE_OMEGA_GAIN = 5;
 
@@ -68,35 +62,22 @@ export function stabilizerEngineOutputs(
   const reverseArm = reverses.reduce((arm, engine) => Math.max(arm, Math.abs(engine.x)), 0);
   const coupleArm = mainArm + reverseArm;
 
-  const speed = Math.hypot(state.vx, state.vy);
   const sin = Math.sin(state.rotation);
   const cos = Math.cos(state.rotation);
   // Positive = travelling along the nose.
   const axial = state.vx * sin - state.vy * cos;
 
-  // Point at the thruster that pushes against travel: nose along the velocity
-  // when the reversers will burn, nose against it when the mains will.
-  let targetHeading = state.rotation;
-  if (speed > STABILIZE_ALIGN_SPEED) {
-    const heading = Math.atan2(state.vx, -state.vy);
-    targetHeading = axial >= 0 ? heading : heading + Math.PI;
-  }
-  const headingError = wrapAngle(targetHeading - state.rotation);
-
   const maxCoupleForce = Math.min(mainThrust, reverseThrust);
   const maxAlpha = coupleArm > 0 ? (maxCoupleForce * coupleArm) / inertia : 0;
-  const alpha = clamp(
-    headingError * STABILIZE_ATTITUDE_GAIN - state.angularVelocity * STABILIZE_OMEGA_GAIN,
-    -maxAlpha,
-    maxAlpha,
-  );
+  // Only cancel spin; never steer toward a new heading.
+  const alpha = clamp(-state.angularVelocity * STABILIZE_OMEGA_GAIN, -maxAlpha, maxAlpha);
 
-  // Axial braking along the hull, once it is roughly pointed at the burn.
+  // Axial braking along the current heading: reversers oppose nose-first
+  // travel, mains oppose backwards travel. Lateral drift is drag's job.
   const brakingGroup: 'main' | 'reverse' = axial >= 0 ? 'reverse' : 'main';
   const groupThrust =
     brakingGroup === 'main' ? mains.length * mainThrust : reverses.length * reverseThrust;
-  const aligned = Math.cos(headingError) > STABILIZE_ALIGN_COS;
-  const brakeSpeed = speed > 0.02 && aligned ? speed : 0;
+  const brakeSpeed = Math.abs(axial) > 0.02 ? Math.abs(axial) : 0;
   const desiredForce = Math.min(brakeSpeed * STABILIZE_BRAKE_GAIN * mass, groupThrust);
   const groupOutput = groupThrust > 0 ? clamp(desiredForce / groupThrust, 0, 1) : 0;
 

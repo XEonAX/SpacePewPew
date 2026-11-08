@@ -74,10 +74,11 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   position relative to the centre of mass in body metres, thrust direction) built from the baked
   `engine-layout.ts` art and the current layout scale, plus the radius of gyration. Unit-tested
   in `tests/ship-engines.test.ts`.
-- `src/app/stabilizer.ts` — hold-X flight assist: with only axial thrust available it points the
-  hull at the retro burn (nose along velocity for reversers, against it for mains when moving
-  backwards), fires that group to null travel, and adds a force-balanced yaw couple to damp spin.
-  Re-evaluated every frame; ramped with the input ramp. Unit-tested in `tests/stabilizer.test.ts`.
+- `src/app/stabilizer.ts` — hold-X flight assist: never re-orients the hull. It fires a
+  force-balanced yaw couple to cancel spin, then burns the applicable axial thruster
+  (reversers when travelling nose-first, mains when travelling backwards) to slow translation;
+  lateral drift is left to the linear drag that stabilising also engages. Re-evaluated every
+  frame; ramped with the input ramp. Unit-tested in `tests/stabilizer.test.ts`.
 - `src/app/flight-tuner.ts` — live DOM slider overlay that mutates `FlightTuning` (mass, per-engine
   thrust, drags, ramp); dev-facing.
 - `src/app/input-system.ts` — the common input layer. Keyboard/mouse, a standard gamepad and

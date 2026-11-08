@@ -142,12 +142,12 @@ describe('stabilizer closed loop', () => {
     expect(Math.abs(state.angularVelocity)).toBeLessThan(0.05);
   });
 
-  it('turns to face a sideways drift, then brakes it', () => {
+  it('keeps its heading while drag kills a sideways drift', () => {
     const { state, seconds } = settle({ vx: 20 });
     expect(seconds).toBeLessThan(9);
     expect(speedOf(state)).toBeLessThan(0.25);
-    // It points along the drift (nose along +x) before burning retro.
-    expect(state.rotation).toBeCloseTo(Math.PI / 2, 0);
+    // Stabilising must never steer the hull toward the drift.
+    expect(state.rotation).toBeCloseTo(0, 6);
   });
 
   it('handles translation and spin together', () => {
