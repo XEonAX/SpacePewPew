@@ -66,6 +66,10 @@ export interface Scene {
   setMuted(muted: boolean): void;
   /** Read-only collider snapshot for the debug gizmo / agent inspection. */
   getColliders(): readonly AsteroidCollider[];
+  /** Debug: current ship pose (world metres/radians) for staging screenshots. */
+  getShipPose(): { x: number; y: number; rotation: number };
+  /** Debug: stage an extra asteroid at a world-metre position (screenshots/tests). */
+  stageAsteroid(x: number, y: number, diameter: number, variant?: number): void;
   destroy(): void;
 }
 
@@ -904,6 +908,12 @@ export async function createScene(app: Application, audio: AudioManager): Promis
     },
     getColliders(): readonly AsteroidCollider[] {
       return asteroidField.getColliders();
+    },
+    getShipPose(): { x: number; y: number; rotation: number } {
+      return { x: flight.x, y: flight.y, rotation: flight.rotation };
+    },
+    stageAsteroid(x: number, y: number, diameter: number, variant?: number): void {
+      asteroidField.add(x, y, diameter, variant);
     },
     destroy(): void {
       app.ticker.remove(tick);

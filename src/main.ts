@@ -16,6 +16,10 @@ declare global {
       app: Application;
       /** Debug: current asteroid colliders (world metres, local points). */
       getColliders: () => readonly AsteroidCollider[];
+      /** Debug: current ship pose (world metres/radians) for screenshot staging. */
+      getShipPose: () => { x: number; y: number; rotation: number };
+      /** Debug: stage an asteroid for screenshots and harness tests, world metres. */
+      stageAsteroid: (x: number, y: number, diameter: number, variant?: number) => void;
     };
   }
 }
@@ -48,7 +52,13 @@ async function main(): Promise<void> {
 
   await audio.load();
 
-  window.__SPACEPEWPEW__ = { ready: true, app, getColliders: scene.getColliders };
+  window.__SPACEPEWPEW__ = {
+    ready: true,
+    app,
+    getColliders: scene.getColliders,
+    getShipPose: scene.getShipPose,
+    stageAsteroid: scene.stageAsteroid,
+  };
 
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
