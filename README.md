@@ -48,8 +48,9 @@ a small GLSL shader, and the maths written down.
 - **One input layer for every device.** Keyboard + mouse, a standard twin-stick gamepad, and a
   two-stick touch layout. Sticks are analog but still pass through the flight model's input
   ramp, so the ship eases into a turn exactly like it does on keys.
-- **Developer overlays.** Live tuning panels for flight, guns and the mining rig, plus telemetry
-  for G load, cargo and shield damage. Built for tuning, not just watching.
+- **Player HUD + dev tools.** A clean in-game HUD (mode, cargo, carry, reticle, fading hints) by
+  default; **F1** (or `?dev=1`) brings up the live flight/gun/mining tuners and telemetry.
+  Built for tuning, not just watching.
 
 ## Screenshots
 
@@ -98,6 +99,7 @@ Pushes to `main` are checked by CI and deployed to GitHub Pages by
 | `1` / `2`                          | Gun aiming: mouse track / all-forward                 |
 | `P`                                | Mining carry: curved arc / physics                    |
 | `M`                                | Mute / unmute                                         |
+| `F1`                               | Toggle developer overlays (hidden by default)         |
 | `F2`                               | Toggle collider debug gizmo                           |
 | Scroll                             | Zoom (1× in, 50× out)                                 |
 

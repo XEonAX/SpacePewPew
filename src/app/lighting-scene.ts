@@ -1,5 +1,5 @@
 import type { Application, Ticker } from 'pixi.js';
-import { Assets, Container, Graphics, Text } from 'pixi.js';
+import { Assets, Container, Graphics } from 'pixi.js';
 import type { Texture } from 'pixi.js';
 import { joinBaseUrl } from '../utils/paths';
 import { CAMERA_FOLLOW_RATE, createBackground } from './background';
@@ -61,6 +61,7 @@ import { createShipShield } from './ship-shield';
 import { createInputSystem } from './input-system';
 import type { InputSnapshot } from './input-system';
 import { aimPointFromStick } from './input-model';
+import { createPlayerHud } from './player-hud';
 
 export interface Scene {
   setMuted(muted: boolean): void;
@@ -322,21 +323,11 @@ export async function createScene(
     }
   };
 
-  const hint = new Text({
-    text: weaponHint(DEFAULT_WEAPON_MODE, DEFAULT_AIM_MODE, false),
-    style: {
-      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-      fontSize: 12,
-      fill: '#4f728c',
-    },
-  });
-  hint.anchor.set(0.5);
-  app.stage.addChild(hint);
+  const hud = createPlayerHud();
+  let devUiVisible = new URLSearchParams(window.location.search).get('dev') === '1';
+  document.body.classList.toggle('dev-ui', devUiVisible);
   const updateHint = (): void => {
-    hint.text =
-      weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode()) +
-      ' · X stabilize' +
-      (showColliders ? ' · F2 hide colliders' : ' · F2 colliders');
+    hud.setHint(weaponHint(weaponMode, aimMode, soundMuted, cargo, mining.getCarryMode()));
   };
   updateHint();
 
@@ -389,7 +380,6 @@ export async function createScene(
     laidOutHeight = height;
     const shipScale = Math.min(height * 0.48, width * 0.52) / shipColor.height;
     const asteroidScale = Math.min(height * 0.44, width * 0.3) / asteroidColor.width;
-    const centerX = width / 2;
 
     if (!shipPlaced) {
       // The ship's centre of mass is the world origin, so the camera starts
@@ -422,7 +412,6 @@ export async function createScene(
       metresPerPixel: shipScale / PIXELS_PER_METER,
       hullLengthM,
     });
-    hint.position.set(centerX, height - 28);
   };
 
   const followCamera = (immediate = false): void => {
@@ -616,7 +605,6 @@ export async function createScene(
 
     input.update();
     inputState = input.snapshot();
-    hint.visible = !inputState.touchVisible;
 
     // Digital keys and analog sticks both feed the flight model's input ramp.
     controls.thrustAxis = inputState.thrust;
@@ -627,6 +615,10 @@ export async function createScene(
     controls.turnLeft = false;
     controls.turnRight = false;
 
+    if (input.consumeAction('toggleDevUi')) {
+      devUiVisible = !devUiVisible;
+      document.body.classList.toggle('dev-ui', devUiVisible);
+    }
     if (input.consumeAction('colliders')) {
       showColliders = !showColliders;
       updateHint();
@@ -791,6 +783,14 @@ export async function createScene(
       cargo = mined;
       updateHint();
     }
+    hud.update({
+      mode: weaponMode,
+      cargo,
+      carry: mining.getCarryMode(),
+      aim: { ...aimScreen, active: inputState.aim.active, kind: inputState.aim.kind },
+      firing: inputState.fire || inputState.fireAll,
+      touch: inputState.touchVisible,
+    });
     miningAudio.update({
       dt: deltaSeconds,
       laserBeams: mining.getLaserBeamCount(),
@@ -922,6 +922,7 @@ export async function createScene(
       flightTuner.destroy();
       weaponTuner.destroy();
       telemetry.destroy();
+      hud.destroy();
       turrets.destroy();
       bullets.destroy();
       mining.destroy();
@@ -933,7 +934,6 @@ export async function createScene(
       ship.mesh.destroy({ children: true });
       asteroidField.destroy();
       shield.destroy();
-      hint.destroy();
       background.destroy();
     },
   };

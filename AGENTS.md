@@ -82,9 +82,12 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/input-system.ts` — the common input layer. Keyboard/mouse, a standard gamepad and
   the touch overlay all feed one snapshot: analog `thrust`/`turn`, `stabilize`, `fire`/`fireAll`,
   a pointer-or-stick `aim`, edge-triggered `InputAction`s (weapons, aim modes, carry, mute,
-  colliders) and a multiplicative zoom factor. Gamepads are polled with a deadzone; the touch
+  colliders, dev-overlay toggle) and a multiplicative zoom factor. Gamepads are polled with a deadzone; the touch
   overlay is created here and hides the dev panels while visible (`?touch=1` forces it for
   testing). `src/app/input-model.ts` holds the pure deadzone/stick/aim/zoom maths, unit-tested.
+- `src/app/player-hud.ts` — player-facing HUD (brand, weapon/carry/cargo pills, aim reticle and
+  a hint line that auto-fades). The dev tuners/telemetry are hidden by default and revealed by
+  **F1** or `?dev=1`; when dev UI is on the player HUD steps out.
 - `src/app/flight-telemetry.ts` — read-only **TELEMETRY** overlay: mass, terminal W/S/yaw,
   velocity, live/peak G, cargo held, cumulative shield damage absorbed, angular velocity,
   ramped inputs and applied drag. G is derived from the actual frame velocity delta (so

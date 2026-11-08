@@ -2,7 +2,7 @@ import { readStick, thrustFromStick, wheelZoomFactor } from './input-model';
 
 /** Logical actions consumed once per press, independent of the device. */
 export type InputAction =
-  'toggleWeapons' | 'aimMouse' | 'aimForward' | 'carryMode' | 'mute' | 'colliders';
+  'toggleWeapons' | 'aimMouse' | 'aimForward' | 'carryMode' | 'mute' | 'colliders' | 'toggleDevUi';
 
 export type InputSource = 'keyboard' | 'gamepad' | 'touch';
 
@@ -67,6 +67,7 @@ const ACTION_BY_KEY: Readonly<Record<string, InputAction>> = {
   Digit2: 'aimForward',
   KeyP: 'carryMode',
   KeyM: 'mute',
+  F1: 'toggleDevUi',
   F2: 'colliders',
 };
 
