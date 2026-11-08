@@ -113,6 +113,9 @@ Pushes to `main` are checked by CI and deployed to GitHub Pages by
 | LT / B      | Stabiliser                          |
 | X           | Switch gun battery ↔ mining rig     |
 | Y           | Mining carry mode                   |
+| D-pad ← / → | Aim mode: mouse / forward           |
+| D-pad ↑     | Toggle developer overlays           |
+| R3          | Cycle aim mode                      |
 | LB / RB     | Zoom out / in                       |
 | Start       | Mute / unmute                       |
 | Back        | Toggle collider debug gizmo         |

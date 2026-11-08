@@ -66,6 +66,8 @@ const GAMEPAD_ACTIONS: Readonly<Record<number, InputAction>> = {
   3: 'carryMode',
   8: 'colliders',
   9: 'mute',
+  11: 'aimCycle',
+  12: 'toggleDevUi',
   14: 'aimMouse',
   15: 'aimForward',
 };
