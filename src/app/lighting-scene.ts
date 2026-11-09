@@ -955,8 +955,11 @@ export async function createScene(
     const shipSpeed = Math.hypot(flight.vx, flight.vy);
     const seat = dock.getSeat();
     const alignment = dockAlignment({
-      shipX: shipCentre().x,
-      shipY: shipCentre().y,
+      // Alignment is measured at the flight body's centre of mass, which is
+      // what the dock seat is defined against. Using the texture centre here
+      // adds the ~1.4 m aft art offset and reads as false misalignment.
+      shipX: flight.x,
+      shipY: flight.y,
       shipRotation: flight.rotation,
       speedMps: shipSpeed,
       targetX: seat.x,
