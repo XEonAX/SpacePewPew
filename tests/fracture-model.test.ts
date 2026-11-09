@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { convexHull, planFragments, planPieCut, planWedgeCut } from '../src/app/fracture-model';
+import {
+  convexHull,
+  planFragments,
+  planPieCut,
+  planPolylineCut,
+  planWedgeCut,
+} from '../src/app/fracture-model';
 
 const square = [
   { x: -1, y: -1 },
@@ -144,5 +150,26 @@ describe('planWedgeCut', () => {
   it('is deterministic and handles a degenerate wedge', () => {
     expect(planWedgeCut(triangles, 0, 1)).toEqual(planWedgeCut(triangles, 0, 1));
     expect(planWedgeCut([], 0, 1)).toEqual([]);
+  });
+});
+
+describe('planPolylineCut', () => {
+  const rock = Array.from({ length: 12 }, (_, index) => {
+    const angle = (index / 12) * Math.PI * 2;
+    return { x: Math.cos(angle) * 3, y: Math.sin(angle) * 3 };
+  });
+
+  it('makes two polygons with a shared non-straight cut path', () => {
+    const cut = planPolylineCut(rock, 0, Math.PI * 0.55);
+    expect(cut).not.toBeNull();
+    expect(cut!.cutPath.length).toBeGreaterThan(4);
+    expect(cut!.small.polygon.length).toBeGreaterThan(3);
+    expect(cut!.large.polygon.length).toBeGreaterThan(3);
+    const total = cut!.small.area + cut!.large.area;
+    expect(total).toBeCloseTo(27, 0);
+  });
+
+  it('is deterministic', () => {
+    expect(planPolylineCut(rock, 0, 1.7)).toEqual(planPolylineCut(rock, 0, 1.7));
   });
 });

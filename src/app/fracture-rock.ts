@@ -1,9 +1,9 @@
 import { CanvasSource, Container, Graphics, Texture } from 'pixi.js';
 import type { AsteroidField } from './asteroid-field';
-import { colliderWorldPoints, fanTriangles } from './asteroid-collision';
+import { colliderWorldPoints } from './asteroid-collision';
 import type { AsteroidCollider, Vec2 } from './asteroid-collision';
-import { planWedgeCut } from './fracture-model';
-import type { FragmentPlan } from './fracture-model';
+import { planPolylineCut } from './fracture-model';
+import type { PolygonFragment } from './fracture-model';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
 import { PIXELS_PER_METER } from './world-scale';
@@ -114,7 +114,7 @@ function regularPolygon(radius: number, sides: number): Vec2[] {
 function bakeFragmentArt(
   color: Texture,
   normal: Texture,
-  triangles: readonly (readonly Vec2[])[],
+  polygon: readonly Vec2[],
   metresPerArtPixel: number,
 ): { color: Texture; normal: Texture } {
   const width = color.width;
@@ -130,15 +130,13 @@ function bakeFragmentArt(
     context.drawImage(source.source.resource as CanvasImageSource, 0, 0, width, height);
     context.globalCompositeOperation = 'destination-in';
     context.beginPath();
-    for (const triangle of triangles) {
-      triangle.forEach((point, index) => {
-        const x = centreX + point.x / metresPerArtPixel;
-        const y = centreY + point.y / metresPerArtPixel;
-        if (index === 0) context.moveTo(x, y);
-        else context.lineTo(x, y);
-      });
-      context.closePath();
-    }
+    polygon.forEach((point, index) => {
+      const x = centreX + point.x / metresPerArtPixel;
+      const y = centreY + point.y / metresPerArtPixel;
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+    context.closePath();
     context.fillStyle = '#ffffff';
     context.fill();
     return new Texture({ source: new CanvasSource({ resource: canvas }) });
@@ -156,6 +154,9 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     x: Math.cos(weakPointAngle) * shellCollider.radius * WEAK_POINT_RADIUS_FRACTION,
     y: Math.sin(weakPointAngle) * shellCollider.radius * WEAK_POINT_RADIUS_FRACTION,
   };
+  // Computed once: the same jagged polyline is the crack and both fragment
+  // cut edges. No straight wedge is used.
+  const fracturePlan = planPolylineCut(shellCollider.points, weakPointAngle, WEDGE_ANGLE);
 
   const container = new Container();
   container.name = 'fracture';
@@ -209,12 +210,12 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     marker.circle(screen.x, screen.y, 3).fill({ color: colour, alpha: 0.95 });
   };
 
-  const spawnFragment = (plan: FragmentPlan, index: number, side: number): void => {
+  const spawnFragment = (plan: PolygonFragment, index: number, side: number): void => {
     const centroidArt = {
       x: plan.centroid.x / metresPerArtPixel,
       y: plan.centroid.y / metresPerArtPixel,
     };
-    const baked = bakeFragmentArt(art.color, art.normal, plan.triangles, metresPerArtPixel);
+    const baked = bakeFragmentArt(art.color, art.normal, plan.polygon, metresPerArtPixel);
     const lit = createLitSprite(baked.color, baked.normal);
     lit.mesh.name = 'fracture-fragment-mesh';
     // The shader geometry is centred on the art texture, so offsetting the
@@ -237,7 +238,7 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     const speed = 0.55 + index * 0.05;
     const tangent = side;
     const angle = shellCollider.rotation + side * 0.06;
-    const colliderPoints = plan.hull.map((point) => ({
+    const colliderPoints = plan.polygon.map((point) => ({
       x: point.x - plan.centroid.x,
       y: point.y - plan.centroid.y,
     }));
@@ -271,21 +272,10 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     crack.visible = false;
     asteroid.active = false;
     asteroid.mesh.mesh.visible = false;
-    const triangles = fanTriangles(shellCollider.points).map((triangle) => triangle.points);
-    const plans = planWedgeCut(triangles, weakPointAngle, WEDGE_ANGLE);
-    const areas = plans.map((plan) =>
-      plan.triangles.reduce((total, triangle) => {
-        let area = 0;
-        for (let index = 0; index < triangle.length; index += 1) {
-          const a = triangle[index]!;
-          const b = triangle[(index + 1) % triangle.length]!;
-          area += a.x * b.y - b.x * a.y;
-        }
-        return total + Math.abs(area) / 2;
-      }, 0),
-    );
-    const ownerIndex = areas.reduce(
-      (best, area, index) => (area > (areas[best] ?? 0) ? index : best),
+    if (!fracturePlan) return;
+    const plans: PolygonFragment[] = [fracturePlan.small, fracturePlan.large];
+    const ownerIndex = plans.reduce(
+      (best, plan, index) => (plan.area > (plans[best]?.area ?? 0) ? index : best),
       0,
     );
     const ownerPlan = plans[ownerIndex];
@@ -343,49 +333,32 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
 
   const drawCrack = (frame: FractureFrame): void => {
     crack.clear();
-    if (shellBroken || hitCount === 0) {
+    if (shellBroken || hitCount === 0 || !fracturePlan) {
       crack.visible = false;
       return;
     }
     crack.visible = true;
-    const half = WEDGE_ANGLE / 2;
-    const edgeRadius = shellCollider.radius * 1.05;
-    const ray = (angle: number, sign: number): { x: number; y: number }[] => {
-      const dir = { x: Math.cos(angle), y: Math.sin(angle) };
-      const perp = { x: -dir.y, y: dir.x };
-      return [0, 0.18, 0.36, 0.55, 0.74, 0.9, 1.05].map((stop, index) => {
-        const local = {
-          x:
-            dir.x * edgeRadius * stop +
-            perp.x * Math.sin(index * 2.1 + sign) * shellCollider.radius * 0.05,
-          y:
-            dir.y * edgeRadius * stop +
-            perp.y * Math.sin(index * 2.1 + sign) * shellCollider.radius * 0.05,
-        };
-        const rotated = rotate(local, shellCollider.rotation);
-        return screenPoint(shellCollider.x + rotated.x, shellCollider.y + rotated.y, frame);
-      });
-    };
-    const left = ray(weakPointAngle - half, 1.3);
-    const right = ray(weakPointAngle + half, 2.8);
-    // Clip both crack faces to the actual rock silhouette.
+    // Put the silhouette mask in place before the shared cut polyline is drawn.
     crackMask.clear();
     const silhouette = colliderWorldPoints(shellCollider).map((point) =>
       screenPoint(point.x, point.y, frame),
     );
     crackMask.poly(silhouette).fill({ color: 0xffffff });
-    for (const path of [left, right]) {
+
+    const path = fracturePlan.cutPath.map((point) => {
+      const rotated = rotate(point, shellCollider.rotation);
+      return screenPoint(shellCollider.x + rotated.x, shellCollider.y + rotated.y, frame);
+    });
+    if (path.length < 2) return;
+    const stroke = (color: number, width: number, alpha: number): void => {
       crack.moveTo(path[0]!.x, path[0]!.y);
       for (const point of path.slice(1)) crack.lineTo(point.x, point.y);
-      crack.stroke({
-        color: 0xff5a24,
-        width: hitCount >= 2 ? 3 : 2,
-        alpha: hitCount >= 2 ? 0.95 : 0.75,
-      });
-      crack.moveTo(path[0]!.x, path[0]!.y);
-      for (const point of path.slice(1)) crack.lineTo(point.x, point.y);
-      crack.stroke({ color: 0xffd08a, width: 0.9, alpha: 0.9 });
-    }
+      crack.stroke({ color, width, alpha });
+    };
+    stroke(0x2a0c06, hitCount >= 2 ? 5.5 : 4.5, 0.9);
+    stroke(0xff5a24, hitCount >= 2 ? 3 : 2, hitCount >= 2 ? 0.95 : 0.75);
+    stroke(0xffd08a, 0.9, 0.9);
+
     const weak = weakPointWorld();
     const weakScreen = screenPoint(weak.x, weak.y, frame);
     crack.circle(weakScreen.x, weakScreen.y, Math.max(3, 0.16 * PIXELS_PER_METER * frame.zoom));

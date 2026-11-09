@@ -170,13 +170,13 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   the same small spot melt 1.5× faster. In the final 10% of heat the beam's thickness chatters and
   an outer bloom flickers; `src/app/laser-heat.ts` owns the pure state; HUD heat bars show the two
   barrels, and heat/focus drive the laser pitch plus overheat/re-arm one-shots.
-- `src/app/fracture-model.ts` — pure fracture planning: monotonic-chain convex hull, a
-  deterministic two-piece wedge cut and triangle-region helpers; unit-tested.
+- `src/app/fracture-model.ts` — pure fracture planning: monotonic-chain convex hull, triangle
+  region helpers, a wedge cut and a true two-piece polyline cut; unit-tested.
 - `src/app/fracture-rock.ts` — one authored destructible test rock: an amber weak point, a
   growing V-notch crack overlay (clipped to the live collider silhouette), and a three-hit shell
-  break. The shell splits into a small
-  cracked-out wedge plus a larger >180° piece with baked fragment textures, separate convex
-  colliders and shallow drift/rotation bodies.
+  break. The visible crack path is the same jagged polyline used to cut both fragments: the shell
+  splits into a small cracked-out piece plus a larger >180° piece with baked polygon-clipped
+  textures, separate colliders and shallow drift/rotation bodies.
   Both pieces get an immediate separation gap, persist and stay close to the break. The molten
   core is drawn beneath the shell at the break seam, so it is exposed through the gap rather
   than pasted onto the surface. The fragment shells are mining targets too, so they occlude the

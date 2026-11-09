@@ -197,3 +197,147 @@ export function planFragments(triangles: readonly (readonly Vec2[])[], count = 3
   }
   return plans;
 }
+
+/** One polygon piece produced by a true polyline cut. */
+export interface PolygonFragment {
+  /** Closed outline in the parent rock's local metre space. */
+  polygon: Vec2[];
+  centroid: Vec2;
+  area: number;
+}
+
+/** Two pieces sharing the exact cut path, plus the local crack polyline. */
+export interface PolylineCut {
+  cutPath: Vec2[];
+  small: PolygonFragment;
+  large: PolygonFragment;
+}
+
+function angularSpan(points: readonly Vec2[]): number {
+  let span = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const a = Math.atan2(points[index - 1]!.y, points[index - 1]!.x);
+    const b = Math.atan2(points[index]!.y, points[index]!.x);
+    span += Math.abs(Math.atan2(Math.sin(b - a), Math.cos(b - a)));
+  }
+  return span;
+}
+
+function polygonAreaCentroid(points: readonly Vec2[]): { area: number; centroid: Vec2 } {
+  let twiceArea = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const a = points[index]!;
+    const b = points[(index + 1) % points.length]!;
+    const cross = a.x * b.y - b.x * a.y;
+    twiceArea += cross;
+    cx += (a.x + b.x) * cross;
+    cy += (a.y + b.y) * cross;
+  }
+  const area = twiceArea / 2;
+  if (Math.abs(area) < 1e-9) {
+    return { area: 0, centroid: centroidOf(points) };
+  }
+  return {
+    area: Math.abs(area),
+    centroid: { x: cx / (6 * area), y: cy / (6 * area) },
+  };
+}
+
+/**
+ * Cut the rock with a jagged polyline from one boundary vertex to another via
+ * the centre. Unlike a straight wedge, the same polyline becomes both physical
+ * fragment edges and the visible crack, so the split cannot be smoother than
+ * the crack.
+ */
+export function planPolylineCut(
+  points: readonly Vec2[],
+  cutAngle: number,
+  wedgeAngle: number,
+): PolylineCut | null {
+  if (points.length < 4) return null;
+  const half = Math.max(0.05, Math.abs(wedgeAngle)) / 2;
+  const angularDistance = (target: number): number => {
+    let best = Number.POSITIVE_INFINITY;
+    for (const point of points) {
+      const angle = Math.atan2(point.y, point.x);
+      const distance = Math.abs(Math.atan2(Math.sin(angle - target), Math.cos(angle - target)));
+      if (distance < best) best = distance;
+    }
+    return best;
+  };
+  const nearestIndex = (target: number): number => {
+    let best = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    points.forEach((point, index) => {
+      const angle = Math.atan2(point.y, point.x);
+      const distance = Math.abs(Math.atan2(Math.sin(angle - target), Math.cos(angle - target)));
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = index;
+      }
+    });
+    return best;
+  };
+  // A wedge with no nearby vertices cannot form a meaningful cut.
+  const firstIndex = nearestIndex(cutAngle - half);
+  const secondIndex = nearestIndex(cutAngle + half);
+  if (firstIndex === secondIndex) return null;
+  if (angularDistance(cutAngle - half) > half * 0.7) return null;
+  if (angularDistance(cutAngle + half) > half * 0.7) return null;
+
+  const arc = (start: number, end: number): Vec2[] => {
+    const result: Vec2[] = [];
+    let index = start;
+    for (let guard = 0; guard <= points.length; guard += 1) {
+      result.push({ ...points[index]! });
+      if (index === end) break;
+      index = (index + 1) % points.length;
+    }
+    return result;
+  };
+  const arcAB = arc(firstIndex, secondIndex);
+  const arcBA = arc(secondIndex, firstIndex);
+  const shortArc = angularSpan(arcAB) <= angularSpan(arcBA) ? arcAB : arcBA;
+  const longArc = angularSpan(arcAB) <= angularSpan(arcBA) ? arcBA : arcAB;
+
+  const start = shortArc[0]!;
+  const end = shortArc[shortArc.length - 1]!;
+  let radius = 1;
+  for (const point of points) radius = Math.max(radius, Math.hypot(point.x, point.y));
+  const centre = { x: 0, y: 0 };
+  const pathSection = (from: Vec2, to: Vec2, phase: number): Vec2[] => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const length = Math.hypot(dx, dy) || 1;
+    const dir = { x: dx / length, y: dy / length };
+    const perp = { x: -dir.y, y: dir.x };
+    const result: Vec2[] = [];
+    const steps = 4;
+    for (let index = 0; index <= steps; index += 1) {
+      const t = index / steps;
+      const wobble =
+        index === 0 || index === steps
+          ? 0
+          : Math.sin(index * 2.37 + phase) * radius * 0.045 * Math.sin(t * Math.PI);
+      result.push({
+        x: from.x + dx * t + perp.x * wobble,
+        y: from.y + dy * t + perp.y * wobble,
+      });
+    }
+    return result;
+  };
+  const cutPath = [...pathSection(start, centre, 0.7), ...pathSection(centre, end, 2.4).slice(1)];
+
+  const smallPolygon = [...shortArc, ...cutPath.slice().reverse().slice(1, -1)];
+  const longPolygon = [...longArc, ...cutPath.slice(1, -1)];
+  const smallMetrics = polygonAreaCentroid(smallPolygon);
+  const largeMetrics = polygonAreaCentroid(longPolygon);
+  if (smallMetrics.area < 1e-6 || largeMetrics.area < 1e-6) return null;
+  return {
+    cutPath,
+    small: { polygon: smallPolygon, centroid: smallMetrics.centroid, area: smallMetrics.area },
+    large: { polygon: longPolygon, centroid: largeMetrics.centroid, area: largeMetrics.area },
+  };
+}
