@@ -170,12 +170,14 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   the same small spot melt 1.5× faster. In the final 10% of heat the beam's thickness chatters and
   an outer bloom flickers; `src/app/laser-heat.ts` owns the pure state; HUD heat bars show the two
   barrels, and heat/focus drive the laser pitch plus overheat/re-arm one-shots.
-- `src/app/fracture-model.ts` — pure fracture planning: monotonic-chain convex hull and a
-  deterministic two-piece pie cut of the collider triangles; unit-tested.
+- `src/app/fracture-model.ts` — pure fracture planning: monotonic-chain convex hull, a
+  deterministic two-piece wedge cut and triangle-region helpers; unit-tested.
 - `src/app/fracture-rock.ts` — one authored destructible test rock: an amber weak point, a
-  growing crack overlay, and a three-hit shell break. The shell splits into two pie-cut halves
-  with baked fragment textures, separate convex colliders and shallow drift/rotation bodies; the
-  exposed molten core becomes a mining target. No physics engine.
+  growing V-notch crack overlay, and a three-hit shell break. The shell splits into a small
+  cracked-out wedge plus a larger >180° piece with baked fragment textures, separate convex
+  colliders and shallow drift/rotation bodies.
+  Both pieces persist and stay close to the break. The molten core is baked into the larger
+  piece's albedo and becomes a mining target. No physics engine.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/mining-tuning.ts` — live `MiningTuning` values (melt dwell/spot/cool, focus melt/radius,

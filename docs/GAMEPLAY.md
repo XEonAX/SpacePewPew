@@ -80,15 +80,16 @@ straight ahead while the gun battery stays on pointer tracking (and vice versa).
 **Asteroids live in the world**, in the same dust layer the ship flies through, so they pan and zoom with the environment; they tumble slowly (0.02–0.06 rad/s) rather than spin. The ship's **centre of mass and the camera start at the world origin**, and the field is a **deterministic scatter of 100 rocks** (seeded) around that origin — here and there, drawn from **ten art variants** (the two supplied rocks plus eight Blender-rendered ones), mostly normal sizes with a few 3x heroes. Placement keeps the **vertical grid axis clear** (no rock edge crosses x = 0) and the ship's spawn bubble empty. Adding more is a single `add(x, y, diameter, variant?)` on the field; every rock gets a collider traced from its own art — a bounding circle for the fast pass and a **convex silhouette polygon that turns with the rock** for the accurate pass — stops tracers, and can be mined (lasers bite the nearest rock their beam hits, tested against that polygon).
 
 **Crackable test rock (prototype).** One authored rock sits ahead-right of the spawn: its amber
-ring is a weak point. In gun mode, three hits on the weak point grow a hot crack across the
-sprite; the third splits the rock into **two pie-cut halves**. The halves are baked from the
-original art, have their own convex colliders and drift/tumble apart — no physics engine. The
-split exposes a **molten core**; Tab to the mining rig and cut it like any other rock. The shell
-must be opened with guns first: the mining rig has no target on the intact shell.
+ring is a weak point. In gun mode, three hits on the weak point grow a **hot V-notch crack** into
+the sprite; the third splits the rock into a **small cracked-out wedge** and a **larger >180°
+piece**. Both are baked from the original art, have their own convex colliders, drift only a
+short distance apart and **persist** — no physics engine. The **molten core is baked into the
+larger piece** and moves with it; Tab to the mining rig and cut it like any other rock. The
+shell must be opened with guns first: the mining rig has no target on the intact shell.
 
-![Crack growing across the destructible test rock](visuals/09-fracture-crack.png)
+![V-notch crack growing across the destructible test rock](visuals/09-fracture-crack.png)
 
-![The shell split into two pie-cut halves, exposing the molten core](visuals/10-fracture-piecut.png)
+![The shell split into a small wedge and the larger core-bearing piece](visuals/10-fracture-wedge.png)
 
 **The asteroid is solid.** A collider **gizmo** is hidden by default; press **F2** to overlay it while tuning (green = rock silhouettes and bounding circles, cyan = ship hull bubble). The ship carries a hull-shaped **energy shield** that is both its collision shape and its visual: its outline follows the hull — pointed nose, wing tips, blunt tail — as a convex outline inflated by a bubble radius of 16 % of the hull width (equivalently, capsule segments joined with rounded corners), so the whole ship sits inside it with room over the pointed nose and wing corners. The boundary glows and fades inward, so the edge reads as a surface. At rest the shield is
 **dim**; a recent hit lifts the whole bubble to its full brightness and it eases back to rest

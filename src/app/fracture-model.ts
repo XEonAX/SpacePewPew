@@ -99,6 +99,38 @@ export function planPieCut(
 }
 
 /**
+ * Split the rock into a small edge wedge and the larger remainder. The wedge
+ * is the "cracked-out" pie piece; the remainder is the >180° piece that keeps
+ * the core. Both cut faces meet at the centre, so the break is a V-notch rather
+ * than a straight diameter.
+ */
+export function planWedgeCut(
+  triangles: readonly (readonly Vec2[])[],
+  cutAngle: number,
+  wedgeAngle: number,
+): FragmentPlan[] {
+  if (triangles.length === 0) return [];
+  const half = Math.max(0.01, Math.abs(wedgeAngle)) / 2;
+  const wrap = (angle: number): number => Math.atan2(Math.sin(angle), Math.cos(angle));
+  const groups: Vec2[][][] = [[], []];
+  for (const triangle of triangles) {
+    const centroid = centroidOf(triangle);
+    const delta = wrap(Math.atan2(centroid.y, centroid.x) - cutAngle);
+    const group = Math.abs(delta) <= half ? 0 : 1;
+    groups[group]!.push(triangle.map((point) => ({ ...point })));
+  }
+  if (groups[0]!.length === 0 || groups[1]!.length === 0) {
+    // Degenerate wedge: alternate triangles so both pieces still exist.
+    groups[0] = [];
+    groups[1] = [];
+    triangles.forEach((triangle, index) => {
+      groups[index % 2]!.push(triangle.map((point) => ({ ...point })));
+    });
+  }
+  return plansFromGroups(groups);
+}
+
+/**
  * Split the triangulated silhouette into `count` wedge-like regions.
  *
  * This is deliberately small: the prototype only needs a deterministic handful

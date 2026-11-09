@@ -2,7 +2,7 @@ import { CanvasSource, Container, Graphics, Texture } from 'pixi.js';
 import type { AsteroidField } from './asteroid-field';
 import { fanTriangles } from './asteroid-collision';
 import type { AsteroidCollider, Vec2 } from './asteroid-collision';
-import { planPieCut } from './fracture-model';
+import { planWedgeCut } from './fracture-model';
 import type { FragmentPlan } from './fracture-model';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
@@ -11,10 +11,10 @@ import { PIXELS_PER_METER } from './world-scale';
 const SHELL_HITS_TO_BREAK = 3;
 const WEAK_POINT_RADIUS_FRACTION = 0.62;
 const WEAK_POINT_HIT_RADIUS_M = 1.8;
-const FRAGMENT_LIFETIME_S = 9;
-const FRAGMENT_FADE_S = 2;
-const FRAGMENT_DAMPING = 0.7;
-const CORE_RADIUS_M = 1.2;
+const FRAGMENT_DAMPING = 2.2;
+/** Angle of the small cracked-out wedge; the remainder is >180°. */
+const WEDGE_ANGLE = Math.PI * 0.55;
+const CORE_RADIUS_M = 0.95;
 
 interface FragmentBody {
   lit: LitSprite;
@@ -27,7 +27,6 @@ interface FragmentBody {
   vy: number;
   angle: number;
   angularVelocity: number;
-  life: number;
 }
 
 export interface FractureFrame {
@@ -54,11 +53,9 @@ export interface FractureDebug {
     x: number;
     y: number;
     angle: number;
-    life: number;
     scale: number;
     screenX: number;
     screenY: number;
-    alpha: number;
     visible: boolean;
   }[];
 }
@@ -117,6 +114,7 @@ function bakeFragmentArt(
   normal: Texture,
   triangles: readonly (readonly Vec2[])[],
   metresPerArtPixel: number,
+  core: Vec2 | null,
 ): { color: Texture; normal: Texture } {
   const width = color.width;
   const height = color.height;
@@ -142,6 +140,30 @@ function bakeFragmentArt(
     }
     context.fillStyle = '#ffffff';
     context.fill();
+    if (core) {
+      // Bake the exposed core into the larger fragment's own albedo, clipped by
+      // that fragment's alpha. It is literally part of the pie piece.
+      context.globalCompositeOperation = 'source-atop';
+      const coreX = centreX + core.x / metresPerArtPixel;
+      const coreY = centreY + core.y / metresPerArtPixel;
+      const coreRadius = Math.max(2, (CORE_RADIUS_M * 0.68) / metresPerArtPixel);
+      const glow = context.createRadialGradient(
+        coreX,
+        coreY,
+        coreRadius * 0.1,
+        coreX,
+        coreY,
+        coreRadius * 2.4,
+      );
+      glow.addColorStop(0, 'rgba(255, 248, 226, 1)');
+      glow.addColorStop(0.22, 'rgba(255, 198, 105, 1)');
+      glow.addColorStop(0.6, 'rgba(214, 92, 34, 0.95)');
+      glow.addColorStop(1, 'rgba(90, 30, 10, 0)');
+      context.fillStyle = glow;
+      context.beginPath();
+      context.arc(coreX, coreY, coreRadius * 2.4, 0, Math.PI * 2);
+      context.fill();
+    }
     return new Texture({ source: new CanvasSource({ resource: canvas }) });
   };
   return { color: clip(color), normal: clip(normal) };
@@ -174,6 +196,8 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   let shellBroken = false;
   let coreActive = false;
   let coreCollider: AsteroidCollider | null = null;
+  let coreOwner: FragmentBody | null = null;
+  let coreLocalOffset: Vec2 = { x: 0, y: 0 };
   let hitCount = 0;
   let hitFlash = 0;
   let lastFrame: FractureFrame | null = null;
@@ -210,18 +234,33 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     }
   };
 
-  const spawnFragment = (plan: FragmentPlan, index: number, side: number): void => {
+  const spawnFragment = (
+    plan: FragmentPlan,
+    index: number,
+    side: number,
+    core: Vec2 | null,
+  ): void => {
     const centroidArt = {
       x: plan.centroid.x / metresPerArtPixel,
       y: plan.centroid.y / metresPerArtPixel,
     };
-    const baked = bakeFragmentArt(art.color, art.normal, plan.triangles, metresPerArtPixel);
+    // Core offsets arrive relative to the fragment centroid; the baked-art
+    // canvas is in the parent rock's local art frame.
+    const coreRockLocal = core
+      ? { x: core.x + plan.centroid.x, y: core.y + plan.centroid.y }
+      : null;
+    const baked = bakeFragmentArt(
+      art.color,
+      art.normal,
+      plan.triangles,
+      metresPerArtPixel,
+      coreRockLocal,
+    );
     const lit = createLitSprite(baked.color, baked.normal);
     lit.mesh.name = 'fracture-fragment-mesh';
-    lit.mesh.position.set(
-      art.color.width / 2 - centroidArt.x,
-      art.color.height / 2 - centroidArt.y,
-    );
+    // The shader geometry is centred on the art texture, so offsetting the
+    // mesh by negative centroid puts the fragment's own centroid at local 0.
+    lit.mesh.position.set(-centroidArt.x, -centroidArt.y);
     const fragment = new Container();
     fragment.name = 'fracture-fragment';
     fragment.addChild(lit.mesh);
@@ -229,10 +268,12 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
 
     const local = rotate(plan.centroid, shellCollider.rotation);
     const world = { x: shellCollider.x + local.x, y: shellCollider.y + local.y };
-    const cutNormal = { x: -Math.sin(weakPointAngle), y: Math.cos(weakPointAngle) };
-    const speed = 2.15 + index * 0.2;
+    const cutNormal = { x: Math.cos(weakPointAngle), y: Math.sin(weakPointAngle) };
+    // Barely enough separation to expose the seam, then damping stops both
+    // pieces nearby. They persist as solid pieces for the rest of the scene.
+    const speed = 0.7 + index * 0.05;
     const tangent = side;
-    const angle = shellCollider.rotation + side * 0.12;
+    const angle = shellCollider.rotation + side * 0.06;
     const colliderPoints = plan.hull.map((point) => ({
       x: point.x - plan.centroid.x,
       y: point.y - plan.centroid.y,
@@ -254,11 +295,10 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       collider,
       x: world.x,
       y: world.y,
-      vx: cutNormal.x * speed * tangent + local.x * 0.18,
-      vy: cutNormal.y * speed * tangent + local.y * 0.18,
+      vx: cutNormal.x * speed * tangent + local.x * 0.03,
+      vy: cutNormal.y * speed * tangent + local.y * 0.03,
       angle,
-      angularVelocity: tangent * (0.35 + index * 0.12),
-      life: FRAGMENT_LIFETIME_S,
+      angularVelocity: tangent * 0.05,
     });
   };
 
@@ -269,8 +309,32 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     asteroid.active = false;
     asteroid.mesh.mesh.visible = false;
     const triangles = fanTriangles(shellCollider.points).map((triangle) => triangle.points);
-    const plans = planPieCut(triangles, weakPointAngle);
-    plans.forEach((plan, index) => spawnFragment(plan, index, index === 0 ? 1 : -1));
+    const plans = planWedgeCut(triangles, weakPointAngle, WEDGE_ANGLE);
+    const areas = plans.map((plan) =>
+      plan.triangles.reduce((total, triangle) => {
+        let area = 0;
+        for (let index = 0; index < triangle.length; index += 1) {
+          const a = triangle[index]!;
+          const b = triangle[(index + 1) % triangle.length]!;
+          area += a.x * b.y - b.x * a.y;
+        }
+        return total + Math.abs(area) / 2;
+      }, 0),
+    );
+    const ownerIndex = areas.reduce(
+      (best, area, index) => (area > (areas[best] ?? 0) ? index : best),
+      0,
+    );
+    // The larger half owns the core at its centroid.
+    coreLocalOffset = { x: 0, y: 0 };
+    plans.forEach((plan, index) =>
+      spawnFragment(
+        plan,
+        index,
+        index === 0 ? 1 : -1,
+        index === ownerIndex ? coreLocalOffset : null,
+      ),
+    );
     // Keep the exposed core above its shards.
     container.setChildIndex(core, container.children.length - 1);
 
@@ -284,35 +348,36 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       radius: CORE_RADIUS_M,
       ...(asteroid.collider.variant === undefined ? {} : { variant: asteroid.collider.variant }),
     };
+    // The core is embedded in the larger half, not a free-floating third body.
+    coreOwner = fragments[ownerIndex] ?? null;
   };
 
   const updateFragments = (frame: FractureFrame): void => {
     for (const fragment of fragments) {
-      fragment.life -= frame.dt;
-      if (fragment.life <= 0) {
-        fragment.container.destroy({ children: true });
-        for (const texture of fragment.textures) texture.destroy(true);
-        continue;
-      }
       fragment.vx *= Math.exp(-FRAGMENT_DAMPING * frame.dt);
       fragment.vy *= Math.exp(-FRAGMENT_DAMPING * frame.dt);
       fragment.x += fragment.vx * frame.dt;
       fragment.y += fragment.vy * frame.dt;
       fragment.angle += fragment.angularVelocity * frame.dt;
-      fragment.angularVelocity *= Math.exp(-0.35 * frame.dt);
+      fragment.angularVelocity *= Math.exp(-1.2 * frame.dt);
       fragment.collider.x = fragment.x;
       fragment.collider.y = fragment.y;
       fragment.collider.rotation = fragment.angle;
+
+      if (coreCollider && fragment === coreOwner) {
+        const cos = Math.cos(fragment.angle);
+        const sin = Math.sin(fragment.angle);
+        coreCollider.x = fragment.x + coreLocalOffset.x * cos - coreLocalOffset.y * sin;
+        coreCollider.y = fragment.y + coreLocalOffset.x * sin + coreLocalOffset.y * cos;
+        coreCollider.rotation = fragment.angle;
+      }
 
       const screen = screenPoint(fragment.x, fragment.y, frame);
       const scale = metresPerArtPixel * PIXELS_PER_METER * frame.zoom;
       fragment.container.position.set(screen.x, screen.y);
       fragment.container.rotation = fragment.angle;
       fragment.container.scale.set(scale);
-      fragment.container.alpha = Math.min(1, fragment.life / FRAGMENT_FADE_S);
-    }
-    for (let index = fragments.length - 1; index >= 0; index -= 1) {
-      if (fragments[index]!.life <= 0) fragments.splice(index, 1);
+      fragment.container.alpha = 1;
     }
   };
 
@@ -323,44 +388,43 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       return;
     }
     crack.visible = true;
-    const dir = { x: Math.cos(weakPointAngle), y: Math.sin(weakPointAngle) };
-    const perp = { x: -dir.y, y: dir.x };
-    const radius = shellCollider.radius;
-    // Ordered from the weak-point side through the centre to the far edge.
-    const stops = [1.05, 0.82, 0.62, 0.45, 0.28, 0.1, -0.1, -0.3, -0.52, -0.75, -0.95, -1.05];
-    const localPath = stops.map((stop, index) => {
-      const wobble = Math.sin(index * 2.7 + 0.8) * radius * 0.075;
-      return {
-        x: dir.x * radius * stop + perp.x * wobble,
-        y: dir.y * radius * stop + perp.y * wobble,
-      };
+    const half = WEDGE_ANGLE / 2;
+    const edgeRadius = shellCollider.radius * 1.05;
+    const ray = (angle: number, sign: number): { x: number; y: number }[] => {
+      const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+      const perp = { x: -dir.y, y: dir.x };
+      return [0, 0.18, 0.36, 0.55, 0.74, 0.9, 1.05].map((stop, index) => {
+        const local = {
+          x:
+            dir.x * edgeRadius * stop +
+            perp.x * Math.sin(index * 2.1 + sign) * shellCollider.radius * 0.05,
+          y:
+            dir.y * edgeRadius * stop +
+            perp.y * Math.sin(index * 2.1 + sign) * shellCollider.radius * 0.05,
+        };
+        const rotated = rotate(local, shellCollider.rotation);
+        return screenPoint(shellCollider.x + rotated.x, shellCollider.y + rotated.y, frame);
+      });
+    };
+    const left = ray(weakPointAngle - half, 1.3);
+    const right = ray(weakPointAngle + half, 2.8);
+    const centre = screenPoint(shellCollider.x, shellCollider.y, frame);
+    // Dark notch fill, then two hot cut faces at an angle.
+    crack.poly([centre, ...left, ...right.slice().reverse()]).fill({
+      color: 0x120b08,
+      alpha: hitCount >= 2 ? 0.68 : 0.48,
     });
-    const screenPath = localPath.map((point) => {
-      const local = rotate(point, shellCollider.rotation);
-      return screenPoint(shellCollider.x + local.x, shellCollider.y + local.y, frame);
-    });
-    // Shadowed fracture first, then the hot inner seam.
-    crack.moveTo(screenPath[0]!.x, screenPath[0]!.y);
-    for (const point of screenPath.slice(1)) crack.lineTo(point.x, point.y);
-    crack.stroke({ color: 0x120b08, width: 5, alpha: 0.9 });
-    crack.moveTo(screenPath[0]!.x, screenPath[0]!.y);
-    for (const point of screenPath.slice(1)) crack.lineTo(point.x, point.y);
-    crack.stroke({ color: 0xff5a24, width: 2.4, alpha: hitCount >= 2 ? 0.95 : 0.7 });
-    crack.moveTo(screenPath[0]!.x, screenPath[0]!.y);
-    for (const point of screenPath.slice(1)) crack.lineTo(point.x, point.y);
-    crack.stroke({ color: 0xffd08a, width: 0.9, alpha: 0.9 });
-    if (hitCount >= 2) {
-      // A branch at the centre makes the second hit read as a spreading crack.
-      const centre = screenPoint(shellCollider.x, shellCollider.y, frame);
-      const branch = screenPoint(
-        shellCollider.x +
-          rotate({ x: perp.x * radius * 0.8, y: perp.y * radius * 0.8 }, shellCollider.rotation).x,
-        shellCollider.y +
-          rotate({ x: perp.x * radius * 0.8, y: perp.y * radius * 0.8 }, shellCollider.rotation).y,
-        frame,
-      );
-      crack.moveTo(centre.x, centre.y).lineTo(branch.x, branch.y);
-      crack.stroke({ color: 0xff6b2e, width: 1.8, alpha: 0.8 });
+    for (const path of [left, right]) {
+      crack.moveTo(path[0]!.x, path[0]!.y);
+      for (const point of path.slice(1)) crack.lineTo(point.x, point.y);
+      crack.stroke({
+        color: 0xff5a24,
+        width: hitCount >= 2 ? 3 : 2,
+        alpha: hitCount >= 2 ? 0.95 : 0.75,
+      });
+      crack.moveTo(path[0]!.x, path[0]!.y);
+      for (const point of path.slice(1)) crack.lineTo(point.x, point.y);
+      crack.stroke({ color: 0xffd08a, width: 0.9, alpha: 0.9 });
     }
     const weak = weakPointWorld();
     const weakScreen = screenPoint(weak.x, weak.y, frame);
@@ -377,14 +441,13 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     core.visible = true;
     const screen = screenPoint(coreCollider.x, coreCollider.y, frame);
     const pulse = 0.9 + 0.1 * Math.sin(now * 4.5);
-    const radius = Math.max(8, CORE_RADIUS_M * PIXELS_PER_METER * frame.zoom);
-    core.circle(screen.x, screen.y, radius * 2.2).fill({ color: 0xff6b35, alpha: 0.08 });
-    core.circle(screen.x, screen.y, radius * 1.5).fill({ color: 0xff8a3d, alpha: 0.16 });
-    core.circle(screen.x, screen.y, radius * pulse).fill({ color: 0xffd28a, alpha: 0.82 });
-    core.circle(screen.x, screen.y, radius * 0.45).fill({ color: 0xffffff, alpha: 0.9 });
+    const radius = Math.max(6, CORE_RADIUS_M * PIXELS_PER_METER * frame.zoom * 0.68);
+    // The core itself is baked into the larger fragment's albedo; only the
+    // pulsing heat halo and mining reticle are live overlays.
+    core.circle(screen.x, screen.y, radius * 2.4).fill({ color: 0xff6b35, alpha: 0.04 });
     core
-      .circle(screen.x, screen.y, radius * 1.7)
-      .stroke({ color: 0xffa14a, width: 1, alpha: 0.55 });
+      .circle(screen.x, screen.y, radius * (1.05 + 0.08 * pulse))
+      .stroke({ color: 0xffa14a, width: 1, alpha: 0.35 });
   };
 
   return {
@@ -437,11 +500,9 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
             x: fragment.x,
             y: fragment.y,
             angle: fragment.angle,
-            life: fragment.life,
             scale: fragment.container.scale.x,
             screenX: screen.x,
             screenY: screen.y,
-            alpha: fragment.container.alpha,
             visible: fragment.container.visible,
           };
         }),

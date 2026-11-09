@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { convexHull, planFragments, planPieCut } from '../src/app/fracture-model';
+import { convexHull, planFragments, planPieCut, planWedgeCut } from '../src/app/fracture-model';
 
 const square = [
   { x: -1, y: -1 },
@@ -108,5 +108,41 @@ describe('planPieCut', () => {
   it('is deterministic and tolerates a degenerate cut', () => {
     expect(planPieCut(triangles, Math.PI / 2)).toEqual(planPieCut(triangles, Math.PI / 2));
     expect(planPieCut([], 0)).toEqual([]);
+  });
+});
+
+describe('planWedgeCut', () => {
+  const triangles = [
+    [
+      { x: -2, y: -1 },
+      { x: 0, y: -1 },
+      { x: -1, y: 1 },
+    ],
+    [
+      { x: 0, y: -1 },
+      { x: 2, y: -1 },
+      { x: 1, y: 1 },
+    ],
+    [
+      { x: -2, y: 1 },
+      { x: -1, y: 1 },
+      { x: -0.5, y: 2 },
+    ],
+    [
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+      { x: 0.5, y: 2 },
+    ],
+  ];
+
+  it('makes a small wedge and a larger remainder', () => {
+    const plans = planWedgeCut(triangles, Math.PI / 2, Math.PI / 2);
+    expect(plans).toHaveLength(2);
+    expect(plans.reduce((total, plan) => total + plan.triangles.length, 0)).toBe(4);
+  });
+
+  it('is deterministic and handles a degenerate wedge', () => {
+    expect(planWedgeCut(triangles, 0, 1)).toEqual(planWedgeCut(triangles, 0, 1));
+    expect(planWedgeCut([], 0, 1)).toEqual([]);
   });
 });
