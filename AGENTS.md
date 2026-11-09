@@ -173,9 +173,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/fracture-model.ts` — pure fracture planning: monotonic-chain convex hull, triangle
   region helpers, a wedge cut and a true two-piece polyline cut; unit-tested.
 - `src/app/fracture-rock.ts` — one authored destructible test rock: an **initial single black
-  crack** clipped to the live collider silhouette, which is also the shooting hitbox. Two hits
-  turn that first crack black → orange, then a second black crack appears and takes the remaining
-  three hits to orange; at five the shell breaks. The visible crack path
+  crack** clipped to the live collider silhouette. That first crack is the **only hitbox for all
+  five hits**. Two hits turn it black → orange; a second crack then grows out from the centre
+  toward the edge over the remaining three hits, orange from the start. Both are orange at five,
+  then the shell breaks. The visible crack path
   is the same jagged polyline used to cut both fragments: the shell splits into a small
   cracked-out piece plus a larger >180° piece with baked polygon-clipped textures, separate
   colliders and shallow drift/rotation bodies.

@@ -192,11 +192,7 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   let lastFrame: FractureFrame | null = null;
 
   const crackSampleWorld = (): { x: number; y: number } => {
-    const branch = hitCount < SIDE_ONE_HITS ? firstCrack : secondCrack;
-    const sample =
-      hitCount < SIDE_ONE_HITS
-        ? (branch[1] ?? branch[0] ?? { x: 0, y: 0 })
-        : (branch[Math.max(1, branch.length - 2)] ?? branch[0] ?? { x: 0, y: 0 });
+    const sample = firstCrack[1] ?? firstCrack[0] ?? { x: 0, y: 0 };
     const local = rotate(sample, shellCollider.rotation);
     return { x: shellCollider.x + local.x, y: shellCollider.y + local.y };
   };
@@ -339,11 +335,10 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       const rotated = rotate(point, shellCollider.rotation);
       return screenPoint(shellCollider.x + rotated.x, shellCollider.y + rotated.y, frame);
     };
-    const drawBranch = (branch: readonly Vec2[], color: number, alpha: number): void => {
-      if (branch.length < 2) return;
-      const path = branch.map(toScreen);
-      crack.moveTo(path[0]!.x, path[0]!.y);
-      for (const point of path.slice(1)) crack.lineTo(point.x, point.y);
+    const drawPath = (points: readonly Vec2[], color: number, alpha: number): void => {
+      if (points.length < 2) return;
+      crack.moveTo(points[0]!.x, points[0]!.y);
+      for (const point of points.slice(1)) crack.lineTo(point.x, point.y);
       crack.stroke({ color, width: 5, alpha });
     };
     const mix = (from: number, to: number, progress: number): number => {
@@ -360,18 +355,50 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
         Math.round(fb + (tb - fb) * t)
       );
     };
-    const black = 0x070504;
-    const orange = 0xff5a24;
-    const sideOne = Math.min(1, hitCount / SIDE_ONE_HITS);
-    // First crack: black -> orange. Once it is fully orange the second crack
-    // appears black and then follows the same colour ramp.
-    drawBranch(firstCrack, mix(black, orange, sideOne), 0.95);
+    // The hitbox stays on the first crack for every shot. It turns orange over
+    // the first two hits. The second crack then grows out from the centre to
+    // the edge over the remaining three hits.
+    const firstProgress = Math.min(1, hitCount / SIDE_ONE_HITS);
+    const firstScreen = firstCrack.map(toScreen);
+    drawPath(firstScreen, mix(0x070504, 0xff5a24, firstProgress), 0.95);
+
     if (hitCount >= SIDE_ONE_HITS) {
-      const sideTwo = Math.min(
-        1,
-        (hitCount - SIDE_ONE_HITS) / (SHELL_HITS_TO_BREAK - SIDE_ONE_HITS),
-      );
-      drawBranch(secondCrack, mix(black, orange, sideTwo), 0.95);
+      const secondProgress =
+        (hitCount - SIDE_ONE_HITS + 1) / (SHELL_HITS_TO_BREAK - SIDE_ONE_HITS + 1);
+      const secondScreen = secondCrack.map(toScreen);
+      // Draw only the centre-to-edge prefix that has grown so far.
+      let total = 0;
+      for (let index = 1; index < secondCrack.length; index += 1) {
+        total += Math.hypot(
+          secondCrack[index]!.x - secondCrack[index - 1]!.x,
+          secondCrack[index]!.y - secondCrack[index - 1]!.y,
+        );
+      }
+      const target = total * Math.min(1, secondProgress);
+      let drawn = 0;
+      const partial: { x: number; y: number }[] = [];
+      for (let index = 0; index < secondScreen.length; index += 1) {
+        if (index > 0) {
+          const length = Math.hypot(
+            secondCrack[index]!.x - secondCrack[index - 1]!.x,
+            secondCrack[index]!.y - secondCrack[index - 1]!.y,
+          );
+          if (drawn + length <= target) {
+            drawn += length;
+          } else {
+            const remain = target - drawn;
+            if (remain > 0) {
+              const t = remain / (length || 1);
+              const a = secondScreen[index - 1]!;
+              const b = secondScreen[index]!;
+              partial.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+            }
+            break;
+          }
+        }
+        partial.push(secondScreen[index]!);
+      }
+      drawPath(partial, 0xff5a24, 0.55 + 0.4 * secondProgress);
     }
   };
 
@@ -429,8 +456,7 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
         { x: x - shellCollider.x, y: y - shellCollider.y },
         -shellCollider.rotation,
       );
-      const targetCrack = hitCount < SIDE_ONE_HITS ? firstCrack : secondCrack;
-      if (distanceToPolyline(local, targetCrack) > CRACK_HIT_RADIUS_M) return;
+      if (distanceToPolyline(local, firstCrack) > CRACK_HIT_RADIUS_M) return;
       hitCount += 1;
       if (hitCount >= SHELL_HITS_TO_BREAK) breakShell();
     },

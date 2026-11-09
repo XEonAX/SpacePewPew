@@ -82,10 +82,11 @@ straight ahead while the gun battery stays on pointer tracking (and vice versa).
 
 **Crackable test rock (prototype).** One authored rock sits ahead-right of the spawn. It starts
 with a **single black jagged crack** clipped to the exact rock silhouette; that black line is the
-shooting hitbox. Two hits turn that first crack **black → orange**. At that point a **second
-black crack** appears; the remaining three hits progress it from black to orange. When both
-cracks are fully orange on the fifth hit, the rock splits along the same **jagged polyline** into
-a **small cracked-out piece** and a **larger >180° piece**. Both are baked from the original art, have their own polygon
+shooting hitbox — **all five hits go into that first crack only**. Two hits turn it **black →
+orange**. A **second crack** then emerges from the centre and grows outward toward the edge over
+the remaining three hits, starting with little/no colour and ending orange. When both cracks are
+fully orange on the fifth hit, the rock splits along the same **jagged polyline** into a **small
+cracked-out piece** and a **larger >180° piece**. Both are baked from the original art, have their own polygon
 colliders, drift only a short distance apart with an **immediate gap** and **persist** — no
 physics engine. The
 **molten core sits beneath the shell at the break seam**, exposed through that gap rather than
