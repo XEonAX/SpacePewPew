@@ -196,7 +196,7 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     const pulse = 0.82 + 0.18 * Math.sin(now * 5.2);
     const radius = Math.max(11, 1.05 * PIXELS_PER_METER * frame.zoom);
     const hot = hitFlash > 0;
-    const colour = hot ? 0xfff0c8 : 0xffb44a;
+    const colour = hot ? 0xffd38a : 0xffb44a;
     marker
       .circle(screen.x, screen.y, radius * pulse)
       .stroke({ color: colour, width: 2, alpha: 0.85 });
@@ -204,11 +204,6 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       .circle(screen.x, screen.y, radius * 0.55)
       .stroke({ color: colour, width: 1, alpha: 0.55 });
     marker.circle(screen.x, screen.y, 3).fill({ color: colour, alpha: 0.95 });
-    if (hot) {
-      marker
-        .circle(screen.x, screen.y, radius * 1.8)
-        .stroke({ color: 0xffffff, width: 1, alpha: 0.7 });
-    }
   };
 
   const spawnFragment = (plan: FragmentPlan, index: number, side: number): void => {
@@ -370,12 +365,6 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     };
     const left = ray(weakPointAngle - half, 1.3);
     const right = ray(weakPointAngle + half, 2.8);
-    const centre = screenPoint(shellCollider.x, shellCollider.y, frame);
-    // Dark notch fill, then two hot cut faces at an angle.
-    crack.poly([centre, ...left, ...right.slice().reverse()]).fill({
-      color: 0x120b08,
-      alpha: hitCount >= 2 ? 0.68 : 0.48,
-    });
     for (const path of [left, right]) {
       crack.moveTo(path[0]!.x, path[0]!.y);
       for (const point of path.slice(1)) crack.lineTo(point.x, point.y);
