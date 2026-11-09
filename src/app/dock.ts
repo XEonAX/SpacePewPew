@@ -58,8 +58,13 @@ export function createDock(
   const shadow = new Sprite(shipColor);
   shadow.anchor.set(0.5);
   shadow.tint = 0x04070d;
+  // AlphaMask defaults to the red channel; the station's silhouette is in
+  // alpha, so select that channel explicitly.
+  const shadowMask = new Sprite(color);
+  shadowMask.anchor.set(0.5);
+  shadow.setMask({ mask: shadowMask, channel: 'alpha' });
   const landingRing = new Graphics();
-  container.addChild(sprite.mesh, shadow, landingRing);
+  container.addChild(sprite.mesh, shadowMask, shadow, landingRing);
 
   const zone = { x: 0, y: 0, radiusM: DOCK_PAD_RADIUS_M };
   let pulse = 0;
@@ -86,6 +91,8 @@ export function createDock(
       sprite.mesh.alpha = 1 - recede * 0.22;
       const dockScreen = worldToScreen(tuning.xM, visualY, frame);
       sprite.mesh.position.set(dockScreen.x, dockScreen.y);
+      shadowMask.position.set(dockScreen.x, dockScreen.y);
+      shadowMask.scale.copyFrom(sprite.mesh.scale);
 
       // Fake pad shadow: it stays on the seat, fades and spreads as the ship
       // climbs away, and tightens under the hull when docked.
@@ -104,14 +111,6 @@ export function createDock(
       shadow.rotation = frame.shipRotation;
       shadow.scale.set(frame.shipScale * frame.zoom * (1.02 + height * 0.3));
       shadow.alpha = frame.docked ? 0.48 : Math.max(0.1, 0.4 - height * 0.26);
-      // Do not let the fake shadow float over empty sky. The station art is a
-      // cross-shaped hull about 22 m wide and 33 m tall at the current scale.
-      const halfWidth = (tuning.heightM * (color.width / color.height)) / 2;
-      const halfHeight = tuning.heightM / 2;
-      shadow.visible =
-        frame.docked ||
-        (Math.abs(frame.shipX - tuning.xM) <= halfWidth &&
-          Math.abs(frame.shipY - visualY) <= halfHeight);
 
       pulse = Math.max(0, pulse - frame.dt * 1.8);
       landingRing.clear();
