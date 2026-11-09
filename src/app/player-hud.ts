@@ -10,6 +10,8 @@ export interface HudAim {
 export interface HudState {
   mode: WeaponMode;
   cargo: number;
+  /** Cargo already unloaded at the dock. */
+  banked: number;
   /** Per-barrel laser heat, 0..1 plus lockout flag. */
   laserHeat: readonly { heat: number; overheated: boolean }[];
   /** Both barrels are cutting the same small spot. */
@@ -51,7 +53,11 @@ export function createPlayerHud(): PlayerHud {
   cargo.className = 'hud-pill';
   cargo.innerHTML = 'CARGO <b>0</b>';
   const cargoValue = cargo.querySelector('b');
-  status.append(mode, cargo);
+  const bank = document.createElement('span');
+  bank.className = 'hud-pill';
+  bank.innerHTML = 'BANK <b>0</b>';
+  const bankValue = bank.querySelector('b');
+  status.append(mode, cargo, bank);
 
   const heat = document.createElement('div');
   heat.className = 'hud-heat';
@@ -96,6 +102,7 @@ export function createPlayerHud(): PlayerHud {
     mode.textContent = mining ? 'MINING' : 'GUNS';
     mode.classList.toggle('hud-pill--mining', mining);
     if (cargoValue) cargoValue.textContent = String(state.cargo);
+    if (bankValue) bankValue.textContent = String(state.banked);
 
     heat.classList.toggle('hud-heat--hidden', !mining);
     heat.classList.toggle('hud-heat--focus', mining && state.laserFocused);

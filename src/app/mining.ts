@@ -172,6 +172,8 @@ export interface Mining {
   container: Container;
   update(frame: MiningFrame): void;
   getCargo(): number;
+  /** Remove and return held cargo, used by the dock's unload zone. */
+  unloadCargo(): number;
   /** Physics (real acceleration) or fake (line slide) tractor carry. */
   getCarryMode(): CarryMode;
   toggleCarryMode(): CarryMode;
@@ -1012,6 +1014,11 @@ export function createMining(tuning: MiningTuning = createMiningTuning()): Minin
     },
     getCargo(): number {
       return cargo;
+    },
+    unloadCargo(): number {
+      const unloaded = cargo;
+      cargo = 0;
+      return unloaded;
     },
     getCarryMode(): CarryMode {
       return carryMode;

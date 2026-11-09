@@ -60,6 +60,7 @@ import { createMiningTuning } from './mining-tuning';
 import { colliderWorldPoints, resolveShipCollision, shipHull } from './asteroid-collision';
 import type { AsteroidCollider, ShipHull, Vec2 } from './asteroid-collision';
 import { createAsteroidField } from './asteroid-field';
+import { createDock } from './dock';
 import { DEFAULT_ASTEROID_COUNT, generateAsteroidLayout } from './asteroid-layout';
 import { createShipShield } from './ship-shield';
 import { createInputSystem } from './input-system';
@@ -148,7 +149,7 @@ export async function createScene(
   onLoadProgress?: (progress: SceneLoadProgress) => void,
 ): Promise<Scene> {
   const background = createBackground(app);
-  const totalTextures = 9 + GENERATED_ASTEROID_VARIANTS * 2;
+  const totalTextures = 11 + GENERATED_ASTEROID_VARIANTS * 2;
   let loadedTextures = 0;
   const loadTexture = async (path: string): Promise<Texture> => {
     const texture = await Assets.load<Texture>(path);
@@ -167,6 +168,8 @@ export async function createScene(
     asteroid2Color,
     asteroid2Normal,
     turretTexture,
+    dockColor,
+    dockNormal,
   ] = await Promise.all([
     loadTexture(assetUrl('assets/lighting/ship-color.webp')),
     loadTexture(assetUrl('assets/lighting/ship-normal.webp')),
@@ -177,6 +180,8 @@ export async function createScene(
     loadTexture(assetUrl('assets/lighting/asteroid2-color.webp')),
     loadTexture(assetUrl('assets/lighting/asteroid2-normal.webp')),
     loadTexture(assetUrl('assets/lighting/turret.webp')),
+    loadTexture(assetUrl('assets/lighting/dock-color.webp')),
+    loadTexture(assetUrl('assets/lighting/dock-normal.webp')),
   ]);
 
   // Eight asteroid sprites baked offline with tools/asteroid-gen. Their colour
@@ -196,11 +201,12 @@ export async function createScene(
   app.stage.addChild(content);
 
   const ground = createGroundGrid();
+  const dock = createDock(dockColor, dockNormal);
   const exhaust = createEngineExhaust();
   const engineAudio = createEngineAudio(audio);
   const miningAudio = createMiningAudio(audio);
   const impactAudio = createImpactAudio(audio);
-  content.addChild(ground.mesh, exhaust.smoke);
+  content.addChild(ground.mesh, dock.container, exhaust.smoke);
 
   const ship: LitSprite = createLitSprite(shipColor, shipNormal, shipEmissive, shipGlow);
   // Two supplied hand-painted rocks plus the eight Blender variants.
@@ -212,11 +218,11 @@ export async function createScene(
   const asteroidField = createAsteroidField(asteroidArts);
   // One authored destructible test rock: shoot the weak point to open the shell.
   const fracture = createFractureRock(asteroidField, {
-    x: 6.5,
-    y: -4,
+    x: 13,
+    y: -5,
     diameter: 5.2,
     variant: 3,
-    weakPointAngle: Math.atan2(4, -6.5),
+    weakPointAngle: Math.atan2(5, -13),
   });
   const turrets = createTurrets(turretTexture);
   const bullets = createBullets();
@@ -269,6 +275,7 @@ export async function createScene(
   let aimIsForward = false;
   let soundMuted = false;
   let cargo = 0;
+  let bankedCargo = 0;
   const gunFiring = (): boolean =>
     aimMode === 'mouse' ? inputState.fire : inputState.fireAll || inputState.fire;
   const miningFiring = (): boolean => inputState.fire || inputState.fireAll;
@@ -648,12 +655,21 @@ export async function createScene(
       dt: deltaSeconds,
       now: lighting.time,
     });
+    dock.update({
+      dustX: dust.x,
+      dustY: dust.y,
+      zoom: dust.zoom,
+      width,
+      height,
+      dt: deltaSeconds,
+    });
   };
 
   const updateLighting = (): void => {
     ship.setLighting(lighting);
     asteroidField.setLighting(asteroidLighting);
     fracture.setLighting(asteroidLighting);
+    dock.setLighting(asteroidLighting);
   };
 
   const tick = (ticker: Ticker): void => {
@@ -859,7 +875,13 @@ export async function createScene(
     });
     // Cargo is polled every frame (not just in mining mode) so a delivery that
     // finishes after switching weapons still gets its latch sound.
-    const mined = mining.getCargo();
+    let mined = mining.getCargo();
+    const dockCentre = shipCentre();
+    if (mined > 0 && dock.canUnload(dockCentre.x, dockCentre.y, Math.hypot(flight.vx, flight.vy))) {
+      bankedCargo += mining.unloadCargo();
+      mined = 0;
+      dock.pulse();
+    }
     if (mined > cargo) miningAudio.cargoDelivered();
     if (mined !== cargo) {
       cargo = mined;
@@ -868,6 +890,7 @@ export async function createScene(
     hud.update({
       mode: weaponMode,
       cargo,
+      banked: bankedCargo,
       laserHeat: mining.getLaserHeat(),
       laserFocused: mining.getLaserFocus(),
       aim: {
@@ -1028,6 +1051,7 @@ export async function createScene(
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroidField.destroy();
+      dock.destroy();
       fracture.destroy();
       shield.destroy();
       background.destroy();
