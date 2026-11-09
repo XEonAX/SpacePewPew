@@ -135,10 +135,10 @@ The ship turns about a **physics centre of mass at the orange panel just behind 
 
 ## World scale
 
-The world has a **fixed art scale**; window resizing changes the visible area, not the size of
-the ship, rocks, or dock. At **zoom 1** the ship is tuned to ~48% of a **900 px reference
-viewport**, rocks are ~44%, and the dock keeps its authored metre size. Use the camera zoom to
-change world scale; do not resize world art per viewport.
+The world has a **fixed art scale and fixed camera lookahead**; window resizing changes the
+visible area, not object size or the camera's world position. At **zoom 1** the ship is tuned to
+~48% of a **900 px reference viewport**, rocks are ~44%, and the dock keeps its authored metre
+size. Use the camera zoom to change world scale; do not resize world art per viewport.
 
 ## Lighting
 

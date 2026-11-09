@@ -452,12 +452,14 @@ export async function createScene(
   let shieldImpactWorldY = 0;
   let laidOutWidth = -1;
   let laidOutHeight = -1;
+  let viewportChanged = false;
 
   const layout = (): void => {
     const { width, height } = app.screen;
     if (shipPlaced && width === laidOutWidth && height === laidOutHeight) return;
     laidOutWidth = width;
     laidOutHeight = height;
+    viewportChanged = true;
     // Fixed world scale: neither width nor height resizes the art. The camera
     // viewport reveals more/less world at zoom 1.
     const shipScale = (WORLD_REFERENCE_HEIGHT * 0.48) / shipColor.height;
@@ -510,14 +512,18 @@ export async function createScene(
     // if it grew when zoomed out, every wheel notch would move the camera and
     // slide the near dust/grid layer (the old parallax pan bug). Scaling the
     // screen offset down as the camera pulls back keeps the world still.
-    const shortEdge = Math.min(width, height);
-    const baseOffsetMeters = (shortEdge * LOOKAHEAD_BASE_OFFSET) / PIXELS_PER_METER;
-    const maxOffsetMeters = (shortEdge * LOOKAHEAD_MAX_OFFSET) / PIXELS_PER_METER;
+    // Camera lookahead is in fixed world metres; deriving it from the current
+    // viewport made resizing shift the whole world around the ship.
+    const baseOffsetMeters = (WORLD_REFERENCE_HEIGHT * LOOKAHEAD_BASE_OFFSET) / PIXELS_PER_METER;
+    const maxOffsetMeters = (WORLD_REFERENCE_HEIGHT * LOOKAHEAD_MAX_OFFSET) / PIXELS_PER_METER;
     const shipHalfMeters = (shipColor.height * shipBaseScale) / (2 * PIXELS_PER_METER);
     const flameMeters = (FLAME_LOCAL_LENGTH * shipBaseScale) / PIXELS_PER_METER;
     const exhaustRoomMeters = Math.max(
       0,
-      height / (2 * PIXELS_PER_METER) - shipHalfMeters - flameMeters - 90 / PIXELS_PER_METER,
+      WORLD_REFERENCE_HEIGHT / (2 * PIXELS_PER_METER) -
+        shipHalfMeters -
+        flameMeters -
+        90 / PIXELS_PER_METER,
     );
     const offsetMeters = Math.min(maxOffsetMeters, baseOffsetMeters * curve, exhaustRoomMeters);
 
@@ -915,7 +921,8 @@ export async function createScene(
     maxGForce = Math.max(maxGForce, frameG);
     currentGForce += (frameG - currentGForce) * Math.min(1, deltaSeconds * 12);
     telemetry.update();
-    followCamera();
+    followCamera(viewportChanged);
+    viewportChanged = false;
     updateTransforms(deltaSeconds);
     updateWeapons(deltaSeconds);
 
