@@ -9,6 +9,8 @@ import type { LightingState, LitSprite } from './lit-sprite';
 import { PIXELS_PER_METER } from './world-scale';
 
 const SHELL_HITS_TO_BREAK = 5;
+/** The first crack turns black -> orange over these hits, then the second appears. */
+const SIDE_ONE_HITS = 2;
 /** How close a bullet hit must land to the black crack line. */
 const CRACK_HIT_RADIUS_M = 0.85;
 const FRAGMENT_DAMPING = 2.2;
@@ -153,6 +155,19 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   // Computed once: the same jagged polyline is the crack and both fragment
   // cut edges. No straight wedge is used.
   const fracturePlan = planPolylineCut(shellCollider.points, weakPointAngle, WEDGE_ANGLE);
+  let centreIndex = 0;
+  if (fracturePlan) {
+    let best = Number.POSITIVE_INFINITY;
+    fracturePlan.cutPath.forEach((point, index) => {
+      const distance = Math.hypot(point.x, point.y);
+      if (distance < best) {
+        best = distance;
+        centreIndex = index;
+      }
+    });
+  }
+  const firstCrack = fracturePlan ? fracturePlan.cutPath.slice(0, centreIndex + 1) : [];
+  const secondCrack = fracturePlan ? fracturePlan.cutPath.slice(centreIndex) : [];
 
   const container = new Container();
   container.name = 'fracture';
@@ -177,7 +192,11 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   let lastFrame: FractureFrame | null = null;
 
   const crackSampleWorld = (): { x: number; y: number } => {
-    const sample = fracturePlan?.cutPath[1] ?? { x: 0, y: 0 };
+    const branch = hitCount < SIDE_ONE_HITS ? firstCrack : secondCrack;
+    const sample =
+      hitCount < SIDE_ONE_HITS
+        ? (branch[1] ?? branch[0] ?? { x: 0, y: 0 })
+        : (branch[Math.max(1, branch.length - 2)] ?? branch[0] ?? { x: 0, y: 0 });
     const local = rotate(sample, shellCollider.rotation);
     return { x: shellCollider.x + local.x, y: shellCollider.y + local.y };
   };
@@ -309,61 +328,51 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       return;
     }
     crack.visible = true;
-    // Put the silhouette mask in place before the shared cut polyline is drawn.
+    // Put the silhouette mask in place before the crack branches are drawn.
     crackMask.clear();
     const silhouette = colliderWorldPoints(shellCollider).map((point) =>
       screenPoint(point.x, point.y, frame),
     );
     crackMask.poly(silhouette).fill({ color: 0xffffff });
 
-    const path = fracturePlan.cutPath.map((point) => {
+    const toScreen = (point: Vec2): { x: number; y: number } => {
       const rotated = rotate(point, shellCollider.rotation);
       return screenPoint(shellCollider.x + rotated.x, shellCollider.y + rotated.y, frame);
-    });
-    if (path.length < 2) return;
-
-    const strokeAll = (color: number, width: number, alpha: number): void => {
+    };
+    const drawBranch = (branch: readonly Vec2[], color: number, alpha: number): void => {
+      if (branch.length < 2) return;
+      const path = branch.map(toScreen);
       crack.moveTo(path[0]!.x, path[0]!.y);
       for (const point of path.slice(1)) crack.lineTo(point.x, point.y);
-      crack.stroke({ color, width, alpha });
+      crack.stroke({ color, width: 5, alpha });
     };
-    const strokeProgress = (fraction: number): void => {
-      if (fraction <= 0) return;
-      const lengths: number[] = [];
-      let total = 0;
-      for (let index = 1; index < path.length; index += 1) {
-        const a = path[index - 1]!;
-        const b = path[index]!;
-        const length = Math.hypot(b.x - a.x, b.y - a.y);
-        lengths.push(length);
-        total += length;
-      }
-      const target = total * Math.min(1, fraction);
-      let drawn = 0;
-      crack.moveTo(path[0]!.x, path[0]!.y);
-      for (let index = 1; index < path.length; index += 1) {
-        const a = path[index - 1]!;
-        const b = path[index]!;
-        const length = lengths[index - 1] ?? 0;
-        if (drawn + length <= target) {
-          crack.lineTo(b.x, b.y);
-          drawn += length;
-          continue;
-        }
-        const remain = target - drawn;
-        if (remain > 0 && length > 0) {
-          const t = remain / length;
-          crack.lineTo(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
-        }
-        break;
-      }
-      crack.stroke({ color: 0xff5a24, width: 3.2, alpha: 0.95 });
+    const mix = (from: number, to: number, progress: number): number => {
+      const t = Math.max(0, Math.min(1, progress));
+      const fr = (from >> 16) & 0xff;
+      const fg = (from >> 8) & 0xff;
+      const fb = from & 0xff;
+      const tr = (to >> 16) & 0xff;
+      const tg = (to >> 8) & 0xff;
+      const tb = to & 0xff;
+      return (
+        (Math.round(fr + (tr - fr) * t) << 16) |
+        (Math.round(fg + (tg - fg) * t) << 8) |
+        Math.round(fb + (tb - fb) * t)
+      );
     };
-
-    // Black crack is always visible and is the shooting hitbox. The orange
-    // section is the progress bar; five hits fill it before the shell splits.
-    strokeAll(0x070504, 5, 0.95);
-    strokeProgress(hitCount / SHELL_HITS_TO_BREAK);
+    const black = 0x070504;
+    const orange = 0xff5a24;
+    const sideOne = Math.min(1, hitCount / SIDE_ONE_HITS);
+    // First crack: black -> orange. Once it is fully orange the second crack
+    // appears black and then follows the same colour ramp.
+    drawBranch(firstCrack, mix(black, orange, sideOne), 0.95);
+    if (hitCount >= SIDE_ONE_HITS) {
+      const sideTwo = Math.min(
+        1,
+        (hitCount - SIDE_ONE_HITS) / (SHELL_HITS_TO_BREAK - SIDE_ONE_HITS),
+      );
+      drawBranch(secondCrack, mix(black, orange, sideTwo), 0.95);
+    }
   };
 
   const drawCore = (frame: FractureFrame, now: number): void => {
@@ -420,7 +429,8 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
         { x: x - shellCollider.x, y: y - shellCollider.y },
         -shellCollider.rotation,
       );
-      if (distanceToPolyline(local, fracturePlan.cutPath) > CRACK_HIT_RADIUS_M) return;
+      const targetCrack = hitCount < SIDE_ONE_HITS ? firstCrack : secondCrack;
+      if (distanceToPolyline(local, targetCrack) > CRACK_HIT_RADIUS_M) return;
       hitCount += 1;
       if (hitCount >= SHELL_HITS_TO_BREAK) breakShell();
     },

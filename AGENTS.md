@@ -172,9 +172,10 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   barrels, and heat/focus drive the laser pitch plus overheat/re-arm one-shots.
 - `src/app/fracture-model.ts` — pure fracture planning: monotonic-chain convex hull, triangle
   region helpers, a wedge cut and a true two-piece polyline cut; unit-tested.
-- `src/app/fracture-rock.ts` — one authored destructible test rock: an **initial black crack**
-  clipped to the live collider silhouette, which is also the shooting hitbox. Five hits fill the
-  crack from black to orange like a progress bar, then the shell breaks. The visible crack path
+- `src/app/fracture-rock.ts` — one authored destructible test rock: an **initial single black
+  crack** clipped to the live collider silhouette, which is also the shooting hitbox. Two hits
+  turn that first crack black → orange, then a second black crack appears and takes the remaining
+  three hits to orange; at five the shell breaks. The visible crack path
   is the same jagged polyline used to cut both fragments: the shell splits into a small
   cracked-out piece plus a larger >180° piece with baked polygon-clipped textures, separate
   colliders and shallow drift/rotation bodies.
