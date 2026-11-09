@@ -87,22 +87,20 @@ export function createDock(
 
       // Fake pad shadow: it stays on the seat, fades and spreads as the ship
       // climbs away, and tightens under the hull when docked.
-      const seat = { x: tuning.xM, y: visualY + DOCK_SEAT_OFFSET_M };
+      // The shadow belongs to the ship, not the pad: it follows the ship's
+      // ground projection and slides away from it as altitude increases.
       const height = frame.docked
         ? 0
         : Math.min(1, frame.distanceM / Math.max(1, DOCK_APPROACH_RANGE_M));
-      // Light is up-left, so a climbing ship throws its shadow down-right.
       const shadowScreen = worldToScreen(
-        seat.x + height * DOCK_SHADOW_OFFSET_M,
-        seat.y + height * DOCK_SHADOW_OFFSET_M * 0.85,
+        frame.shipX + height * DOCK_SHADOW_OFFSET_M,
+        frame.shipY + height * DOCK_SHADOW_OFFSET_M * 0.85,
         frame,
       );
       shadow.position.set(shadowScreen.x, shadowScreen.y);
-      shadow.rotation = frame.docked ? frame.shipRotation : 0;
-      shadow.scale.set(
-        frame.shipScale * frame.zoom * recedeScale * (frame.docked ? 1 : 1 + height * 0.32),
-      );
-      shadow.alpha = frame.docked ? 0.5 : Math.max(0.08, 0.38 - height * 0.3);
+      shadow.rotation = frame.shipRotation;
+      shadow.scale.set(frame.shipScale * frame.zoom * (1 + height * 0.3));
+      shadow.alpha = frame.docked ? 0.46 : Math.max(0.1, 0.4 - height * 0.26);
 
       pulse = Math.max(0, pulse - frame.dt * 1.8);
       landingRing.clear();

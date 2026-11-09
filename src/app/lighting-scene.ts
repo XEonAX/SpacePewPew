@@ -674,8 +674,8 @@ export async function createScene(
       width,
       height,
       dt: deltaSeconds,
-      shipX: flight.x,
-      shipY: flight.y,
+      shipX: shipCentre().x,
+      shipY: shipCentre().y,
       shipRotation: flight.rotation,
       shipScale: shipBaseScale * shipDockScale,
       docked,
@@ -923,8 +923,8 @@ export async function createScene(
     const shipSpeed = Math.hypot(flight.vx, flight.vy);
     const seat = dock.getSeat();
     const alignment = dockAlignment({
-      shipX: flight.x,
-      shipY: flight.y,
+      shipX: shipCentre().x,
+      shipY: shipCentre().y,
       shipRotation: flight.rotation,
       speedMps: shipSpeed,
       targetX: seat.x,
