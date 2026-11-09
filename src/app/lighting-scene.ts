@@ -894,7 +894,7 @@ export async function createScene(
       colliderGizmo.scale.set(dust.zoom);
       colliderGizmo.clear();
       const line = 1.6 / dust.zoom;
-      for (const rock of asteroidField.getColliders()) {
+      for (const rock of rockColliders()) {
         const world = colliderWorldPoints(rock);
         const flat: number[] = [];
         for (const point of world)
