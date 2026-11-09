@@ -14,6 +14,8 @@ const DOCK_APPROACH_RANGE_M = 9;
 const DOCK_MAX_RECEDE_SCALE = 0.32;
 /** How far the fake shadow slides away as the ship gains altitude. */
 const DOCK_SHADOW_OFFSET_M = 1.5;
+/** Keep a small light-angle offset even when docked so the shadow reads. */
+const DOCK_SHADOW_BASE_OFFSET_M = 1.1;
 
 export interface DockFrame {
   dustX: number;
@@ -56,13 +58,8 @@ export function createDock(
   const shadow = new Sprite(shipColor);
   shadow.anchor.set(0.5);
   shadow.tint = 0x04070d;
-  // The shadow is only allowed to fall on the station's opaque artwork, never
-  // on the empty sky. The station colour texture is its own alpha mask.
-  const shadowMask = new Sprite(color);
-  shadowMask.anchor.set(0.5);
-  shadow.mask = shadowMask;
   const landingRing = new Graphics();
-  container.addChild(sprite.mesh, shadowMask, shadow, landingRing);
+  container.addChild(sprite.mesh, shadow, landingRing);
 
   const zone = { x: 0, y: 0, radiusM: DOCK_PAD_RADIUS_M };
   let pulse = 0;
@@ -97,15 +94,24 @@ export function createDock(
       const height = frame.docked
         ? 0
         : Math.min(1, frame.distanceM / Math.max(1, DOCK_APPROACH_RANGE_M));
+      const shadowOffset = DOCK_SHADOW_BASE_OFFSET_M + height * DOCK_SHADOW_OFFSET_M;
       const shadowScreen = worldToScreen(
-        frame.shipX + height * DOCK_SHADOW_OFFSET_M,
-        frame.shipY + height * DOCK_SHADOW_OFFSET_M * 0.85,
+        frame.shipX + shadowOffset,
+        frame.shipY + shadowOffset * 0.85,
         frame,
       );
       shadow.position.set(shadowScreen.x, shadowScreen.y);
       shadow.rotation = frame.shipRotation;
-      shadow.scale.set(frame.shipScale * frame.zoom * (1 + height * 0.3));
-      shadow.alpha = frame.docked ? 0.46 : Math.max(0.1, 0.4 - height * 0.26);
+      shadow.scale.set(frame.shipScale * frame.zoom * (1.02 + height * 0.3));
+      shadow.alpha = frame.docked ? 0.48 : Math.max(0.1, 0.4 - height * 0.26);
+      // Do not let the fake shadow float over empty sky. The station art is a
+      // cross-shaped hull about 22 m wide and 33 m tall at the current scale.
+      const halfWidth = (tuning.heightM * (color.width / color.height)) / 2;
+      const halfHeight = tuning.heightM / 2;
+      shadow.visible =
+        frame.docked ||
+        (Math.abs(frame.shipX - tuning.xM) <= halfWidth &&
+          Math.abs(frame.shipY - visualY) <= halfHeight);
 
       pulse = Math.max(0, pulse - frame.dt * 1.8);
       landingRing.clear();
