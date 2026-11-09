@@ -1,4 +1,5 @@
 import { WEAPON_PAIRS } from './weapons';
+import type { ProjectileTuning } from './bullet-math';
 import type { MiningTuning } from './mining-tuning';
 import { createCollapsibleTunerPanel } from './tuner-panel';
 
@@ -193,7 +194,11 @@ export interface WeaponTuner {
   destroy(): void;
 }
 
-export function createWeaponTuner(cooldowns: number[], miningTuning: MiningTuning): WeaponTuner {
+export function createWeaponTuner(
+  cooldowns: number[],
+  miningTuning: MiningTuning,
+  projectile: ProjectileTuning,
+): WeaponTuner {
   const root = document.createElement('div');
   root.className = 'weapon-tuner';
   Object.assign(root.style, PANEL_STYLE);
@@ -229,6 +234,25 @@ export function createWeaponTuner(cooldowns: number[], miningTuning: MiningTunin
     input.addEventListener('input', refresh);
     refresh();
   };
+
+  // ---- guns: projectile speed ----
+  const speedInput = document.createElement('input');
+  speedInput.type = 'range';
+  speedInput.min = '15';
+  speedInput.max = '180';
+  speedInput.step = '5';
+  speedInput.value = String(projectile.speedMps);
+  speedInput.setAttribute('aria-label', 'Projectile speed');
+  speedInput.style.cssText = 'width:100%;margin:0;accent-color:#6fe3ff;cursor:pointer;';
+  addRow(
+    'Projectile speed',
+    speedInput,
+    () => {
+      projectile.speedMps = Number(speedInput.value);
+      speedInput.dataset.readout = `${projectile.speedMps.toFixed(0)} m/s`;
+    },
+    gunsSection,
+  );
 
   // ---- guns: rate of fire ----
   WEAPON_PAIRS.forEach((pair, index) => {

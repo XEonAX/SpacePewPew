@@ -137,9 +137,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/weapon-mode.ts` — the two weapon systems (`guns`, `mining`), Tab toggling, the
   mouse/forward aiming modes for guns and mining lasers separately, the turret aim resolver
   (`mining`/`mining-forward`) and the control hint. Unit-tested.
-- `src/app/weapon-tuner.ts` — live per-pair rate-of-fire sliders; while the mining rig is
-  equipped (Tab) the panel swaps to live mining tunables (melt, focus, laser heat/vent, chunk,
-  tractor, carry and laser range). Collapsible chevron header.
+- `src/app/weapon-tuner.ts` — live projectile-speed and per-pair rate-of-fire sliders; while the
+  mining rig is equipped (Tab) the panel swaps to live mining tunables (melt, focus, laser
+  heat/vent, chunk, tractor, carry and laser range). Collapsible chevron header.
 - `src/app/tuner-panel.ts` — shared DOM helper for the collapsible dev-tuner headers; keeps the
   chevron, title and expanded/collapsed state consistent between the flight and weapon panels.
 - `src/app/mining.ts` — mining rig rendering + rules: red front mining lasers that must **dwell

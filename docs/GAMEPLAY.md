@@ -62,7 +62,8 @@ straight ahead while the gun battery stays on pointer tracking (and vice versa).
   acceleration, so impacts spike it), **cargo held**, **shield damage absorbed** (cumulative
   impact energy), angular velocity, ramped inputs and the drag rates currently in effect (zero
   while coasting). The
-  bottom-left **RATE OF FIRE** panel tunes the cooldown of each weapon pair, clamped to the
+  bottom-left **RATE OF FIRE** panel tunes projectile speed (15–180 m/s) and the cooldown of each
+  weapon pair, clamped to the
   pair's charge duration. **Tab to the mining rig** and the same panel swaps to **MINING
   TUNING**: melt dwell/spot/cool time, chunk eject speed/damping/lifetime, tractor reach and
   slew limit, cargo speed/turn/easing and laser range — all applied live.

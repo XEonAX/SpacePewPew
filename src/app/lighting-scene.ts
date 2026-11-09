@@ -32,6 +32,7 @@ import { listenerGainForZoom } from '../audio/listener-gain';
 import { createTurrets } from './turrets';
 import { createBullets } from './bullets';
 import { BULLET_SPEED_METERS_PER_SECOND } from './bullet-math';
+import type { ProjectileTuning } from './bullet-math';
 import {
   WEAPON_PAIRS,
   WEAPON_SHOT_DELAYS,
@@ -219,6 +220,7 @@ export async function createScene(
   });
   const turrets = createTurrets(turretTexture);
   const bullets = createBullets();
+  const projectile: ProjectileTuning = { speedMps: BULLET_SPEED_METERS_PER_SECOND };
   const miningTuning = createMiningTuning();
   const mining = createMining(miningTuning);
   // The shield is the ship's collider, so it wraps the hull and turrets.
@@ -285,8 +287,8 @@ export async function createScene(
       bullets.spawn(
         pose.x,
         pose.y,
-        flight.vx + Math.sin(pose.angle) * BULLET_SPEED_METERS_PER_SECOND,
-        flight.vy - Math.cos(pose.angle) * BULLET_SPEED_METERS_PER_SECOND,
+        flight.vx + Math.sin(pose.angle) * projectile.speedMps,
+        flight.vy - Math.cos(pose.angle) * projectile.speedMps,
         pose.angle - Math.PI / 2,
       );
     }
@@ -964,7 +966,7 @@ export async function createScene(
   const flightTuner = createFlightTuner(tuning);
   document.body.append(flightTuner.element);
 
-  const weaponTuner = createWeaponTuner(weaponCooldowns, miningTuning);
+  const weaponTuner = createWeaponTuner(weaponCooldowns, miningTuning, projectile);
   weaponTuner.setMining(weaponMode === 'mining');
   document.body.append(weaponTuner.element);
 

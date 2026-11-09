@@ -176,7 +176,8 @@ docs/            deep dive, decisions, reference art, agent workflow
 ## Development
 
 - `pnpm check` is the definition of done: typecheck, lint, Prettier check, Vitest and build.
-- The bottom-left panels are developer tuners: rate-of-fire in gun mode, live **mining
+- The bottom-left panels are developer tuners: projectile speed and rate-of-fire in gun mode,
+  live **mining
   tunables** in mining mode.
 - `window.__SPACEPEWPEW__` exposes the Pixi app, asteroid colliders, ship pose and a
   screenshot/test staging helper for browser automation.
