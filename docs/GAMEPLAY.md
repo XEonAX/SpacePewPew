@@ -81,9 +81,11 @@ straight ahead while the gun battery stays on pointer tracking (and vice versa).
 
 **Crackable test rock (prototype).** One authored rock sits ahead-right of the spawn: its amber
 ring is a weak point. In gun mode, three hits on the weak point grow a **hot V-notch crack**,
-clipped to the exact rock silhouette, into the sprite; the third splits the rock into a **small cracked-out wedge** and a **larger >180°
-piece**. Both are baked from the original art, have their own convex colliders, drift only a
-short distance apart with an **immediate gap** and **persist** — no physics engine. The
+clipped to the exact rock silhouette, into the sprite. That crack is the actual cut path: the
+third hit splits the rock along the same **jagged polyline** into a **small cracked-out piece**
+and a **larger >180° piece**. Both are baked from the original art, have their own polygon
+colliders, drift only a short distance apart with an **immediate gap** and **persist** — no
+physics engine. The
 **molten core sits beneath the shell at the break seam**, exposed through that gap rather than
 painted on the rock surface, and moves with the larger piece. Tab to the mining rig and cut it
 like any other rock. The
@@ -91,7 +93,7 @@ shell must be opened with guns first: the mining rig has no target on the intact
 
 ![V-notch crack growing across the destructible test rock](visuals/09-fracture-crack.png)
 
-![The shell split into a small wedge and the larger core-bearing piece](visuals/10-fracture-wedge.png)
+![The shell split along the jagged crack into a small piece and the larger core-bearing piece](visuals/10-fracture-wedge.png)
 
 **The asteroid is solid.** A collider **gizmo** is hidden by default; press **F2** to overlay it while tuning (green = rock silhouettes and bounding circles, cyan = ship hull bubble). The ship carries a hull-shaped **energy shield** that is both its collision shape and its visual: its outline follows the hull — pointed nose, wing tips, blunt tail — as a convex outline inflated by a bubble radius of 16 % of the hull width (equivalently, capsule segments joined with rounded corners), so the whole ship sits inside it with room over the pointed nose and wing corners. The boundary glows and fades inward, so the edge reads as a surface. At rest the shield is
 **dim**; a recent hit lifts the whole bubble to its full brightness and it eases back to rest
