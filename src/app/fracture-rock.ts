@@ -436,7 +436,13 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       return colliders;
     },
     getMiningTargets(): readonly AsteroidCollider[] {
-      return shellBroken && coreActive && coreCollider ? [coreCollider] : [];
+      if (!shellBroken) return [];
+      // The fragment shells are the asteroid surface. Because mining picks the
+      // nearest target along each ray, they also occlude the core: only the
+      // part of the core exposed through the gap can be cut.
+      const targets: AsteroidCollider[] = fragments.map((fragment) => fragment.collider);
+      if (coreActive && coreCollider) targets.push(coreCollider);
+      return targets;
     },
     handleBulletHit(blocker: AsteroidCollider, x: number, y: number): void {
       if (shellBroken || blocker !== shellCollider) return;

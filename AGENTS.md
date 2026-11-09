@@ -178,7 +178,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   colliders and shallow drift/rotation bodies.
   Both pieces get an immediate separation gap, persist and stay close to the break. The molten
   core is drawn beneath the shell at the break seam, so it is exposed through the gap rather
-  than pasted onto the surface; it is a mining target. No physics engine.
+  than pasted onto the surface. The fragment shells are mining targets too, so they occlude the
+  core: only its exposed part can be cut, and overlapped parts mine the rock surface. No physics
+  engine.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/mining-tuning.ts` — live `MiningTuning` values (melt dwell/spot/cool, focus melt/radius,
