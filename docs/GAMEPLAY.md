@@ -123,7 +123,7 @@ With no Z axis, scale carries the height cue. The ship is drawn at **0.86×** wh
 in the pad) and grows back to **1×** as it rises on undock. The station keeps a fixed scale; it does not
 zoom in and out with ship movement. The fake ship shadow is attached to the ship, so it flies with it; it is alpha-masked by the station artwork, so it can only fall on the station
 and never on empty sky. It tightens under the hull
-when docked, then slides down-right, spreads and fades as the ship gains altitude.
+when docked, then slides down-left, spreads and fades as the ship gains altitude.
 
 ![Station dock with the ship on its landing pad](visuals/13-dock.png)
 
