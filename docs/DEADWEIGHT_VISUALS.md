@@ -30,6 +30,19 @@ field — uses A/B/C out to 300 m.
 - Two ways home: a long safe lane and a shorter closing lane.
 - Cutting destabilises a neighbouring rock. Drift is deterministic and recorded in the ghost.
 
+### Hairline / Test Field 01
+
+![Hairline test field](visuals/08-hairline-field.png)
+
+This is the first authored field for the 5-day gate — the layout behind the name “Hairline”.
+
+- **36 rocks:** A 12 · B 14 · C 10.
+- **No D band.** C is extended to **300 m** for this test field.
+- **Hero rock at 230 m.**
+- Two ways home: a **28 m safe lane** and a **20 m closing lane**.
+- One bank, 120–150 s; the run ends on dock, expiry or tow.
+- Concept only: the current build is still the 100-rock procedural sandbox.
+
 ---
 
 ## 3. The weight curve
