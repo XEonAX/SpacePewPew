@@ -51,8 +51,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 ## Architecture map
 
 - `src/app/create-app.ts` — creates and initialises the PixiJS `Application`.
-- `src/app/lighting-scene.ts` — the only scene: ship + asteroid layout, lighting state, WASD
-  input, and the collider debug gizmo (hidden by default; F2 shows green rock/fragment polygons,
+- `src/app/lighting-scene.ts` — the only scene: fixed-scale ship + asteroid layout (a 900 px
+  reference viewport drives art pixel size, so window resize does not resize the world), lighting
+  state, WASD input, and the collider debug gizmo (hidden by default; F2 shows green rock/fragment polygons,
   bounding circles, the exposed core, and the cyan ship hull bubble) used to verify the physics
   shapes against the art. Places both objects with `Background.getDustTransform()` on the near dust layer. The
   flight state lives at the ship's **centre of mass** (orange panel just behind the cargo

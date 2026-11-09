@@ -133,6 +133,13 @@ over ~2 s, so impacts read as the shield reacting rather than a permanently lit 
 
 The ship turns about a **physics centre of mass at the orange panel just behind the cargo hatch**, not its geometric centre: the hull's visual centre orbits the pivot, so hard turns swing the nose wide instead of rotating about the middle of the ship.
 
+## World scale
+
+The world has a **fixed art scale**; window resizing changes the visible area, not the size of
+the ship, rocks, or dock. At **zoom 1** the ship is tuned to ~48% of a **900 px reference
+viewport**, rocks are ~44%, and the dock keeps its authored metre size. Use the camera zoom to
+change world scale; do not resize world art per viewport.
+
 ## Lighting
 
 Lighting is a small custom GLSL Mesh shader ([src/app/lit-sprite.ts](../src/app/lit-sprite.ts)) —

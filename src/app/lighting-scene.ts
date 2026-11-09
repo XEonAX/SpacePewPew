@@ -109,6 +109,12 @@ const IMPACT_SPIN_LIMIT = 1.2;
 /** Camera shake: hit energy that saturates it, peak offset, and decay. */
 const SHAKE_ENERGY_REFERENCE_J = 90_000;
 const SHAKE_PEAK_PIXELS = 9;
+/**
+ * World art has a fixed pixel scale, chosen so the ship is ~48% of this
+ * reference viewport at zoom 1. Window resizing reveals more/less world; it
+ * does not resize the world.
+ */
+const WORLD_REFERENCE_HEIGHT = 900;
 const SHAKE_DECAY_PER_SECOND = 4.5;
 
 /** World-space lighting shared by the lit meshes. */
@@ -452,10 +458,10 @@ export async function createScene(
     if (shipPlaced && width === laidOutWidth && height === laidOutHeight) return;
     laidOutWidth = width;
     laidOutHeight = height;
-    // Keep the ship's screen size stable across width changes; only viewport
-    // height scales it. The old width term made narrow windows shrink the hull.
-    const shipScale = (height * 0.48) / shipColor.height;
-    const asteroidScale = Math.min(height * 0.44, width * 0.3) / asteroidColor.width;
+    // Fixed world scale: neither width nor height resizes the art. The camera
+    // viewport reveals more/less world at zoom 1.
+    const shipScale = (WORLD_REFERENCE_HEIGHT * 0.48) / shipColor.height;
+    const asteroidScale = (WORLD_REFERENCE_HEIGHT * 0.44) / asteroidColor.width;
 
     if (!shipPlaced) {
       // The ship's centre of mass is the world origin, so the camera starts
