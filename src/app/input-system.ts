@@ -71,6 +71,7 @@ const GAMEPAD_ACTIONS: Readonly<Record<number, InputAction>> = {
   9: 'mute',
   11: 'aimCycle',
   12: 'toggleDevUi',
+  13: 'dock',
   14: 'aimMouse',
   15: 'aimForward',
 };
@@ -238,6 +239,7 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
       <button class="touch-button" type="button" data-touch="weapons" tabindex="-1">TAB</button>
       <button class="touch-button" type="button" data-touch="stabilize" tabindex="-1">STAB</button>
       <button class="touch-button" type="button" data-touch="carry" tabindex="-1">CARRY</button>
+      <button class="touch-button" type="button" data-touch="dock" tabindex="-1">DOCK</button>
       <button class="touch-button touch-button--zoom" type="button" data-touch="zoom-out" tabindex="-1">−</button>
       <button class="touch-button touch-button--zoom" type="button" data-touch="zoom-in" tabindex="-1">+</button>
       <button class="touch-button touch-button--mute" type="button" data-touch="mute" tabindex="-1">MUTE</button>
@@ -384,6 +386,7 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
   tapButton('[data-touch="weapons"]', () => pressAction('toggleWeapons', 'touch'));
   tapButton('[data-touch="carry"]', () => pressAction('carryMode', 'touch'));
   tapButton('[data-touch="mute"]', () => pressAction('mute', 'touch'));
+  tapButton('[data-touch="dock"]', () => pressAction('dock', 'touch'));
 
   const setTouchVisible = (visible: boolean): void => {
     if (touchVisible === visible) return;

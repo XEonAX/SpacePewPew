@@ -208,7 +208,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   rear seat target and approach range and pulses when cargo is banked. `src/app/dock-alignment.ts`
   scores position, heading and speed against the docking thresholds; `src/app/dock-model.ts`
   holds the pure landing-zone test. **Space** is the single dock/undock action: a docked ship is
-  flight-locked, and an aligned stationary ship re-docks only when Space is pressed.
+  flight-locked, and an aligned stationary ship re-docks only when Space is pressed. There is no
+  departure requirement — dock/undock can repeat while alignment is held.
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
   mesh plus a **two-stage collider** — a bounding circle and a **low-poly silhouette fit**. The
   contour is traced with 128 subpixel rays from the texture centre to the alpha edge, then

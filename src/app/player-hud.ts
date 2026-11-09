@@ -41,7 +41,7 @@ export interface PlayerHud {
   element: HTMLElement;
   update(state: HudState): void;
   /** Contextual control hint; auto-fades after a few seconds. */
-  setHint(text: string): void;
+  setHint(text: string, persist?: boolean): void;
   destroy(): void;
 }
 
@@ -135,10 +135,12 @@ export function createPlayerHud(): PlayerHud {
 
   let hintTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const setHint = (text: string): void => {
+  const setHint = (text: string, persist = false): void => {
     hint.textContent = text;
     hint.classList.add('hud-hint--visible');
     if (hintTimer) clearTimeout(hintTimer);
+    hintTimer = null;
+    if (persist) return;
     hintTimer = setTimeout(() => {
       hint.classList.remove('hud-hint--visible');
     }, HINT_VISIBLE_MS);

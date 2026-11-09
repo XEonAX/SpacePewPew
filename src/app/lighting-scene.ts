@@ -282,7 +282,6 @@ export async function createScene(
   let cargo = 0;
   let bankedCargo = 0;
   let docked = true;
-  let dockingArmed = false;
   // A docked ship sits a little lower into the pad, so it reads smaller.
   let shipDockScale = 0.86;
   let dockStatus: 'docked' | 'docking' | 'flying' = 'docked';
@@ -378,7 +377,26 @@ export async function createScene(
   let devUiVisible = new URLSearchParams(window.location.search).get('dev') === '1';
   document.body.classList.toggle('dev-ui', devUiVisible);
   let lastHintSource = inputState.source;
+  let lastDockHintKey = '';
+  const dockHint = (action: 'dock' | 'undock'): string => {
+    const source = inputState.source;
+    if (source === 'gamepad') {
+      return action === 'dock' ? 'ALIGNED · D-pad ↓ to dock' : 'DOCKED · D-pad ↓ to undock';
+    }
+    if (source === 'touch') {
+      return action === 'dock' ? 'ALIGNED · Tap DOCK to dock' : 'DOCKED · Tap DOCK to undock';
+    }
+    return action === 'dock' ? 'ALIGNED · Press Space to dock' : 'DOCKED · Press Space to undock';
+  };
   const updateHint = (): void => {
+    if (docked) {
+      hud.setHint(dockHint('undock'), true);
+      return;
+    }
+    if (dockingReadout?.aligned) {
+      hud.setHint(dockHint('dock'), true);
+      return;
+    }
     hud.setHint(
       inputState.source === 'gamepad'
         ? gamepadHint(weaponMode, aimMode, soundMuted, miningAimMode)
@@ -727,7 +745,6 @@ export async function createScene(
     if (docked && dockPressed) {
       docked = false;
       undockedThisFrame = true;
-      dockingArmed = false;
       dock.pulse();
       updateHint();
     }
@@ -932,17 +949,8 @@ export async function createScene(
       targetRotationRad: seat.rotation,
     });
     const inApproach = alignment.distanceM <= dock.getApproachRangeM();
-    if (!docked && alignment.distanceM > dock.getApproachRangeM()) dockingArmed = true;
-    if (
-      !docked &&
-      !undockedThisFrame &&
-      dockPressed &&
-      dockingArmed &&
-      inApproach &&
-      alignment.aligned
-    ) {
+    if (!docked && !undockedThisFrame && dockPressed && inApproach && alignment.aligned) {
       docked = true;
-      dockingArmed = false;
       flight.vx = 0;
       flight.vy = 0;
       flight.angularVelocity = 0;
@@ -950,9 +958,14 @@ export async function createScene(
       dock.pulse();
       updateHint();
     }
-    const dockingActive = !docked && dockingArmed && inApproach;
+    const dockingActive = !docked && inApproach;
     dockingReadout = dockingActive ? alignment : null;
     dockStatus = docked ? 'docked' : dockingActive ? 'docking' : 'flying';
+    const dockHintKey = docked ? 'docked' : dockingReadout?.aligned ? 'aligned' : '';
+    if (dockHintKey !== lastDockHintKey) {
+      lastDockHintKey = dockHintKey;
+      updateHint();
+    }
     if (docked && mined > 0) {
       bankedCargo += mining.unloadCargo();
       mined = 0;
