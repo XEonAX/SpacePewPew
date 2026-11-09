@@ -91,8 +91,9 @@ cracked-out piece** and a **larger >180° piece**. Both are baked from the origi
 colliders, drift only a short distance apart with an **immediate gap** and **persist** — no
 physics engine. The
 **molten core sits beneath the shell at the break seam**, exposed through that gap rather than
-painted on the rock surface, and moves with the larger piece. Tab to the mining rig and cut it
-like any other rock. The
+painted on the rock surface, and stays at the seam as the pieces part so it reads as the exposed
+interior. The break opening and core radius scale up with the asteroid, so a hero-sized rock
+opens wide enough to aim at. Tab to the mining rig and cut it like any other rock. The
 shell must be opened with guns first: the mining rig has no target on the intact shell.
 
 ![Initial black crack that must be shot five times](visuals/09-fracture-crack.png)

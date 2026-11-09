@@ -151,6 +151,11 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   const art = asteroid.art;
   const shellCollider = asteroid.collider;
   const metresPerArtPixel = asteroid.diameter / art.color.width;
+  // The authored rock is 5.2 m; scale the break opening/core with bigger art so
+  // the exposed core is actually large enough to aim at and mine.
+  const breakScale = Math.max(1, asteroid.diameter / 5.2);
+  const separationGapM = SEPARATION_GAP_M * breakScale;
+  const coreRadiusM = CORE_RADIUS_M * breakScale;
   const weakPointAngle = options.weakPointAngle ?? 0;
   // Computed once: the same jagged polyline is the crack and both fragment
   // cut edges. No straight wedge is used.
@@ -186,8 +191,6 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   let shellBroken = false;
   let coreActive = false;
   let coreCollider: AsteroidCollider | null = null;
-  let coreOwner: FragmentBody | null = null;
-  let coreLocalOffset: Vec2 = { x: 0, y: 0 };
   let hitCount = 0;
   let lastFrame: FractureFrame | null = null;
 
@@ -217,12 +220,12 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     const cutNormal = { x: Math.cos(weakPointAngle), y: Math.sin(weakPointAngle) };
     // Push each piece half the gap away from the cut immediately, then let the
     // small velocity open it a little further. Damping stops them nearby.
-    const gap = (SEPARATION_GAP_M / 2) * side;
+    const gap = (separationGapM / 2) * side;
     const world = {
       x: shellCollider.x + local.x + cutNormal.x * gap,
       y: shellCollider.y + local.y + cutNormal.y * gap,
     };
-    const speed = 0.55 + index * 0.05;
+    const speed = (0.55 + index * 0.05) * breakScale;
     const tangent = side;
     const angle = shellCollider.rotation + side * 0.06;
     const colliderPoints = plan.polygon.map((point) => ({
@@ -260,16 +263,6 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     asteroid.mesh.mesh.visible = false;
     if (!fracturePlan) return;
     const plans: PolygonFragment[] = [fracturePlan.small, fracturePlan.large];
-    const ownerIndex = plans.reduce(
-      (best, plan, index) => (plan.area > (plans[best]?.area ?? 0) ? index : best),
-      0,
-    );
-    const ownerPlan = plans[ownerIndex];
-    // The larger half owns the core at the original cut seam, beneath the
-    // shell rather than painted on its surface.
-    if (ownerPlan) {
-      coreLocalOffset = { x: -ownerPlan.centroid.x, y: -ownerPlan.centroid.y };
-    }
     plans.forEach((plan, index) => spawnFragment(plan, index, index === 0 ? 1 : -1));
     // zIndex keeps the core below the fragments even though it was added last.
     container.setChildIndex(core, container.children.length - 1);
@@ -280,12 +273,10 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       x: shellCollider.x,
       y: shellCollider.y,
       rotation: 0,
-      points: regularPolygon(CORE_RADIUS_M, 6),
-      radius: CORE_RADIUS_M,
+      points: regularPolygon(coreRadiusM, 6),
+      radius: coreRadiusM,
       ...(asteroid.collider.variant === undefined ? {} : { variant: asteroid.collider.variant }),
     };
-    // The core is embedded in the larger half, not a free-floating third body.
-    coreOwner = fragments[ownerIndex] ?? null;
   };
 
   const updateFragments = (frame: FractureFrame): void => {
@@ -299,14 +290,6 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       fragment.collider.x = fragment.x;
       fragment.collider.y = fragment.y;
       fragment.collider.rotation = fragment.angle;
-
-      if (coreCollider && fragment === coreOwner) {
-        const cos = Math.cos(fragment.angle);
-        const sin = Math.sin(fragment.angle);
-        coreCollider.x = fragment.x + coreLocalOffset.x * cos - coreLocalOffset.y * sin;
-        coreCollider.y = fragment.y + coreLocalOffset.x * sin + coreLocalOffset.y * cos;
-        coreCollider.rotation = fragment.angle;
-      }
 
       const screen = screenPoint(fragment.x, fragment.y, frame);
       const scale = metresPerArtPixel * PIXELS_PER_METER * frame.zoom;
@@ -411,7 +394,7 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     core.visible = true;
     const screen = screenPoint(coreCollider.x, coreCollider.y, frame);
     const pulse = 0.9 + 0.1 * Math.sin(now * 4.5);
-    const radius = Math.max(6, CORE_RADIUS_M * PIXELS_PER_METER * frame.zoom * 0.68);
+    const radius = Math.max(6, coreRadiusM * PIXELS_PER_METER * frame.zoom * 0.68);
     // Drawn beneath the fragments: the shell hides it except where the break
     // gap exposes the interior. It must not read as a disc on the surface.
     core.circle(screen.x, screen.y, radius * 2.8).fill({ color: 0x7c220b, alpha: 0.28 });
