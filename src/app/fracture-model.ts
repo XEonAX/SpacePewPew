@@ -341,3 +341,22 @@ export function planPolylineCut(
     large: { polygon: longPolygon, centroid: largeMetrics.centroid, area: largeMetrics.area },
   };
 }
+
+/** Shortest distance from a point to a closed/open polyline of segments. */
+export function distanceToPolyline(point: Vec2, path: readonly Vec2[]): number {
+  if (path.length === 0) return Number.POSITIVE_INFINITY;
+  let best = Number.POSITIVE_INFINITY;
+  for (let index = 1; index < path.length; index += 1) {
+    const a = path[index - 1]!;
+    const b = path[index]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lengthSquared = dx * dx + dy * dy;
+    const t =
+      lengthSquared < 1e-9
+        ? 0
+        : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared));
+    best = Math.min(best, Math.hypot(point.x - (a.x + dx * t), point.y - (a.y + dy * t)));
+  }
+  return best;
+}

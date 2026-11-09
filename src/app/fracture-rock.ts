@@ -2,15 +2,15 @@ import { CanvasSource, Container, Graphics, Texture } from 'pixi.js';
 import type { AsteroidField } from './asteroid-field';
 import { colliderWorldPoints } from './asteroid-collision';
 import type { AsteroidCollider, Vec2 } from './asteroid-collision';
-import { planPolylineCut } from './fracture-model';
+import { distanceToPolyline, planPolylineCut } from './fracture-model';
 import type { PolygonFragment } from './fracture-model';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState, LitSprite } from './lit-sprite';
 import { PIXELS_PER_METER } from './world-scale';
 
-const SHELL_HITS_TO_BREAK = 3;
-const WEAK_POINT_RADIUS_FRACTION = 0.62;
-const WEAK_POINT_HIT_RADIUS_M = 1.8;
+const SHELL_HITS_TO_BREAK = 5;
+/** How close a bullet hit must land to the black crack line. */
+const CRACK_HIT_RADIUS_M = 0.85;
 const FRAGMENT_DAMPING = 2.2;
 /** Immediate separation so the two cut faces never stay welded together. */
 const SEPARATION_GAP_M = 0.55;
@@ -150,10 +150,6 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   const shellCollider = asteroid.collider;
   const metresPerArtPixel = asteroid.diameter / art.color.width;
   const weakPointAngle = options.weakPointAngle ?? 0;
-  const weakPointLocal = {
-    x: Math.cos(weakPointAngle) * shellCollider.radius * WEAK_POINT_RADIUS_FRACTION,
-    y: Math.sin(weakPointAngle) * shellCollider.radius * WEAK_POINT_RADIUS_FRACTION,
-  };
   // Computed once: the same jagged polyline is the crack and both fragment
   // cut edges. No straight wedge is used.
   const fracturePlan = planPolylineCut(shellCollider.points, weakPointAngle, WEDGE_ANGLE);
@@ -161,8 +157,6 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   const container = new Container();
   container.name = 'fracture';
   container.sortableChildren = true;
-  const marker = new Graphics();
-  marker.zIndex = 20;
   const crack = new Graphics();
   crack.zIndex = 15;
   const crackMask = new Graphics();
@@ -171,7 +165,7 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   const core = new Graphics();
   core.zIndex = -10;
   core.visible = false;
-  container.addChild(marker, crack, crackMask, core);
+  container.addChild(crack, crackMask, core);
 
   const fragments: FragmentBody[] = [];
   let shellBroken = false;
@@ -180,34 +174,12 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   let coreOwner: FragmentBody | null = null;
   let coreLocalOffset: Vec2 = { x: 0, y: 0 };
   let hitCount = 0;
-  let hitFlash = 0;
   let lastFrame: FractureFrame | null = null;
 
-  const weakPointWorld = (): { x: number; y: number } => {
-    const local = rotate(weakPointLocal, shellCollider.rotation);
+  const crackSampleWorld = (): { x: number; y: number } => {
+    const sample = fracturePlan?.cutPath[1] ?? { x: 0, y: 0 };
+    const local = rotate(sample, shellCollider.rotation);
     return { x: shellCollider.x + local.x, y: shellCollider.y + local.y };
-  };
-
-  const drawMarker = (frame: FractureFrame, now: number): void => {
-    marker.clear();
-    if (shellBroken) {
-      marker.visible = false;
-      return;
-    }
-    marker.visible = true;
-    const world = weakPointWorld();
-    const screen = screenPoint(world.x, world.y, frame);
-    const pulse = 0.82 + 0.18 * Math.sin(now * 5.2);
-    const radius = Math.max(11, 1.05 * PIXELS_PER_METER * frame.zoom);
-    const hot = hitFlash > 0;
-    const colour = hot ? 0xffd38a : 0xffb44a;
-    marker
-      .circle(screen.x, screen.y, radius * pulse)
-      .stroke({ color: colour, width: 2, alpha: 0.85 });
-    marker
-      .circle(screen.x, screen.y, radius * 0.55)
-      .stroke({ color: colour, width: 1, alpha: 0.55 });
-    marker.circle(screen.x, screen.y, 3).fill({ color: colour, alpha: 0.95 });
   };
 
   const spawnFragment = (plan: PolygonFragment, index: number, side: number): void => {
@@ -268,7 +240,6 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
 
   const breakShell = (): void => {
     shellBroken = true;
-    marker.visible = false;
     crack.visible = false;
     asteroid.active = false;
     asteroid.mesh.mesh.visible = false;
@@ -333,7 +304,7 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
 
   const drawCrack = (frame: FractureFrame): void => {
     crack.clear();
-    if (shellBroken || hitCount === 0 || !fracturePlan) {
+    if (shellBroken || !fracturePlan) {
       crack.visible = false;
       return;
     }
@@ -350,19 +321,49 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       return screenPoint(shellCollider.x + rotated.x, shellCollider.y + rotated.y, frame);
     });
     if (path.length < 2) return;
-    const stroke = (color: number, width: number, alpha: number): void => {
+
+    const strokeAll = (color: number, width: number, alpha: number): void => {
       crack.moveTo(path[0]!.x, path[0]!.y);
       for (const point of path.slice(1)) crack.lineTo(point.x, point.y);
       crack.stroke({ color, width, alpha });
     };
-    stroke(0x2a0c06, hitCount >= 2 ? 5.5 : 4.5, 0.9);
-    stroke(0xff5a24, hitCount >= 2 ? 3 : 2, hitCount >= 2 ? 0.95 : 0.75);
-    stroke(0xffd08a, 0.9, 0.9);
+    const strokeProgress = (fraction: number): void => {
+      if (fraction <= 0) return;
+      const lengths: number[] = [];
+      let total = 0;
+      for (let index = 1; index < path.length; index += 1) {
+        const a = path[index - 1]!;
+        const b = path[index]!;
+        const length = Math.hypot(b.x - a.x, b.y - a.y);
+        lengths.push(length);
+        total += length;
+      }
+      const target = total * Math.min(1, fraction);
+      let drawn = 0;
+      crack.moveTo(path[0]!.x, path[0]!.y);
+      for (let index = 1; index < path.length; index += 1) {
+        const a = path[index - 1]!;
+        const b = path[index]!;
+        const length = lengths[index - 1] ?? 0;
+        if (drawn + length <= target) {
+          crack.lineTo(b.x, b.y);
+          drawn += length;
+          continue;
+        }
+        const remain = target - drawn;
+        if (remain > 0 && length > 0) {
+          const t = remain / length;
+          crack.lineTo(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
+        }
+        break;
+      }
+      crack.stroke({ color: 0xff5a24, width: 3.2, alpha: 0.95 });
+    };
 
-    const weak = weakPointWorld();
-    const weakScreen = screenPoint(weak.x, weak.y, frame);
-    crack.circle(weakScreen.x, weakScreen.y, Math.max(3, 0.16 * PIXELS_PER_METER * frame.zoom));
-    crack.fill({ color: 0xfff0d0, alpha: 0.9 });
+    // Black crack is always visible and is the shooting hitbox. The orange
+    // section is the progress bar; five hits fill it before the shell splits.
+    strokeAll(0x070504, 5, 0.95);
+    strokeProgress(hitCount / SHELL_HITS_TO_BREAK);
   };
 
   const drawCore = (frame: FractureFrame, now: number): void => {
@@ -390,9 +391,7 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     container,
     update(frame: FractureFrame): void {
       lastFrame = frame;
-      hitFlash = Math.max(0, hitFlash - frame.dt);
-      // The field updates the shell transform; the marker tracks the live pose.
-      drawMarker(frame, frame.now);
+      // The field updates the shell transform; the crack follows the live pose.
       drawCrack(frame);
       updateFragments(frame);
       drawCore(frame, frame.now);
@@ -416,15 +415,17 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       return targets;
     },
     handleBulletHit(blocker: AsteroidCollider, x: number, y: number): void {
-      if (shellBroken || blocker !== shellCollider) return;
-      const weak = weakPointWorld();
-      if (Math.hypot(x - weak.x, y - weak.y) > WEAK_POINT_HIT_RADIUS_M) return;
+      if (shellBroken || blocker !== shellCollider || !fracturePlan) return;
+      const local = rotate(
+        { x: x - shellCollider.x, y: y - shellCollider.y },
+        -shellCollider.rotation,
+      );
+      if (distanceToPolyline(local, fracturePlan.cutPath) > CRACK_HIT_RADIUS_M) return;
       hitCount += 1;
-      hitFlash = 0.35;
       if (hitCount >= SHELL_HITS_TO_BREAK) breakShell();
     },
     getDebug(): FractureDebug {
-      const weak = weakPointWorld();
+      const weak = crackSampleWorld();
       const frame = lastFrame;
       const coreWorld = coreCollider ? { x: coreCollider.x, y: coreCollider.y } : null;
       return {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   convexHull,
+  distanceToPolyline,
   planFragments,
   planPieCut,
   planPolylineCut,
@@ -171,5 +172,22 @@ describe('planPolylineCut', () => {
 
   it('is deterministic', () => {
     expect(planPolylineCut(rock, 0, 1.7)).toEqual(planPolylineCut(rock, 0, 1.7));
+  });
+});
+
+describe('distanceToPolyline', () => {
+  it('measures distance to the nearest segment', () => {
+    expect(
+      distanceToPolyline({ x: 0.5, y: 1 }, [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ]),
+    ).toBeCloseTo(1);
+    expect(
+      distanceToPolyline({ x: 2, y: 0 }, [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ]),
+    ).toBeCloseTo(1);
   });
 });

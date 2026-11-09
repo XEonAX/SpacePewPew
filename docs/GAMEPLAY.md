@@ -80,11 +80,11 @@ straight ahead while the gun battery stays on pointer tracking (and vice versa).
 
 **Asteroids live in the world**, in the same dust layer the ship flies through, so they pan and zoom with the environment; they tumble slowly (0.02–0.06 rad/s) rather than spin. The ship's **centre of mass and the camera start at the world origin**, and the field is a **deterministic scatter of 100 rocks** (seeded) around that origin — here and there, drawn from **ten art variants** (the two supplied rocks plus eight Blender-rendered ones), mostly normal sizes with a few 3x heroes. Placement keeps the **vertical grid axis clear** (no rock edge crosses x = 0) and the ship's spawn bubble empty. Adding more is a single `add(x, y, diameter, variant?)` on the field; every rock gets a collider traced from its own art — a bounding circle for the fast pass and a **convex silhouette polygon that turns with the rock** for the accurate pass — stops tracers, and can be mined (lasers bite the nearest rock their beam hits, tested against that polygon).
 
-**Crackable test rock (prototype).** One authored rock sits ahead-right of the spawn: its amber
-ring is a weak point. In gun mode, three hits on the weak point grow a **hot V-notch crack**,
-clipped to the exact rock silhouette, into the sprite. That crack is the actual cut path: the
-third hit splits the rock along the same **jagged polyline** into a **small cracked-out piece**
-and a **larger >180° piece**. Both are baked from the original art, have their own polygon
+**Crackable test rock (prototype).** One authored rock sits ahead-right of the spawn. It starts
+with a **black jagged crack** clipped to the exact rock silhouette; that black line is the
+shooting hitbox. Five hits fill the crack from **black to orange like a progress bar**. The crack
+is the actual cut path: the fifth hit splits the rock along the same **jagged polyline** into a
+**small cracked-out piece** and a **larger >180° piece**. Both are baked from the original art, have their own polygon
 colliders, drift only a short distance apart with an **immediate gap** and **persist** — no
 physics engine. The
 **molten core sits beneath the shell at the break seam**, exposed through that gap rather than
@@ -92,7 +92,7 @@ painted on the rock surface, and moves with the larger piece. Tab to the mining 
 like any other rock. The
 shell must be opened with guns first: the mining rig has no target on the intact shell.
 
-![V-notch crack growing across the destructible test rock](visuals/09-fracture-crack.png)
+![Initial black crack that must be shot five times](visuals/09-fracture-crack.png)
 
 ![The shell split along the jagged crack into a small piece and the larger core-bearing piece](visuals/10-fracture-wedge.png)
 
