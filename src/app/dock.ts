@@ -10,8 +10,6 @@ const DOCK_PAD_RADIUS_M = 5;
 /** The rear seat target is this far behind the pad centre. */
 const DOCK_SEAT_OFFSET_M = 2;
 const DOCK_APPROACH_RANGE_M = 9;
-/** The station recedes by scaling down, then rises back up on approach. */
-const DOCK_MAX_RECEDE_SCALE = 0.32;
 /** How far the fake shadow slides away as the ship gains altitude. */
 const DOCK_SHADOW_OFFSET_M = 1.5;
 /** Keep a small light-angle offset even when docked so the shadow reads. */
@@ -68,7 +66,6 @@ export function createDock(
 
   const zone = { x: 0, y: 0, radiusM: DOCK_PAD_RADIUS_M };
   let pulse = 0;
-  let recede = 0;
   const worldToScreen = (x: number, y: number, frame: DockFrame): { x: number; y: number } => ({
     x: (x * PIXELS_PER_METER - frame.dustX * frame.width) * frame.zoom + frame.width / 2,
     y: (y * PIXELS_PER_METER - frame.dustY * frame.height) * frame.zoom + frame.height / 2,
@@ -80,15 +77,11 @@ export function createDock(
       zone.x = tuning.xM;
       zone.y = tuning.yM;
       zone.radiusM = DOCK_PAD_RADIUS_M * (tuning.heightM / DEFAULT_DOCK_TUNING.heightM);
-      // With no Z axis, fake the station's distance by scaling it: it recedes
-      // on takeoff and grows back as the ship lines up to land.
-      const recedeTarget = frame.docked ? 0 : Math.min(1, frame.distanceM / DOCK_APPROACH_RANGE_M);
-      recede += (recedeTarget - recede) * Math.min(1, frame.dt * 3.5);
+      // Fixed scale: the station must not zoom with ship movement.
       const visualY = tuning.yM;
-      const recedeScale = 1 - recede * DOCK_MAX_RECEDE_SCALE;
       const scale = (tuning.heightM * PIXELS_PER_METER) / color.height;
-      sprite.mesh.scale.set(scale * frame.zoom * recedeScale);
-      sprite.mesh.alpha = 1 - recede * 0.22;
+      sprite.mesh.scale.set(scale * frame.zoom);
+      sprite.mesh.alpha = 1;
       const dockScreen = worldToScreen(tuning.xM, visualY, frame);
       sprite.mesh.position.set(dockScreen.x, dockScreen.y);
       shadowMask.position.set(dockScreen.x, dockScreen.y);
@@ -116,8 +109,7 @@ export function createDock(
       landingRing.clear();
       if (pulse > 0) {
         const ringPoint = worldToScreen(tuning.xM, visualY, frame);
-        const radius =
-          zone.radiusM * PIXELS_PER_METER * frame.zoom * recedeScale * (1.1 + (1 - pulse));
+        const radius = zone.radiusM * PIXELS_PER_METER * frame.zoom * (1.1 + (1 - pulse));
         landingRing
           .circle(ringPoint.x, ringPoint.y, radius)
           .stroke({ color: 0xffc15c, width: 3, alpha: 0.7 * pulse });

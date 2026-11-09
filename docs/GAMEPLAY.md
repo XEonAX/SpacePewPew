@@ -119,9 +119,8 @@ docking is never automatic. The pill changes to `DOCKING` during the approach an
 `DOCKED` once captured.
 
 With no Z axis, scale carries the height cue. The ship is drawn at **0.86×** while docked (lower
-in the pad) and grows back to **1×** as it rises on undock. The station is full-size when docked
-and recedes to about **0.68×** at the outer approach edge, then grows back as the ship lines up
-to land. The fake ship shadow is attached to the ship, so it flies with it; it is alpha-masked by the station artwork, so it can only fall on the station
+in the pad) and grows back to **1×** as it rises on undock. The station keeps a fixed scale; it does not
+zoom in and out with ship movement. The fake ship shadow is attached to the ship, so it flies with it; it is alpha-masked by the station artwork, so it can only fall on the station
 and never on empty sky. It tightens under the hull
 when docked, then slides down-right, spreads and fades as the ship gains altitude.
 
