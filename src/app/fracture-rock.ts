@@ -1,6 +1,6 @@
 import { CanvasSource, Container, Graphics, Texture } from 'pixi.js';
 import type { AsteroidField } from './asteroid-field';
-import { fanTriangles } from './asteroid-collision';
+import { colliderWorldPoints, fanTriangles } from './asteroid-collision';
 import type { AsteroidCollider, Vec2 } from './asteroid-collision';
 import { planWedgeCut } from './fracture-model';
 import type { FragmentPlan } from './fracture-model';
@@ -164,10 +164,13 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   marker.zIndex = 20;
   const crack = new Graphics();
   crack.zIndex = 15;
+  const crackMask = new Graphics();
+  crackMask.zIndex = -20;
+  crack.mask = crackMask;
   const core = new Graphics();
   core.zIndex = -10;
   core.visible = false;
-  container.addChild(marker, crack, core);
+  container.addChild(marker, crack, crackMask, core);
 
   const fragments: FragmentBody[] = [];
   let shellBroken = false;
@@ -365,6 +368,12 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     };
     const left = ray(weakPointAngle - half, 1.3);
     const right = ray(weakPointAngle + half, 2.8);
+    // Clip both crack faces to the actual rock silhouette.
+    crackMask.clear();
+    const silhouette = colliderWorldPoints(shellCollider).map((point) =>
+      screenPoint(point.x, point.y, frame),
+    );
+    crackMask.poly(silhouette).fill({ color: 0xffffff });
     for (const path of [left, right]) {
       crack.moveTo(path[0]!.x, path[0]!.y);
       for (const point of path.slice(1)) crack.lineTo(point.x, point.y);

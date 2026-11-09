@@ -173,7 +173,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `src/app/fracture-model.ts` — pure fracture planning: monotonic-chain convex hull, a
   deterministic two-piece wedge cut and triangle-region helpers; unit-tested.
 - `src/app/fracture-rock.ts` — one authored destructible test rock: an amber weak point, a
-  growing V-notch crack overlay, and a three-hit shell break. The shell splits into a small
+  growing V-notch crack overlay (clipped to the live collider silhouette), and a three-hit shell
+  break. The shell splits into a small
   cracked-out wedge plus a larger >180° piece with baked fragment textures, separate convex
   colliders and shallow drift/rotation bodies.
   Both pieces get an immediate separation gap, persist and stay close to the break. The molten
