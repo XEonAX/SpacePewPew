@@ -188,7 +188,7 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   const crack = new Graphics();
   crack.zIndex = 15;
   const core = new Graphics();
-  core.zIndex = 10;
+  core.zIndex = 30;
   core.visible = false;
   container.addChild(marker, crack, core);
 
@@ -442,12 +442,15 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     const screen = screenPoint(coreCollider.x, coreCollider.y, frame);
     const pulse = 0.9 + 0.1 * Math.sin(now * 4.5);
     const radius = Math.max(6, CORE_RADIUS_M * PIXELS_PER_METER * frame.zoom * 0.68);
-    // The core itself is baked into the larger fragment's albedo; only the
-    // pulsing heat halo and mining reticle are live overlays.
-    core.circle(screen.x, screen.y, radius * 2.4).fill({ color: 0xff6b35, alpha: 0.04 });
+    // The core is also baked into the larger fragment's albedo, but this live
+    // overlay sits above the pie so the mineable hotspot is never occluded.
+    core.circle(screen.x, screen.y, radius * 2.4).fill({ color: 0xff6b35, alpha: 0.05 });
+    core.circle(screen.x, screen.y, radius * 0.82).fill({ color: 0xe96625, alpha: 0.62 });
+    core.circle(screen.x, screen.y, radius * 0.5).fill({ color: 0xffb45a, alpha: 0.95 });
+    core.circle(screen.x, screen.y, radius * 0.2).fill({ color: 0xfff3d0, alpha: 1 });
     core
       .circle(screen.x, screen.y, radius * (1.05 + 0.08 * pulse))
-      .stroke({ color: 0xffa14a, width: 1, alpha: 0.35 });
+      .stroke({ color: 0xffa14a, width: 1.2, alpha: 0.6 });
   };
 
   return {
