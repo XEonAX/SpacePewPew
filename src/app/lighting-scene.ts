@@ -231,11 +231,11 @@ export async function createScene(
   const asteroidField = createAsteroidField(asteroidArts);
   // One authored destructible test rock: shoot the weak point to open the shell.
   const fracture = createFractureRock(asteroidField, {
-    x: 22,
-    y: -8,
-    diameter: 5.2,
+    x: 0,
+    y: -100,
+    diameter: 18,
     variant: 3,
-    weakPointAngle: Math.atan2(8, -22),
+    weakPointAngle: Math.PI / 2,
   });
   const turrets = createTurrets(turretTexture);
   const bullets = createBullets();
