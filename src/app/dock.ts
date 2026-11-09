@@ -15,7 +15,7 @@ const DOCK_MAX_RECEDE_SCALE = 0.32;
 /** How far the fake shadow slides away as the ship gains altitude. */
 const DOCK_SHADOW_OFFSET_M = 1.5;
 /** Keep a small light-angle offset even when docked so the shadow reads. */
-const DOCK_SHADOW_BASE_OFFSET_M = 1.1;
+const DOCK_SHADOW_BASE_OFFSET_M = 0.25;
 
 export interface DockFrame {
   dustX: number;
