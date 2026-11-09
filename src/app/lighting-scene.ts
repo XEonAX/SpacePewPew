@@ -108,6 +108,8 @@ const IMPACT_SPIN_DAMPING = 1.2;
 const IMPACT_SPIN_LIMIT = 1.2;
 /** Camera shake: hit energy that saturates it, peak offset, and decay. */
 const SHAKE_ENERGY_REFERENCE_J = 90_000;
+/** Keep the whole station footprint clear of field rocks. */
+const STATION_CLEARANCE_M = 22;
 const SHAKE_PEAK_PIXELS = 9;
 /**
  * World art has a fixed pixel scale, chosen so the ship is ~48% of this
@@ -229,11 +231,11 @@ export async function createScene(
   const asteroidField = createAsteroidField(asteroidArts);
   // One authored destructible test rock: shoot the weak point to open the shell.
   const fracture = createFractureRock(asteroidField, {
-    x: 13,
-    y: -5,
+    x: 22,
+    y: -8,
     diameter: 5.2,
     variant: 3,
-    weakPointAngle: Math.atan2(5, -13),
+    weakPointAngle: Math.atan2(8, -22),
   });
   const turrets = createTurrets(turretTexture);
   const bullets = createBullets();
@@ -475,6 +477,7 @@ export async function createScene(
       for (const rock of generateAsteroidLayout({
         count: DEFAULT_ASTEROID_COUNT,
         baseDiameter: rockDiameter,
+        spawnClearanceM: STATION_CLEARANCE_M,
         variantCount: asteroidArts.length,
       })) {
         asteroidField.add(rock.x, rock.y, rock.diameter, rock.variant);
