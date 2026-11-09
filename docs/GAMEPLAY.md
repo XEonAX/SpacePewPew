@@ -107,7 +107,8 @@ gizmo.
 centre and below **2 m/s** and held **CARGO** is transferred into **BANK**; the pad pulses and the
 HUD bank counter rises. The dock is a visual launch/return platform — it has no collision hull.
 With **F1** / `?dev=1`, the **DOCK PLACEMENT** panel exposes live **Dock X**, **Dock Y** and
-**Dock scale** sliders so the station can be seated against the ship without editing code.
+**Dock scale** sliders so the station can be seated against the ship without editing code. The
+current defaults are **X 0 m, Y −2 m, scale 33 m**.
 
 ![Station dock with the ship on its landing pad](visuals/13-dock.png)
 

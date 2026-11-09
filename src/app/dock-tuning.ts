@@ -8,6 +8,6 @@ export interface DockTuning {
 
 export const DEFAULT_DOCK_TUNING: DockTuning = {
   xM: 0,
-  yM: -4.5,
-  heightM: 28,
+  yM: -2,
+  heightM: 33,
 };
