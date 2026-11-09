@@ -176,9 +176,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   growing V-notch crack overlay, and a three-hit shell break. The shell splits into a small
   cracked-out wedge plus a larger >180° piece with baked fragment textures, separate convex
   colliders and shallow drift/rotation bodies.
-  Both pieces persist and stay close to the break. The molten core is baked into the larger
-  piece's albedo, with a live hotspot overlay kept above it so it is never occluded; it is a
-  mining target. No physics engine.
+  Both pieces get an immediate separation gap, persist and stay close to the break. The molten
+  core is baked into the larger piece's albedo, with a live hotspot overlay kept above it so it
+  is never occluded; it is a mining target. No physics engine.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/mining-tuning.ts` — live `MiningTuning` values (melt dwell/spot/cool, focus melt/radius,

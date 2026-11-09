@@ -12,6 +12,8 @@ const SHELL_HITS_TO_BREAK = 3;
 const WEAK_POINT_RADIUS_FRACTION = 0.62;
 const WEAK_POINT_HIT_RADIUS_M = 1.8;
 const FRAGMENT_DAMPING = 2.2;
+/** Immediate separation so the two cut faces never stay welded together. */
+const SEPARATION_GAP_M = 0.55;
 /** Angle of the small cracked-out wedge; the remainder is >180°. */
 const WEDGE_ANGLE = Math.PI * 0.55;
 const CORE_RADIUS_M = 0.95;
@@ -267,11 +269,15 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     container.addChild(fragment);
 
     const local = rotate(plan.centroid, shellCollider.rotation);
-    const world = { x: shellCollider.x + local.x, y: shellCollider.y + local.y };
     const cutNormal = { x: Math.cos(weakPointAngle), y: Math.sin(weakPointAngle) };
-    // Barely enough separation to expose the seam, then damping stops both
-    // pieces nearby. They persist as solid pieces for the rest of the scene.
-    const speed = 0.7 + index * 0.05;
+    // Push each piece half the gap away from the cut immediately, then let the
+    // small velocity open it a little further. Damping stops them nearby.
+    const gap = (SEPARATION_GAP_M / 2) * side;
+    const world = {
+      x: shellCollider.x + local.x + cutNormal.x * gap,
+      y: shellCollider.y + local.y + cutNormal.y * gap,
+    };
+    const speed = 0.55 + index * 0.05;
     const tangent = side;
     const angle = shellCollider.rotation + side * 0.06;
     const colliderPoints = plan.hull.map((point) => ({
