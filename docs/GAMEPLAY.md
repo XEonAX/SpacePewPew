@@ -111,12 +111,13 @@ With **F1** / `?dev=1`, the **DOCK PLACEMENT** panel exposes live **Dock X**, **
 current defaults are **X 0 m, Y −2 m, scale 33 m**.
 
 Docking is a real state, not just proximity. The ship starts **DOCKED**, is flight-locked, and
-the HUD shows a `DOCKED` pill. Press **Space** to undock; the pill switches to `FLIGHT` and the
-ship begins to fly. After leaving the **9 m approach radius**, coming back opens the **DOCKING
-ALIGNMENT** panel with position, heading and speed bars. To dock, all three must be inside their
-thresholds — **1.5 m**, **10°** and **stationary (≤ 0.15 m/s)** — then press **Space** again;
-docking is never automatic. The pill changes to `DOCKING` during the approach and returns to
-`DOCKED` once captured.
+the HUD shows a `DOCKED` pill with a contextual prompt: keyboard/mouse `Press Space to undock`,
+gamepad `D-pad ↓`, touch `DOCK`. Press the dock control to undock. While inside the **9 m
+approach radius**, the **DOCKING ALIGNMENT** panel shows position, heading and speed bars. To
+dock, all three must be inside their thresholds — **1.5 m**, **10°** and **stationary
+(≤ 0.15 m/s)** — then press the dock control again. Docking is never automatic. You can
+alternate dock/undock repeatedly without leaving the radius as long as alignment is kept; the
+pill returns to `DOCKED` on capture.
 
 With no Z axis, scale carries the height cue. The ship is drawn at **0.86×** while docked (lower
 in the pad) and grows back to **1×** as it rises on undock. The station keeps a fixed scale; it does not
