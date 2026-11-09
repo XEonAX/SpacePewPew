@@ -84,8 +84,9 @@ ring is a weak point. In gun mode, three hits on the weak point grow a **hot V-n
 the sprite; the third splits the rock into a **small cracked-out wedge** and a **larger >180°
 piece**. Both are baked from the original art, have their own convex colliders, drift only a
 short distance apart with an **immediate gap** and **persist** — no physics engine. The
-**molten core is baked into the larger piece** and moves with it; a live hotspot overlay stays
-above the pie so it is never occluded. Tab to the mining rig and cut it like any other rock. The
+**molten core sits beneath the shell at the break seam**, exposed through that gap rather than
+painted on the rock surface, and moves with the larger piece. Tab to the mining rig and cut it
+like any other rock. The
 shell must be opened with guns first: the mining rig has no target on the intact shell.
 
 ![V-notch crack growing across the destructible test rock](visuals/09-fracture-crack.png)

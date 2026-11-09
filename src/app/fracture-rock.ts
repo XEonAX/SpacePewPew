@@ -116,7 +116,6 @@ function bakeFragmentArt(
   normal: Texture,
   triangles: readonly (readonly Vec2[])[],
   metresPerArtPixel: number,
-  core: Vec2 | null,
 ): { color: Texture; normal: Texture } {
   const width = color.width;
   const height = color.height;
@@ -142,30 +141,6 @@ function bakeFragmentArt(
     }
     context.fillStyle = '#ffffff';
     context.fill();
-    if (core) {
-      // Bake the exposed core into the larger fragment's own albedo, clipped by
-      // that fragment's alpha. It is literally part of the pie piece.
-      context.globalCompositeOperation = 'source-atop';
-      const coreX = centreX + core.x / metresPerArtPixel;
-      const coreY = centreY + core.y / metresPerArtPixel;
-      const coreRadius = Math.max(2, (CORE_RADIUS_M * 0.68) / metresPerArtPixel);
-      const glow = context.createRadialGradient(
-        coreX,
-        coreY,
-        coreRadius * 0.1,
-        coreX,
-        coreY,
-        coreRadius * 2.4,
-      );
-      glow.addColorStop(0, 'rgba(255, 248, 226, 1)');
-      glow.addColorStop(0.22, 'rgba(255, 198, 105, 1)');
-      glow.addColorStop(0.6, 'rgba(214, 92, 34, 0.95)');
-      glow.addColorStop(1, 'rgba(90, 30, 10, 0)');
-      context.fillStyle = glow;
-      context.beginPath();
-      context.arc(coreX, coreY, coreRadius * 2.4, 0, Math.PI * 2);
-      context.fill();
-    }
     return new Texture({ source: new CanvasSource({ resource: canvas }) });
   };
   return { color: clip(color), normal: clip(normal) };
@@ -190,7 +165,7 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
   const crack = new Graphics();
   crack.zIndex = 15;
   const core = new Graphics();
-  core.zIndex = 30;
+  core.zIndex = -10;
   core.visible = false;
   container.addChild(marker, crack, core);
 
@@ -236,28 +211,12 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     }
   };
 
-  const spawnFragment = (
-    plan: FragmentPlan,
-    index: number,
-    side: number,
-    core: Vec2 | null,
-  ): void => {
+  const spawnFragment = (plan: FragmentPlan, index: number, side: number): void => {
     const centroidArt = {
       x: plan.centroid.x / metresPerArtPixel,
       y: plan.centroid.y / metresPerArtPixel,
     };
-    // Core offsets arrive relative to the fragment centroid; the baked-art
-    // canvas is in the parent rock's local art frame.
-    const coreRockLocal = core
-      ? { x: core.x + plan.centroid.x, y: core.y + plan.centroid.y }
-      : null;
-    const baked = bakeFragmentArt(
-      art.color,
-      art.normal,
-      plan.triangles,
-      metresPerArtPixel,
-      coreRockLocal,
-    );
+    const baked = bakeFragmentArt(art.color, art.normal, plan.triangles, metresPerArtPixel);
     const lit = createLitSprite(baked.color, baked.normal);
     lit.mesh.name = 'fracture-fragment-mesh';
     // The shader geometry is centred on the art texture, so offsetting the
@@ -331,17 +290,14 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
       (best, area, index) => (area > (areas[best] ?? 0) ? index : best),
       0,
     );
-    // The larger half owns the core at its centroid.
-    coreLocalOffset = { x: 0, y: 0 };
-    plans.forEach((plan, index) =>
-      spawnFragment(
-        plan,
-        index,
-        index === 0 ? 1 : -1,
-        index === ownerIndex ? coreLocalOffset : null,
-      ),
-    );
-    // Keep the exposed core above its shards.
+    const ownerPlan = plans[ownerIndex];
+    // The larger half owns the core at the original cut seam, beneath the
+    // shell rather than painted on its surface.
+    if (ownerPlan) {
+      coreLocalOffset = { x: -ownerPlan.centroid.x, y: -ownerPlan.centroid.y };
+    }
+    plans.forEach((plan, index) => spawnFragment(plan, index, index === 0 ? 1 : -1));
+    // zIndex keeps the core below the fragments even though it was added last.
     container.setChildIndex(core, container.children.length - 1);
 
     coreActive = true;
@@ -448,15 +404,15 @@ export function createFractureRock(field: AsteroidField, options: FractureOption
     const screen = screenPoint(coreCollider.x, coreCollider.y, frame);
     const pulse = 0.9 + 0.1 * Math.sin(now * 4.5);
     const radius = Math.max(6, CORE_RADIUS_M * PIXELS_PER_METER * frame.zoom * 0.68);
-    // The core is also baked into the larger fragment's albedo, but this live
-    // overlay sits above the pie so the mineable hotspot is never occluded.
-    core.circle(screen.x, screen.y, radius * 2.4).fill({ color: 0xff6b35, alpha: 0.05 });
-    core.circle(screen.x, screen.y, radius * 0.82).fill({ color: 0xe96625, alpha: 0.62 });
-    core.circle(screen.x, screen.y, radius * 0.5).fill({ color: 0xffb45a, alpha: 0.95 });
-    core.circle(screen.x, screen.y, radius * 0.2).fill({ color: 0xfff3d0, alpha: 1 });
+    // Drawn beneath the fragments: the shell hides it except where the break
+    // gap exposes the interior. It must not read as a disc on the surface.
+    core.circle(screen.x, screen.y, radius * 2.8).fill({ color: 0x7c220b, alpha: 0.28 });
+    core.circle(screen.x, screen.y, radius * 1.9).fill({ color: 0xff5f26, alpha: 0.38 });
+    core.circle(screen.x, screen.y, radius * 1.15).fill({ color: 0xffb34f, alpha: 0.8 });
+    core.circle(screen.x, screen.y, radius * 0.52).fill({ color: 0xfff0c8, alpha: 0.9 });
     core
-      .circle(screen.x, screen.y, radius * (1.05 + 0.08 * pulse))
-      .stroke({ color: 0xffa14a, width: 1.2, alpha: 0.6 });
+      .circle(screen.x, screen.y, radius * (1.35 + 0.08 * pulse))
+      .stroke({ color: 0xff7a33, width: 1, alpha: 0.35 });
   };
 
   return {
