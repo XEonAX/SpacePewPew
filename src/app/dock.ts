@@ -66,6 +66,7 @@ export function createDock(
 
   const zone = { x: 0, y: 0, radiusM: DOCK_PAD_RADIUS_M };
   let pulse = 0;
+  let altitude = 0;
   const worldToScreen = (x: number, y: number, frame: DockFrame): { x: number; y: number } => ({
     x: (x * PIXELS_PER_METER - frame.dustX * frame.width) * frame.zoom + frame.width / 2,
     y: (y * PIXELS_PER_METER - frame.dustY * frame.height) * frame.zoom + frame.height / 2,
@@ -91,9 +92,11 @@ export function createDock(
       // climbs away, and tightens under the hull when docked.
       // The shadow belongs to the ship, not the pad: it follows the ship's
       // ground projection and slides away from it as altitude increases.
-      const height = frame.docked
-        ? 0
-        : Math.min(1, frame.distanceM / Math.max(1, DOCK_APPROACH_RANGE_M));
+      // Altitude follows the dock state, not travel distance: undocking lifts
+      // the shadow immediately even if the ship is still over the pad.
+      const altitudeTarget = frame.docked ? 0 : 1;
+      altitude += (altitudeTarget - altitude) * Math.min(1, frame.dt * 5);
+      const height = altitude;
       const shadowOffset = DOCK_SHADOW_BASE_OFFSET_M + height * DOCK_SHADOW_OFFSET_M;
       const shadowScreen = worldToScreen(
         frame.shipX + shadowOffset,
