@@ -56,8 +56,13 @@ export function createDock(
   const shadow = new Sprite(shipColor);
   shadow.anchor.set(0.5);
   shadow.tint = 0x04070d;
+  // The shadow is only allowed to fall on the station's opaque artwork, never
+  // on the empty sky. The station colour texture is its own alpha mask.
+  const shadowMask = new Sprite(color);
+  shadowMask.anchor.set(0.5);
+  shadow.mask = shadowMask;
   const landingRing = new Graphics();
-  container.addChild(sprite.mesh, shadow, landingRing);
+  container.addChild(sprite.mesh, shadowMask, shadow, landingRing);
 
   const zone = { x: 0, y: 0, radiusM: DOCK_PAD_RADIUS_M };
   let pulse = 0;
