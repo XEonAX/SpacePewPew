@@ -9,7 +9,7 @@
 ![PixiJS v8](https://img.shields.io/badge/PixiJS-v8-ff5fb0)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 ![Vite](https://img.shields.io/badge/Vite-8-646cff)
-![Vitest](https://img.shields.io/badge/tests-219%20passing-brightgreen)
+![Vitest](https://img.shields.io/badge/tests-246%20passing-brightgreen)
 
 ![COLD ROCK: PROSPECT — flying through the asteroid field](https://github.com/user-attachments/assets/e9592e59-5c2c-4676-bb6c-615cdfad6f9d)
 

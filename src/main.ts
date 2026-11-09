@@ -1,6 +1,7 @@
 import './styles.css';
 import type { Application } from 'pixi.js';
 import type { AsteroidCollider } from './app/asteroid-collision';
+import type { FractureDebug } from './app/fracture-rock';
 import { createApp } from './app/create-app';
 import { createScene } from './app/lighting-scene';
 import { AudioManager } from './audio/audio';
@@ -19,6 +20,10 @@ declare global {
       app: Application;
       /** Debug: current asteroid colliders (world metres, local points). */
       getColliders: () => readonly AsteroidCollider[];
+      /** Debug: weak-point/crack state of the destructible test rock. */
+      getFractureDebug: () => FractureDebug;
+      /** Debug: current mining targets (field rocks plus the exposed core). */
+      getMiningTargets: () => readonly AsteroidCollider[];
       /** Debug: current ship pose (world metres/radians) for screenshot staging. */
       getShipPose: () => { x: number; y: number; rotation: number };
       /** Debug: latest merged keyboard/gamepad/touch input snapshot. */
@@ -70,6 +75,8 @@ async function main(): Promise<void> {
       ready: true,
       app,
       getColliders: scene.getColliders,
+      getFractureDebug: scene.getFractureDebug,
+      getMiningTargets: scene.getMiningTargets,
       getShipPose: scene.getShipPose,
       getInputState: scene.getInputState,
       getCameraZoom: scene.getCameraZoom,

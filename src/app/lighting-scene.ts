@@ -43,6 +43,8 @@ import {
 } from './weapons';
 import type { MuzzleAim, PendingShot } from './weapons';
 import { createWeaponTuner } from './weapon-tuner';
+import { createFractureRock } from './fracture-rock';
+import type { FractureDebug } from './fracture-rock';
 import {
   DEFAULT_AIM_MODE,
   DEFAULT_WEAPON_MODE,
@@ -69,6 +71,10 @@ export interface Scene {
   setMuted(muted: boolean): void;
   /** Read-only collider snapshot for the debug gizmo / agent inspection. */
   getColliders(): readonly AsteroidCollider[];
+  /** Debug: weak-point state of the destructible test rock. */
+  getFractureDebug(): FractureDebug;
+  /** Debug: current mining targets (field rocks plus the exposed core). */
+  getMiningTargets(): readonly AsteroidCollider[];
   /** Debug: current ship pose (world metres/radians) for staging screenshots. */
   getShipPose(): { x: number; y: number; rotation: number };
   /** Debug: latest merged input snapshot (keyboard + gamepad + touch). */
@@ -203,6 +209,14 @@ export async function createScene(
     ...generatedAsteroidVariants.map(([color, normal]) => ({ color, normal })),
   ];
   const asteroidField = createAsteroidField(asteroidArts);
+  // One authored destructible test rock: shoot the weak point to open the shell.
+  const fracture = createFractureRock(asteroidField, {
+    x: 6.5,
+    y: -4,
+    diameter: 5.2,
+    variant: 3,
+    weakPointAngle: Math.atan2(4, -6.5),
+  });
   const turrets = createTurrets(turretTexture);
   const bullets = createBullets();
   const miningTuning = createMiningTuning();
@@ -218,6 +232,7 @@ export async function createScene(
     exhaust.flames,
     bullets.container,
     asteroidField.container,
+    fracture.container,
     mining.container,
     colliderGizmo,
   );
@@ -328,6 +343,16 @@ export async function createScene(
       pairCooldowns[index] = cooldown * (0.94 + Math.random() * 0.12);
     }
   };
+
+  /** Field rocks plus the destructible test rock and its shards/core. */
+  const rockColliders = (): readonly AsteroidCollider[] => [
+    ...asteroidField.getColliders(),
+    ...fracture.getColliders(),
+  ];
+  const rockMiningTargets = (): readonly AsteroidCollider[] => [
+    ...asteroidField.getMiningTargets(),
+    ...fracture.getMiningTargets(),
+  ];
 
   const hud = createPlayerHud();
   let devUiVisible = new URLSearchParams(window.location.search).get('dev') === '1';
@@ -541,7 +566,8 @@ export async function createScene(
       width,
       height,
       dt: deltaSeconds,
-      blockers: asteroidField.getColliders(),
+      blockers: rockColliders(),
+      onHit: (blocker, x, y) => fracture.handleBulletHit(blocker, x, y),
     });
 
     exhaust.update({
@@ -611,11 +637,21 @@ export async function createScene(
       height,
       dt: deltaSeconds,
     });
+    fracture.update({
+      dustX: dust.x,
+      dustY: dust.y,
+      zoom: dust.zoom,
+      width,
+      height,
+      dt: deltaSeconds,
+      now: lighting.time,
+    });
   };
 
   const updateLighting = (): void => {
     ship.setLighting(lighting);
     asteroidField.setLighting(asteroidLighting);
+    fracture.setLighting(asteroidLighting);
   };
 
   const tick = (ticker: Ticker): void => {
@@ -732,7 +768,7 @@ export async function createScene(
       let impulseX = 0;
       let impulseY = 0;
       let angularImpulse = 0;
-      for (const rock of asteroidField.getColliders()) {
+      for (const rock of rockColliders()) {
         const collision = resolveShipCollision(pose, shipCollider, rock, body);
         if (!collision.hit) continue;
         pose = {
@@ -809,7 +845,7 @@ export async function createScene(
         vy: flight.vy,
         metresPerShipPixel: shipBaseScale / PIXELS_PER_METER,
       },
-      asteroids: asteroidField.getMiningTargets(),
+      asteroids: rockMiningTargets(),
       muzzles: turrets.getAimPoses(),
       laserFiring: weaponMode === 'mining' && miningFiring(),
       tractorsActive: weaponMode === 'mining',
@@ -953,7 +989,13 @@ export async function createScene(
       updateHint();
     },
     getColliders(): readonly AsteroidCollider[] {
-      return asteroidField.getColliders();
+      return rockColliders();
+    },
+    getFractureDebug(): FractureDebug {
+      return fracture.getDebug();
+    },
+    getMiningTargets(): readonly AsteroidCollider[] {
+      return rockMiningTargets();
     },
     getShipPose(): { x: number; y: number; rotation: number } {
       return { x: flight.x, y: flight.y, rotation: flight.rotation };
@@ -984,6 +1026,7 @@ export async function createScene(
       ground.destroy();
       ship.mesh.destroy({ children: true });
       asteroidField.destroy();
+      fracture.destroy();
       shield.destroy();
       background.destroy();
     },

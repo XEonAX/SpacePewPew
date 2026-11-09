@@ -170,6 +170,12 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   the same small spot melt 1.5× faster. In the final 10% of heat the beam's thickness chatters and
   an outer bloom flickers; `src/app/laser-heat.ts` owns the pure state; HUD heat bars show the two
   barrels, and heat/focus drive the laser pitch plus overheat/re-arm one-shots.
+- `src/app/fracture-model.ts` — pure fracture planning: monotonic-chain convex hull and a
+  deterministic two-piece pie cut of the collider triangles; unit-tested.
+- `src/app/fracture-rock.ts` — one authored destructible test rock: an amber weak point, a
+  growing crack overlay, and a three-hit shell break. The shell splits into two pie-cut halves
+  with baked fragment textures, separate convex colliders and shallow drift/rotation bodies; the
+  exposed molten core becomes a mining target. No physics engine.
 - `src/app/mining-model.ts` — pure reflection, beam-carry, intake-pulse and rotated-rect intake
   math, unit-tested (laser/tracer hit tests are polygon-based in `asteroid-collision.ts`).
 - `src/app/mining-tuning.ts` — live `MiningTuning` values (melt dwell/spot/cool, focus melt/radius,
@@ -197,7 +203,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   world axis kept free of rock edges**. The ship's centre of mass and the camera start at the
   world origin.
 - `src/app/bullets.ts` — pooled 1 m glowing tracers with 200 m range and 50 m fade; a swept
-  test stops them on every asteroid's polygon collider (circle fast pass inside) via `blockers`.
+  test stops them on every asteroid's polygon collider (circle fast pass inside) via `blockers`,
+  and reports the blocker/hit point through `onHit` for destructible-rock damage.
 - `src/app/bullet-math.ts` — pure bullet range/fade math, unit-tested.
 - `src/app/asteroid-collision.ts` — polygon collision math: `AsteroidCollider` (rotating outline
   - bounding radius), **cached fan-triangle compound decomposition** so concave silhouettes are
@@ -216,7 +223,8 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   the curve isolated in `src/app/shield-glow.ts` and unit-tested.
 - `src/app/shield-glow.ts` — pure shield brightness curve: resting α, hit α, afterglow decay,
   breathing and flash clamping, unit-tested in `tests/shield-glow.test.ts`.
-- `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow).
+- `src/app/lit-sprite.ts` — custom normal-map Mesh shader (directional light, emissive/glow);
+  fragments can pass an explicit world rotation so their baked normal maps light correctly.
 - `src/app/background.ts` — layered procedural background (nebulas, galaxies, stars, flares)
   and the smoothed camera that follows the ship.
 - `src/app/background-textures.ts` — one-time deterministic canvas textures for the background.

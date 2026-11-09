@@ -30,6 +30,8 @@ export interface BulletFrame {
   dt: number;
   /** Rock colliders tracers stop on (fast circle pass inside each test). */
   blockers?: readonly AsteroidCollider[];
+  /** Called once when a tracer is stopped, with the hit point in world metres. */
+  onHit?: (blocker: AsteroidCollider, x: number, y: number) => void;
 }
 
 export interface Bullets {
@@ -131,6 +133,7 @@ export function createBullets(): Bullets {
             segmentPolygonHit({ x: previousX, y: previousY }, { x: bullet.x, y: bullet.y }, blocker)
           ) {
             blocked = true;
+            frame.onHit?.(blocker, bullet.x, bullet.y);
             break;
           }
         }

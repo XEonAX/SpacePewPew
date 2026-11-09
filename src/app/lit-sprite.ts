@@ -88,7 +88,7 @@ void main() {
 export interface LitSprite {
   mesh: Mesh<MeshGeometry, Shader>;
   uniforms: UniformGroup;
-  setLighting(state: LightingState): void;
+  setLighting(state: LightingState, rotation?: number): void;
 }
 
 function createEmptyTexture(): Texture {
@@ -169,8 +169,8 @@ export function createLitSprite(
   return {
     mesh,
     uniforms,
-    setLighting(state: LightingState): void {
-      uniforms.uniforms.uRotation = mesh.rotation;
+    setLighting(state: LightingState, rotation?: number): void {
+      uniforms.uniforms.uRotation = rotation ?? mesh.rotation;
       uniforms.uniforms.uTime = state.time;
       uniforms.uniforms.uAmbient = new Float32Array(state.ambient);
       uniforms.uniforms.uKeyDirection = new Float32Array(state.keyDirection);

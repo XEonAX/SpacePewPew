@@ -29,6 +29,10 @@ export interface Asteroid {
   spin: number;
   mesh: LitSprite;
   art: AsteroidArt;
+  /** The rock's live polygon collider (same object as the field's list entry). */
+  collider: AsteroidCollider;
+  /** Broken rocks stay allocated but drop out of collision/mining queries. */
+  active: boolean;
 }
 
 export interface AsteroidFieldFrame {
@@ -194,16 +198,6 @@ export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField
       container.addChild(mesh.mesh);
       // Slow tumble, either direction: rocks are heavy, not pinwheels.
       const spin = randomRange(spinRng, 0.02, 0.06) * (spinRng() > 0.5 ? 1 : -1);
-      const asteroid: Asteroid = {
-        x,
-        y,
-        diameter,
-        spin,
-        mesh,
-        art,
-      };
-      asteroids.push(asteroid);
-
       const template = silhouetteTemplates[artIndex]!;
       const metrePerArtPixel = diameter / art.color.width;
       const points = template.map((point) => ({
@@ -212,12 +206,25 @@ export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField
       }));
       let radius = 0;
       for (const point of points) radius = Math.max(radius, Math.hypot(point.x, point.y));
-      colliders.push({ x, y, rotation: 0, points, radius, variant: artIndex });
+      const collider: AsteroidCollider = { x, y, rotation: 0, points, radius, variant: artIndex };
+      colliders.push(collider);
+      const asteroid: Asteroid = {
+        x,
+        y,
+        diameter,
+        spin,
+        mesh,
+        art,
+        collider,
+        active: true,
+      };
+      asteroids.push(asteroid);
       return asteroid;
     },
     update(frame: AsteroidFieldFrame): void {
       for (let index = 0; index < asteroids.length; index += 1) {
         const asteroid = asteroids[index]!;
+        if (!asteroid.active) continue;
         asteroid.mesh.mesh.rotation += asteroid.spin * frame.dt;
         // The silhouette turns with the art, so the collider rotates too.
         colliders[index]!.rotation = asteroid.mesh.mesh.rotation;
@@ -236,10 +243,10 @@ export function createAsteroidField(arts: readonly AsteroidArt[]): AsteroidField
       for (const asteroid of asteroids) asteroid.mesh.setLighting(state);
     },
     getColliders(): readonly AsteroidCollider[] {
-      return colliders;
+      return colliders.filter((_, index) => asteroids[index]?.active !== false);
     },
     getMiningTargets(): readonly AsteroidCollider[] {
-      return colliders;
+      return colliders.filter((_, index) => asteroids[index]?.active !== false);
     },
     destroy(): void {
       for (const asteroid of asteroids) asteroid.mesh.mesh.destroy({ children: true });
