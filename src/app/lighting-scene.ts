@@ -452,7 +452,9 @@ export async function createScene(
     if (shipPlaced && width === laidOutWidth && height === laidOutHeight) return;
     laidOutWidth = width;
     laidOutHeight = height;
-    const shipScale = Math.min(height * 0.48, width * 0.52) / shipColor.height;
+    // Keep the ship's screen size stable across width changes; only viewport
+    // height scales it. The old width term made narrow windows shrink the hull.
+    const shipScale = (height * 0.48) / shipColor.height;
     const asteroidScale = Math.min(height * 0.44, width * 0.3) / asteroidColor.width;
 
     if (!shipPlaced) {
