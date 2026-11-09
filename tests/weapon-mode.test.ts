@@ -58,9 +58,10 @@ describe('weapon modes', () => {
     expect(gunsMouse).toContain('hold click: fire');
     expect(gunsMouse).toContain('Tab mining');
     expect(gunsMouse).toContain('1 mouse / 2 forward');
+    expect(gunsMouse).toContain('Space dock/undock');
 
     const gunsForward = weaponHint('guns', 'forward', false);
-    expect(gunsForward).toContain('hold Space: fire all weapons');
+    expect(gunsForward).toContain('Space dock/undock');
 
     const mining = weaponHint('mining', 'mouse', false, 7);
     expect(mining).toContain('Tab guns');

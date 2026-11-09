@@ -92,8 +92,9 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
   into a PD turn input (P + D, deadband) so the ship points where the stick points without a
   large overshoot. The scene feeds its output through the normal flight input ramp; gamepad
   triggers supply main/reverse thrust separately. Unit-tested.
-- `src/app/player-hud.ts` — player-facing HUD (brand, weapon/cargo/bank pills, per-barrel laser heat
-  bars, aim reticle and an auto-fading hint line that follows the device actually in use:
+- `src/app/player-hud.ts` — player-facing HUD (brand, weapon/cargo/bank/dock pills, a docking
+  alignment panel with position/heading/speed bars, per-barrel laser heat bars, aim reticle and
+  an auto-fading hint line that follows the device actually in use:
   keyboard/mouse copy, gamepad copy or hidden for touch). The dev tuners/telemetry are hidden by
   default and revealed by **F1** or `?dev=1`; when dev UI is on the player HUD steps out.
 - `src/app/flight-telemetry.ts` — read-only **TELEMETRY** overlay: mass, terminal W/S/yaw,
@@ -200,9 +201,14 @@ behaviour, also run `pnpm browser:inspect` and check the screenshot.
 - `public/assets/lighting/generated/` — eight committed asteroid sprites (`asteroid-gen-NN-color/-normal.webp`)
   rendered offline by `tools/asteroid-gen/`. Loaded with `Assets.load()` in `lighting-scene.ts`;
   there is no runtime asteroid art generation.
-- `src/app/dock.ts` — the authored station dock: a lit sprite on the world/dust layer at the origin,
-  with a circular landing/unloading pad. It is the launch pad under the ship's spawn and pulses
-  when cargo is banked. `src/app/dock-model.ts` holds the pure landing-zone test.
+- `src/app/dock.ts` — the authored station dock: a lit sprite on the world/dust layer, with a
+  landing/unloading pad, a scale-based recede/rise cue (the station shrinks and fades on takeoff,
+  then grows back on approach) and a fake ship silhouette shadow that tightens when docked and fades as the ship climbs away, plus a
+  pulse when cargo is banked. It reports the rear seat target and the
+  approach range. `src/app/dock-alignment.ts` scores position, heading and speed against the
+  docking thresholds; `src/app/dock-model.ts` holds the pure landing-zone test. **Space** is the
+  single dock/undock action: a docked ship is flight-locked, and an aligned stationary ship
+  re-docks only when Space is pressed.
 - `src/app/asteroid-field.ts` — all asteroids live in the **world (dust layer)**: each is a lit
   mesh plus a **two-stage collider** — a bounding circle and a **low-poly silhouette fit**. The
   contour is traced with 128 subpixel rays from the texture centre to the alpha edge, then

@@ -7,11 +7,27 @@ export interface HudAim {
   kind: 'pointer' | 'stick';
 }
 
+export type HudDockStatus = 'docked' | 'docking' | 'flying';
+
+export interface HudDockingState {
+  distanceM: number;
+  headingDeg: number;
+  speedMps: number;
+  speedThresholdMps: number;
+  positionScore: number;
+  headingScore: number;
+  speedScore: number;
+  aligned: boolean;
+}
+
 export interface HudState {
   mode: WeaponMode;
   cargo: number;
   /** Cargo already unloaded at the dock. */
   banked: number;
+  dockStatus: HudDockStatus;
+  /** Populated only while close enough to show docking alignment. */
+  docking: HudDockingState | null;
   /** Per-barrel laser heat, 0..1 plus lockout flag. */
   laserHeat: readonly { heat: number; overheated: boolean }[];
   /** Both barrels are cutting the same small spot. */
@@ -57,7 +73,10 @@ export function createPlayerHud(): PlayerHud {
   bank.className = 'hud-pill';
   bank.innerHTML = 'BANK <b>0</b>';
   const bankValue = bank.querySelector('b');
-  status.append(mode, cargo, bank);
+  const dock = document.createElement('span');
+  dock.className = 'hud-pill hud-pill--dock';
+  dock.textContent = 'DOCKED';
+  status.append(mode, cargo, bank, dock);
 
   const heat = document.createElement('div');
   heat.className = 'hud-heat';
@@ -83,7 +102,35 @@ export function createPlayerHud(): PlayerHud {
   reticle.className = 'hud-reticle';
   reticle.innerHTML = '<i></i>';
 
-  element.append(identity, hint, reticle);
+  const docking = document.createElement('div');
+  docking.className = 'dock-align';
+  const dockingTitle = document.createElement('div');
+  dockingTitle.className = 'dock-align__title';
+  dockingTitle.textContent = 'DOCKING ALIGNMENT';
+  const dockingStatus = document.createElement('div');
+  dockingStatus.className = 'dock-align__status';
+  const dockingRows = [
+    { label: 'POSITION', key: 'position', value: '0.0 m' },
+    { label: 'HEADING', key: 'heading', value: '0°' },
+    { label: 'SPEED', key: 'speed', value: '0.0 m/s' },
+  ].map((spec) => {
+    const row = document.createElement('div');
+    row.className = 'dock-align__row';
+    const label = document.createElement('span');
+    label.className = 'dock-align__label';
+    label.textContent = spec.label;
+    const value = document.createElement('span');
+    value.className = 'dock-align__value';
+    const bar = document.createElement('span');
+    bar.className = 'dock-align__bar';
+    const fill = document.createElement('i');
+    bar.append(fill);
+    row.append(label, value, bar);
+    return { key: spec.key, row, value, fill };
+  });
+  for (const row of dockingRows) docking.append(row.row);
+  docking.append(dockingStatus);
+  element.append(identity, hint, reticle, docking);
   document.body.append(element);
 
   let hintTimer: ReturnType<typeof setTimeout> | null = null;
@@ -103,6 +150,14 @@ export function createPlayerHud(): PlayerHud {
     mode.classList.toggle('hud-pill--mining', mining);
     if (cargoValue) cargoValue.textContent = String(state.cargo);
     if (bankValue) bankValue.textContent = String(state.banked);
+    dock.textContent =
+      state.dockStatus === 'docked'
+        ? 'DOCKED'
+        : state.dockStatus === 'docking'
+          ? 'DOCKING'
+          : 'FLIGHT';
+    dock.classList.toggle('hud-pill--docked', state.dockStatus === 'docked');
+    dock.classList.toggle('hud-pill--docking', state.dockStatus === 'docking');
 
     heat.classList.toggle('hud-heat--hidden', !mining);
     heat.classList.toggle('hud-heat--focus', mining && state.laserFocused);
@@ -123,6 +178,36 @@ export function createPlayerHud(): PlayerHud {
     }
 
     hint.classList.toggle('hud-hint--touch', state.touch);
+
+    const dockState = state.docking;
+    docking.classList.toggle('dock-align--visible', dockState !== null);
+    docking.classList.toggle('dock-align--aligned', dockState?.aligned === true);
+    if (dockState) {
+      const values: Record<string, string> = {
+        position: `${dockState.distanceM.toFixed(1)} m`,
+        heading: `${dockState.headingDeg.toFixed(0)}°`,
+        speed: `${dockState.speedMps.toFixed(1)} m/s`,
+      };
+      const scores: Record<string, number> = {
+        position: dockState.positionScore,
+        heading: dockState.headingScore,
+        speed: dockState.speedScore,
+      };
+      for (const row of dockingRows) {
+        row.value.textContent = values[row.key] ?? '';
+        const score = Math.max(0, Math.min(1, scores[row.key] ?? 0));
+        row.fill.style.transform = `scaleX(${score})`;
+      }
+      if (dockState.aligned) {
+        dockingStatus.textContent = 'ALIGNED · SPACE TO DOCK';
+      } else if (dockState.distanceM > 1.5) {
+        dockingStatus.textContent = 'CENTER ON PAD';
+      } else if (dockState.headingDeg > 10) {
+        dockingStatus.textContent = 'ROTATE TO PAD';
+      } else {
+        dockingStatus.textContent = 'STOP TO DOCK';
+      }
+    }
   };
 
   return {

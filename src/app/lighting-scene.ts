@@ -61,6 +61,8 @@ import { colliderWorldPoints, resolveShipCollision, shipHull } from './asteroid-
 import type { AsteroidCollider, ShipHull, Vec2 } from './asteroid-collision';
 import { createAsteroidField } from './asteroid-field';
 import { createDock } from './dock';
+import { dockAlignment } from './dock-alignment';
+import type { DockAlignmentReadout } from './dock-alignment';
 import { createDockTuner } from './dock-tuner';
 import { DEFAULT_DOCK_TUNING } from './dock-tuning';
 import { DEFAULT_ASTEROID_COUNT, generateAsteroidLayout } from './asteroid-layout';
@@ -204,7 +206,7 @@ export async function createScene(
 
   const ground = createGroundGrid();
   const dockTuning = { ...DEFAULT_DOCK_TUNING };
-  const dock = createDock(dockColor, dockNormal, dockTuning);
+  const dock = createDock(dockColor, dockNormal, dockTuning, shipColor);
   const exhaust = createEngineExhaust();
   const engineAudio = createEngineAudio(audio);
   const miningAudio = createMiningAudio(audio);
@@ -279,6 +281,12 @@ export async function createScene(
   let soundMuted = false;
   let cargo = 0;
   let bankedCargo = 0;
+  let docked = true;
+  let dockingArmed = false;
+  // A docked ship sits a little lower into the pad, so it reads smaller.
+  let shipDockScale = 0.86;
+  let dockStatus: 'docked' | 'docking' | 'flying' = 'docked';
+  let dockingReadout: DockAlignmentReadout | null = null;
   const gunFiring = (): boolean =>
     aimMode === 'mouse' ? inputState.fire : inputState.fireAll || inputState.fire;
   const miningFiring = (): boolean => inputState.fire || inputState.fireAll;
@@ -559,7 +567,7 @@ export async function createScene(
     turrets.update({
       shipScreenX,
       shipScreenY,
-      shipScale: shipBaseScale * dust.zoom,
+      shipScale: shipBaseScale * dust.zoom * shipDockScale,
       rotation: flight.rotation,
       mouseX: aimScreen.x,
       mouseY: aimScreen.y,
@@ -588,7 +596,7 @@ export async function createScene(
       shipScreenX,
       shipScreenY,
       shipBaseScale,
-      shipScale: shipBaseScale * dust.zoom,
+      shipScale: shipBaseScale * dust.zoom * shipDockScale,
       rotation: flight.rotation,
       dustX: dust.x,
       dustY: dust.y,
@@ -607,7 +615,7 @@ export async function createScene(
     engineAudio.update({
       shipScreenX,
       rotation: flight.rotation,
-      shipScale: shipBaseScale * dust.zoom,
+      shipScale: shipBaseScale * dust.zoom * shipDockScale,
       width,
       linearInput: flight.linearInput,
       angularInput: flight.angularInput,
@@ -618,7 +626,7 @@ export async function createScene(
       dt: deltaSeconds,
     });
 
-    ship.mesh.scale.set(shipBaseScale * dust.zoom);
+    ship.mesh.scale.set(shipBaseScale * dust.zoom * shipDockScale);
     ship.mesh.position.set(shipScreenX, shipScreenY);
     ship.mesh.rotation = flight.rotation;
 
@@ -633,7 +641,7 @@ export async function createScene(
       x: shipScreenX,
       y: shipScreenY,
       rotation: flight.rotation,
-      scale: shipBaseScale * dust.zoom,
+      scale: shipBaseScale * dust.zoom * shipDockScale,
       dt: deltaSeconds,
       impact: shieldImpact,
       impactX: (contactDx * contactCos + contactDy * contactSin) / metresPerShipPixel,
@@ -658,6 +666,7 @@ export async function createScene(
       dt: deltaSeconds,
       now: lighting.time,
     });
+    const seat = dock.getSeat();
     dock.update({
       dustX: dust.x,
       dustY: dust.y,
@@ -665,6 +674,12 @@ export async function createScene(
       width,
       height,
       dt: deltaSeconds,
+      shipX: flight.x,
+      shipY: flight.y,
+      shipRotation: flight.rotation,
+      shipScale: shipBaseScale * shipDockScale,
+      docked,
+      distanceM: Math.hypot(flight.x - seat.x, flight.y - seat.y),
     });
   };
 
@@ -679,6 +694,7 @@ export async function createScene(
     const deltaSeconds = Math.min(ticker.deltaMS / 1000, MAX_DELTA_SECONDS);
     lighting.time += deltaSeconds;
     asteroidLighting.time = lighting.time;
+    shipDockScale += ((docked ? 0.86 : 1) - shipDockScale) * Math.min(1, deltaSeconds * 6);
 
     input.update();
     inputState = input.snapshot();
@@ -705,6 +721,31 @@ export async function createScene(
     controls.reverse = false;
     controls.turnLeft = false;
     controls.turnRight = false;
+
+    const dockPressed = input.consumeAction('dock');
+    let undockedThisFrame = false;
+    if (docked && dockPressed) {
+      docked = false;
+      undockedThisFrame = true;
+      dockingArmed = false;
+      dock.pulse();
+      updateHint();
+    }
+    // A docked ship is clamped to the pad: inputs and residual velocity do
+    // nothing until Space releases it.
+    if (docked) {
+      controls.thrustAxis = 0;
+      controls.turnAxis = 0;
+      controls.stabilize = false;
+      controls.forward = false;
+      controls.reverse = false;
+      controls.turnLeft = false;
+      controls.turnRight = false;
+      flight.vx = 0;
+      flight.vy = 0;
+      flight.angularVelocity = 0;
+      impactSpin = 0;
+    }
 
     if (input.consumeAction('toggleDevUi')) {
       devUiVisible = !devUiVisible;
@@ -879,8 +920,40 @@ export async function createScene(
     // Cargo is polled every frame (not just in mining mode) so a delivery that
     // finishes after switching weapons still gets its latch sound.
     let mined = mining.getCargo();
-    const dockCentre = shipCentre();
-    if (mined > 0 && dock.canUnload(dockCentre.x, dockCentre.y, Math.hypot(flight.vx, flight.vy))) {
+    const shipSpeed = Math.hypot(flight.vx, flight.vy);
+    const seat = dock.getSeat();
+    const alignment = dockAlignment({
+      shipX: flight.x,
+      shipY: flight.y,
+      shipRotation: flight.rotation,
+      speedMps: shipSpeed,
+      targetX: seat.x,
+      targetY: seat.y,
+      targetRotationRad: seat.rotation,
+    });
+    const inApproach = alignment.distanceM <= dock.getApproachRangeM();
+    if (!docked && alignment.distanceM > dock.getApproachRangeM()) dockingArmed = true;
+    if (
+      !docked &&
+      !undockedThisFrame &&
+      dockPressed &&
+      dockingArmed &&
+      inApproach &&
+      alignment.aligned
+    ) {
+      docked = true;
+      dockingArmed = false;
+      flight.vx = 0;
+      flight.vy = 0;
+      flight.angularVelocity = 0;
+      impactSpin = 0;
+      dock.pulse();
+      updateHint();
+    }
+    const dockingActive = !docked && dockingArmed && inApproach;
+    dockingReadout = dockingActive ? alignment : null;
+    dockStatus = docked ? 'docked' : dockingActive ? 'docking' : 'flying';
+    if (docked && mined > 0) {
       bankedCargo += mining.unloadCargo();
       mined = 0;
       dock.pulse();
@@ -894,6 +967,19 @@ export async function createScene(
       mode: weaponMode,
       cargo,
       banked: bankedCargo,
+      dockStatus,
+      docking: dockingReadout
+        ? {
+            distanceM: dockingReadout.distanceM,
+            headingDeg: (dockingReadout.headingErrorRad * 180) / Math.PI,
+            speedMps: dockingReadout.speedMps,
+            speedThresholdMps: 0.15,
+            positionScore: dockingReadout.positionScore,
+            headingScore: dockingReadout.headingScore,
+            speedScore: dockingReadout.speedScore,
+            aligned: dockingReadout.aligned,
+          }
+        : null,
       laserHeat: mining.getLaserHeat(),
       laserFocused: mining.getLaserFocus(),
       aim: {

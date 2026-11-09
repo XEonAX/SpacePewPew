@@ -71,7 +71,7 @@ export function weaponHint(
     weaponMode === 'mining'
       ? `W/S thrust · A/D turn · 1 mouse / 2 forward (lasers: ${miningAimMode}) · Tab guns · hold click: mining laser (5 s heat) · tractors auto · cargo: ${cargo} · carry: ${carryMode}`
       : aimMode === 'mouse'
-        ? 'W/S thrust · A/D turn · 1 mouse / 2 forward · Tab mining · hold click: fire'
-        : 'W/S thrust · A/D turn · 1 mouse / 2 forward · Tab mining · hold Space: fire all weapons';
+        ? 'W/S thrust · A/D turn · 1 mouse / 2 forward · Space dock/undock · Tab mining · hold click: fire'
+        : 'W/S thrust · A/D turn · 1 mouse / 2 forward · Space dock/undock · Tab mining · hold click: fire';
   return muted ? `${controls} · sound muted` : `${controls} · M: mute`;
 }

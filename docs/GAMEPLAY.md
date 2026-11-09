@@ -110,6 +110,17 @@ With **F1** / `?dev=1`, the **DOCK PLACEMENT** panel exposes live **Dock X**, **
 **Dock scale** sliders so the station can be seated against the ship without editing code. The
 current defaults are **X 0 m, Y −2 m, scale 33 m**.
 
+Docking is a real state, not just proximity. The ship starts **DOCKED** and the HUD shows a
+`DOCKED` pill. When it leaves the 6 m release radius the pill switches to `FLIGHT`. Coming back
+inside the 9 m approach radius opens the **DOCKING ALIGNMENT** panel with position, heading and
+speed bars. To dock, all three must be inside their thresholds — **1.5 m**, **10°** and
+**stationary (≤ 0.15 m/s)** — and held for **0.45 s**. The pill changes to `DOCKING` during the approach and
+returns to `DOCKED` once captured. With no Z axis, the pad itself provides the distance cue: it
+scales down and fades as the ship takes off (recedes), then scales back up as the ship lines up
+to land. A
+fake ship shadow sits on the pad too: tight and dark when docked, spreading and fading as the
+ship climbs away.
+
 ![Station dock with the ship on its landing pad](visuals/13-dock.png)
 
 **The asteroid is solid.** A collider **gizmo** is hidden by default; press **F2** to overlay it while tuning (green = rock silhouettes and bounding circles, cyan = ship hull bubble). The ship carries a hull-shaped **energy shield** that is both its collision shape and its visual: its outline follows the hull — pointed nose, wing tips, blunt tail — as a convex outline inflated by a bubble radius of 16 % of the hull width (equivalently, capsule segments joined with rounded corners), so the whole ship sits inside it with room over the pointed nose and wing corners. The boundary glows and fades inward, so the edge reads as a surface. At rest the shield is

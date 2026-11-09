@@ -9,6 +9,7 @@ export type InputAction =
   | 'carryMode'
   | 'mute'
   | 'colliders'
+  | 'dock'
   | 'toggleDevUi';
 
 export type InputSource = 'keyboard' | 'gamepad' | 'touch';
@@ -29,7 +30,7 @@ export interface InputSnapshot {
   stabilize: boolean;
   /** Primary trigger: mouse, gamepad RT/A, touch FIRE. */
   fire: boolean;
-  /** Space: fire the whole battery in forward aim mode. */
+  /** Kept for forward-aim compatibility; Space is now dock/undock. */
   fireAll: boolean;
   aim: AimInput;
   /** Left-stick heading demand from a gamepad, separate from touch flight. */
@@ -80,6 +81,7 @@ const ACTION_BY_KEY: Readonly<Record<string, InputAction>> = {
   Digit2: 'aimForward',
   KeyP: 'carryMode',
   KeyM: 'mute',
+  Space: 'dock',
   F1: 'toggleDevUi',
   F2: 'colliders',
 };
@@ -160,13 +162,6 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
     if (action) {
       event.preventDefault();
       if (!event.repeat) pressAction(action);
-      return;
-    }
-    if (event.code === 'Space') {
-      event.preventDefault();
-      source = 'keyboard';
-      keys.add('Space');
-      activity();
       return;
     }
     if (MOVEMENT_KEYS.has(event.code)) {
@@ -495,7 +490,7 @@ export function createInputSystem(options: InputSystemOptions): InputSystem {
       turn,
       stabilize: keys.has('KeyX') || touchStabilize || gamepadStabilize,
       fire: pointerFire || touchFire || gamepadFire,
-      fireAll: keys.has('Space'),
+      fireAll: false,
       aim: { ...aim },
       gamepadHeading: {
         active: gamepadHeadingActive,
