@@ -2,12 +2,13 @@ import { Container, Graphics } from 'pixi.js';
 import type { Texture } from 'pixi.js';
 import { isInDockZone } from './dock-model';
 import type { DockZone } from './dock-model';
+import { DEFAULT_DOCK_TUNING } from './dock-tuning';
+import type { DockTuning } from './dock-tuning';
 import { createLitSprite } from './lit-sprite';
 import type { LightingState } from './lit-sprite';
 import { PIXELS_PER_METER } from './world-scale';
 
-const DOCK_HEIGHT_M = 28;
-const DOCK_PAD_RADIUS_M = 4.5;
+const DOCK_PAD_RADIUS_M = 5;
 const DOCK_MAX_SPEED_MPS = 2;
 
 export interface DockFrame {
@@ -30,7 +31,11 @@ export interface Dock {
   destroy(): void;
 }
 
-export function createDock(color: Texture, normal: Texture): Dock {
+export function createDock(
+  color: Texture,
+  normal: Texture,
+  tuning: DockTuning = DEFAULT_DOCK_TUNING,
+): Dock {
   const container = new Container();
   container.name = 'dock';
   const sprite = createLitSprite(color, normal);
@@ -43,20 +48,24 @@ export function createDock(color: Texture, normal: Texture): Dock {
   return {
     container,
     update(frame: DockFrame): void {
-      const scale = (DOCK_HEIGHT_M * PIXELS_PER_METER) / color.height;
+      zone.x = tuning.xM;
+      zone.y = tuning.yM;
+      zone.radiusM = DOCK_PAD_RADIUS_M * (tuning.heightM / DEFAULT_DOCK_TUNING.heightM);
+      const scale = (tuning.heightM * PIXELS_PER_METER) / color.height;
       sprite.mesh.scale.set(scale * frame.zoom);
       sprite.mesh.position.set(
-        (zone.x * PIXELS_PER_METER - frame.dustX * frame.width) * frame.zoom + frame.width / 2,
-        (zone.y * PIXELS_PER_METER - frame.dustY * frame.height) * frame.zoom + frame.height / 2,
+        (tuning.xM * PIXELS_PER_METER - frame.dustX * frame.width) * frame.zoom + frame.width / 2,
+        (tuning.yM * PIXELS_PER_METER - frame.dustY * frame.height) * frame.zoom + frame.height / 2,
       );
       pulse = Math.max(0, pulse - frame.dt * 1.8);
       landingRing.clear();
       if (pulse > 0) {
         const x =
-          (zone.x * PIXELS_PER_METER - frame.dustX * frame.width) * frame.zoom + frame.width / 2;
+          (tuning.xM * PIXELS_PER_METER - frame.dustX * frame.width) * frame.zoom + frame.width / 2;
         const y =
-          (zone.y * PIXELS_PER_METER - frame.dustY * frame.height) * frame.zoom + frame.height / 2;
-        const radius = DOCK_PAD_RADIUS_M * PIXELS_PER_METER * frame.zoom * (1.1 + (1 - pulse));
+          (tuning.yM * PIXELS_PER_METER - frame.dustY * frame.height) * frame.zoom +
+          frame.height / 2;
+        const radius = zone.radiusM * PIXELS_PER_METER * frame.zoom * (1.1 + (1 - pulse));
         landingRing.circle(x, y, radius).stroke({ color: 0xffc15c, width: 3, alpha: 0.7 * pulse });
       }
     },
@@ -64,6 +73,9 @@ export function createDock(color: Texture, normal: Texture): Dock {
       sprite.setLighting(state);
     },
     canUnload(shipX: number, shipY: number, speedMps: number): boolean {
+      zone.x = tuning.xM;
+      zone.y = tuning.yM;
+      zone.radiusM = DOCK_PAD_RADIUS_M * (tuning.heightM / DEFAULT_DOCK_TUNING.heightM);
       return isInDockZone(shipX, shipY, speedMps, zone, DOCK_MAX_SPEED_MPS);
     },
     pulse(): void {

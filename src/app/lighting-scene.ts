@@ -61,6 +61,8 @@ import { colliderWorldPoints, resolveShipCollision, shipHull } from './asteroid-
 import type { AsteroidCollider, ShipHull, Vec2 } from './asteroid-collision';
 import { createAsteroidField } from './asteroid-field';
 import { createDock } from './dock';
+import { createDockTuner } from './dock-tuner';
+import { DEFAULT_DOCK_TUNING } from './dock-tuning';
 import { DEFAULT_ASTEROID_COUNT, generateAsteroidLayout } from './asteroid-layout';
 import { createShipShield } from './ship-shield';
 import { createInputSystem } from './input-system';
@@ -201,7 +203,8 @@ export async function createScene(
   app.stage.addChild(content);
 
   const ground = createGroundGrid();
-  const dock = createDock(dockColor, dockNormal);
+  const dockTuning = { ...DEFAULT_DOCK_TUNING };
+  const dock = createDock(dockColor, dockNormal, dockTuning);
   const exhaust = createEngineExhaust();
   const engineAudio = createEngineAudio(audio);
   const miningAudio = createMiningAudio(audio);
@@ -992,6 +995,8 @@ export async function createScene(
   const weaponTuner = createWeaponTuner(weaponCooldowns, miningTuning, projectile);
   weaponTuner.setMining(weaponMode === 'mining');
   document.body.append(weaponTuner.element);
+  const dockTuner = createDockTuner(dockTuning);
+  document.body.append(dockTuner.element);
 
   const telemetry = createFlightTelemetry(flight, tuning, () => shipGeometry, {
     cargoHeld: () => mining.getCargo(),
@@ -1039,6 +1044,7 @@ export async function createScene(
       input.destroy();
       flightTuner.destroy();
       weaponTuner.destroy();
+      dockTuner.destroy();
       telemetry.destroy();
       hud.destroy();
       turrets.destroy();

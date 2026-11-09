@@ -567,6 +567,7 @@ body.touch-ui .flight-telemetry {
 
 body:not(.dev-ui) .flight-tuner,
 body:not(.dev-ui) .weapon-tuner,
+body:not(.dev-ui) .dock-tuner,
 body:not(.dev-ui) .flight-telemetry {
   display: none !important;
 }
